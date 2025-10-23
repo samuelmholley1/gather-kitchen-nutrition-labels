@@ -39,19 +39,21 @@ export default function ReviewPage() {
   const [saving, setSaving] = useState(false)
   const [saveProgress, setSaveProgress] = useState('')
   const [autoSearching, setAutoSearching] = useState(false)
+  const [hasAutoSearched, setHasAutoSearched] = useState(false)
 
   // Auto-search USDA for all ingredients on mount
   useEffect(() => {
     const autoSearchUSDA = async () => {
-      if (!parseResult) return
+      if (!parseResult || hasAutoSearched || finalDishIngredients.length === 0) return
       
       setAutoSearching(true)
+      setHasAutoSearched(true) // Prevent re-running
       
       try {
         // Search for final dish ingredients
         const finalPromises = finalDishIngredients.map(async (ing, idx) => {
           try {
-            const response = await fetch(`/api/usda-search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
+            const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
             if (!response.ok) return null
             
             const data = await response.json()
@@ -68,7 +70,7 @@ export default function ReviewPage() {
         const subPromises = subRecipes.flatMap((sub, subIdx) =>
           sub.ingredients.map(async (ing, ingIdx) => {
             try {
-              const response = await fetch(`/api/usda-search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
+              const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
               if (!response.ok) return null
               
               const data = await response.json()
@@ -115,10 +117,8 @@ export default function ReviewPage() {
       }
     }
     
-    if (finalDishIngredients.length > 0 && !autoSearching) {
-      autoSearchUSDA()
-    }
-  }, [parseResult]) // Only run once when parseResult is loaded
+    autoSearchUSDA()
+  }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
   useEffect(() => {
     // Load parsed recipe from sessionStorage
