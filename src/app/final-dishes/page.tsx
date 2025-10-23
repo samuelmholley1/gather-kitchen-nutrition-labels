@@ -91,19 +91,41 @@ export default function FinalDishesPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-4xl font-bold text-gray-900">
-              Final Dishes
-            </h1>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Final Dishes
+              </h1>
+              <p className="text-gray-600">
+                Complete menu items with FDA-compliant nutrition labels
+              </p>
+            </div>
             <Link
               href="/final-dishes/new"
-              className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+              className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-lg flex items-center gap-2"
             >
-              + Create Final Dish
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create Final Dish
             </Link>
           </div>
-          <p className="text-gray-600">
-            Complete menu items with FDA-compliant nutrition labels
-          </p>
+
+          {/* Quick Links */}
+          <div className="flex gap-3">
+            <Link
+              href="/"
+              className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+            >
+              ← Home
+            </Link>
+            <span className="text-gray-400">|</span>
+            <Link
+              href="/sub-recipes"
+              className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+            >
+              Sub-Recipes
+            </Link>
+          </div>
         </div>
 
         {/* Search & Filter */}
