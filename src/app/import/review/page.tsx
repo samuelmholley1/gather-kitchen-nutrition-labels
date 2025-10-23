@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import MobileRestrict from '@/components/MobileRestrict'
 import IngredientSearch from '@/components/IngredientSearch'
 import { SmartParseResult } from '@/lib/smartRecipeParser'
 import { USDAFood } from '@/types/liturgist'
@@ -168,9 +169,10 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <Header />
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+    <MobileRestrict>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -354,7 +356,8 @@ export default function ReviewPage() {
             )}
           </button>
         </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </MobileRestrict>
   )
 }

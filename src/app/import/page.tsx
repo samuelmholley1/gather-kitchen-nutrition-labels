@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import MobileRestrict from '@/components/MobileRestrict'
 import { parseSmartRecipe, SmartParseResult } from '@/lib/smartRecipeParser'
+import { validateRecipeTextLength } from '@/lib/security'
 
 export default function RecipeImporterPage() {
   const router = useRouter()
@@ -13,6 +15,13 @@ export default function RecipeImporterPage() {
   const handleParse = () => {
     if (!recipeText.trim()) {
       alert('Please paste a recipe first')
+      return
+    }
+
+    // Validate recipe length
+    const validation = validateRecipeTextLength(recipeText)
+    if (!validation.valid) {
+      alert(validation.error)
       return
     }
 
@@ -27,9 +36,10 @@ export default function RecipeImporterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <Header />
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+    <MobileRestrict>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -150,7 +160,8 @@ Chicken Tacos
             Final Dishes
           </button>
         </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </MobileRestrict>
   )
 }
