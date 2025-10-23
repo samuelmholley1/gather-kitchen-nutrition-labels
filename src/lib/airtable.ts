@@ -1,11 +1,11 @@
 import Airtable from 'airtable'
 
-// Initialize Airtable with PAT token
+// Initialize Airtable with PAT token (gracefully handle missing env vars for build)
 const airtable = new Airtable({
-  apiKey: process.env.AIRTABLE_PAT_TOKEN,
+  apiKey: process.env.AIRTABLE_PAT_TOKEN || 'placeholder_for_build',
 })
 
-const base = airtable.base(process.env.AIRTABLE_BASE_ID || '')
+const base = airtable.base(process.env.AIRTABLE_BASE_ID || 'appPlaceholder')
 const table = base(process.env.AIRTABLE_TABLE_NAME || 'liturgists.ukiahumc.org')
 
 export interface SignupData {
