@@ -27,6 +27,10 @@ dist-ssr
 build
 .env*.local
 
+# Secrets and credentials (NEVER commit these!)
+CREDENTIALS.md
+.env.local
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
