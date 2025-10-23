@@ -54,14 +54,19 @@ export default function ReviewPage() {
         const finalPromises = finalDishIngredients.map(async (ing, idx) => {
           try {
             const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
-            if (!response.ok) return null
+            if (!response.ok) {
+              console.error(`USDA search failed for "${ing.ingredient}":`, response.status, response.statusText)
+              return null
+            }
             
             const data = await response.json()
-            if (data.foods && data.foods.length > 0) {
+            if (data.success && data.foods && data.foods.length > 0) {
               return { idx, food: data.foods[0], type: 'final' as const }
+            } else {
+              console.warn(`No USDA results for "${ing.ingredient}" (query: "${ing.searchQuery}")`)
             }
           } catch (error) {
-            console.error(`Failed to auto-search for ${ing.ingredient}:`, error)
+            console.error(`Failed to auto-search for "${ing.ingredient}":`, error)
           }
           return null
         })
@@ -71,14 +76,19 @@ export default function ReviewPage() {
           sub.ingredients.map(async (ing, ingIdx) => {
             try {
               const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
-              if (!response.ok) return null
+              if (!response.ok) {
+                console.error(`USDA search failed for "${ing.ingredient}":`, response.status, response.statusText)
+                return null
+              }
               
               const data = await response.json()
-              if (data.foods && data.foods.length > 0) {
+              if (data.success && data.foods && data.foods.length > 0) {
                 return { subIdx, ingIdx, food: data.foods[0], type: 'sub' as const }
+              } else {
+                console.warn(`No USDA results for "${ing.ingredient}" (query: "${ing.searchQuery}")`)
               }
             } catch (error) {
-              console.error(`Failed to auto-search for ${ing.ingredient}:`, error)
+              console.error(`Failed to auto-search for "${ing.ingredient}":`, error)
             }
             return null
           })
@@ -97,13 +107,13 @@ export default function ReviewPage() {
             newFinalIngredients[result.idx] = {
               ...newFinalIngredients[result.idx],
               usdaFood: result.food,
-              confirmed: false // Not confirmed yet, just proposed
+              confirmed: true // Auto-confirm found matches
             }
           } else {
             newSubRecipes[result.subIdx].ingredients[result.ingIdx] = {
               ...newSubRecipes[result.subIdx].ingredients[result.ingIdx],
               usdaFood: result.food,
-              confirmed: false
+              confirmed: true // Auto-confirm found matches
             }
           }
         })
@@ -425,59 +435,39 @@ export default function ReviewPage() {
                   <div className="font-medium text-gray-900">
                     {ing.quantity} {ing.unit} {ing.ingredient}
                   </div>
-                  {ing.usdaFood ? (
-                    <div className="text-sm text-blue-700 mt-1 font-medium">
-                      {ing.confirmed ? '✓ ' : '💡 Proposed: '}{ing.usdaFood.description}
-                    </div>
-                  ) : autoSearching ? (
-                    <div className="text-sm text-gray-500 mt-1">
+                  {autoSearching ? (
+                    <div className="text-sm text-gray-500 mt-1 animate-pulse">
                       🔍 Searching USDA database...
                     </div>
+                  ) : ing.usdaFood ? (
+                    <div className="text-sm text-green-700 mt-1 font-medium">
+                      ✓ Selected: {ing.usdaFood.description}
+                    </div>
                   ) : (
-                    <div className="text-sm text-amber-700 mt-1">
-                      ⚠ No USDA match found
+                    <div className="text-sm text-red-600 mt-1 font-medium">
+                      ❌ No match found - please search manually
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  {ing.usdaFood && !ing.confirmed ? (
-                    // Show Accept button for proposed matches
-                    <>
-                      <button
-                        onClick={() => {
-                          const updated = [...finalDishIngredients]
-                          updated[idx] = { ...updated[idx], confirmed: true }
-                          setFinalDishIngredients(updated)
-                        }}
-                        className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
-                      >
-                        ✓ Accept
-                      </button>
+                {!autoSearching && (
+                  <div className="flex gap-2">
+                    {ing.usdaFood ? (
+                      // Has a match - show Change button (already auto-confirmed)
                       <button
                         onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
                         className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
                       >
                         ✏️ Change
                       </button>
-                    </>
-                  ) : ing.confirmed ? (
-                    // Show Change button for confirmed matches
-                    <button
-                      onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
-                      className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
-                    >
-                      ✏️ Change
-                    </button>
-                  ) : (
-                    // Show Select USDA button if no match found
-                    <button
-                      onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
-                      className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
-                    >
-                      Select USDA
-                    </button>
-                  )}
-                  {!ing.confirmed && (
+                    ) : (
+                      // No match - show Select button
+                      <button
+                        onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
+                        className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
+                      >
+                        🔍 Search USDA
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         if (confirm(`Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`)) {
@@ -491,8 +481,8 @@ export default function ReviewPage() {
                     >
                       Skip
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -515,62 +505,39 @@ export default function ReviewPage() {
                     <div className="font-medium text-gray-900">
                       {ing.quantity} {ing.unit} {ing.ingredient}
                     </div>
-                    {ing.usdaFood ? (
-                      <div className="text-sm text-blue-700 mt-1 font-medium">
-                        {ing.confirmed ? '✓ ' : '💡 Proposed: '}{ing.usdaFood.description}
-                      </div>
-                    ) : autoSearching ? (
-                      <div className="text-sm text-gray-500 mt-1">
+                    {autoSearching ? (
+                      <div className="text-sm text-gray-500 mt-1 animate-pulse">
                         🔍 Searching USDA database...
                       </div>
+                    ) : ing.usdaFood ? (
+                      <div className="text-sm text-green-700 mt-1 font-medium">
+                        ✓ Selected: {ing.usdaFood.description}
+                      </div>
                     ) : (
-                      <div className="text-sm text-amber-700 mt-1">
-                        ⚠ No USDA match found
+                      <div className="text-sm text-red-600 mt-1 font-medium">
+                        ❌ No match found - please search manually
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    {ing.usdaFood && !ing.confirmed ? (
-                      // Show Accept button for proposed matches
-                      <>
-                        <button
-                          onClick={() => {
-                            const updated = [...subRecipes]
-                            updated[subIdx].ingredients[ingIdx] = { 
-                              ...updated[subIdx].ingredients[ingIdx], 
-                              confirmed: true 
-                            }
-                            setSubRecipes(updated)
-                          }}
-                          className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
-                        >
-                          ✓ Accept
-                        </button>
+                  {!autoSearching && (
+                    <div className="flex gap-2">
+                      {ing.usdaFood ? (
+                        // Has a match - show Change button (already auto-confirmed)
                         <button
                           onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
                           className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
                         >
                           ✏️ Change
                         </button>
-                      </>
-                    ) : ing.confirmed ? (
-                      // Show Change button for confirmed matches
-                      <button
-                        onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
-                        className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
-                      >
-                        ✏️ Change
-                      </button>
-                    ) : (
-                      // Show Select USDA button if no match found
-                      <button
-                        onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
-                        className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
-                      >
-                        Select USDA
-                      </button>
-                    )}
-                    {!ing.confirmed && (
+                      ) : (
+                        // No match - show Select button
+                        <button
+                          onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
+                          className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
+                        >
+                          🔍 Search USDA
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           if (confirm(`Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`)) {
@@ -588,8 +555,8 @@ export default function ReviewPage() {
                       >
                         Skip
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
