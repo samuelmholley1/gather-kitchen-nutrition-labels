@@ -352,21 +352,54 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
 
 /**
  * Clean ingredient name for better USDA search results
- * Removes common descriptors to get better matches
+ * Removes common descriptors and sanitizes special characters
+ * Handles: slashes, parentheses, quotes, commas, ampersands, symbols, Unicode, etc.
  */
 export function cleanIngredientForUSDASearch(ingredient: string): string {
+  // Validate input
+  if (!ingredient || typeof ingredient !== 'string') {
+    return ''
+  }
+  
   // Remove common descriptors and clean up special characters
   const cleaned = ingredient
     .toLowerCase()
+    // Remove trademark/registered symbols
+    .replace(/[™®©]/g, '')
+    // Remove parentheses/brackets and their contents
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\{[^}]*\}/g, '')
     // Replace forward slashes with spaces (e.g., "boneless/skinless" → "boneless skinless")
     .replace(/\//g, ' ')
-    // Remove parentheses and their contents
-    .replace(/\([^)]*\)/g, '')
+    // Replace ampersands with "and"
+    .replace(/\s*&\s*/g, ' and ')
+    // Replace em dashes and en dashes with spaces
+    .replace(/[—–]/g, ' ')
+    // Remove commas (often used in reversed names like "chicken, boneless")
+    .replace(/,/g, ' ')
+    // Remove quotes (both straight and curly)
+    .replace(/["""''']/g, '')
+    // Remove special symbols that don't add meaning
+    .replace(/[+*#@!?°%]/g, ' ')
+    // Remove periods (except in decimal numbers)
+    .replace(/\.(?!\d)/g, ' ')
     // Remove common cooking descriptors
-    .replace(/\b(fresh|raw|cooked|dried|frozen|canned|chopped|diced|minced|sliced|shredded|grated|julienned|peddled)\b/g, '')
-    // Collapse multiple spaces
+    .replace(/\b(fresh|raw|cooked|dried|frozen|canned|chopped|diced|minced|sliced|shredded|grated|julienned|peddled|organic|free-range|grass-fed|wild-caught|extra|virgin|pure|natural|whole|part-skim|low-fat|non-fat|reduced-fat|unsalted|salted|sweetened|unsweetened)\b/g, '')
+    // Collapse multiple spaces and hyphens
     .replace(/\s+/g, ' ')
+    .replace(/-+/g, '-')
     .trim()
   
-  return cleaned || ingredient
+  // If cleaning resulted in empty string, return original (lowercase, trimmed)
+  const result = cleaned || ingredient.toLowerCase().trim()
+  
+  // Truncate very long queries (URL length limits)
+  const MAX_QUERY_LENGTH = 200
+  if (result.length > MAX_QUERY_LENGTH) {
+    console.warn(`[USDA] Truncating long query from ${result.length} to ${MAX_QUERY_LENGTH} chars`)
+    return result.substring(0, MAX_QUERY_LENGTH).trim()
+  }
+  
+  return result
 }

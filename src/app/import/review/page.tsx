@@ -52,6 +52,12 @@ export default function ReviewPage() {
       try {
         // Search for final dish ingredients
         const finalPromises = finalDishIngredients.map(async (ing, idx) => {
+          // Skip if search query is empty or invalid
+          if (!ing.searchQuery || ing.searchQuery.trim().length === 0) {
+            console.warn(`[USDA] Skipping empty query for "${ing.ingredient}"`)
+            return null
+          }
+          
           try {
             const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
             if (!response.ok) {
@@ -74,6 +80,12 @@ export default function ReviewPage() {
         // Search for sub-recipe ingredients
         const subPromises = subRecipes.flatMap((sub, subIdx) =>
           sub.ingredients.map(async (ing, ingIdx) => {
+            // Skip if search query is empty or invalid
+            if (!ing.searchQuery || ing.searchQuery.trim().length === 0) {
+              console.warn(`[USDA] Skipping empty query for "${ing.ingredient}"`)
+              return null
+            }
+            
             try {
               const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
               if (!response.ok) {
@@ -85,10 +97,25 @@ export default function ReviewPage() {
               if (data.success && data.foods && data.foods.length > 0) {
                 return { subIdx, ingIdx, food: data.foods[0], type: 'sub' as const }
               } else {
-                console.warn(`No USDA results for "${ing.ingredient}" (query: "${ing.searchQuery}")`)
+                console.warn(`[USDA] No results for "${ing.ingredient}"`)
+                console.warn(`  - Cleaned query: "${ing.searchQuery}"`)
+                console.warn(`  - Original: "${ing.ingredient}"`)
               }
             } catch (error) {
-              console.error(`Failed to auto-search for "${ing.ingredient}":`, error)
+              // Enhanced error logging for debugging
+              if (error instanceof Error) {
+                console.error(`[USDA] Search failed for "${ing.ingredient}":`, error.message)
+                console.error(`  - Cleaned query: "${ing.searchQuery}"`)
+                if (error.message.includes('500')) {
+                  console.error(`  - ⚠️ Server error - possible special character issue`)
+                } else if (error.message.includes('timeout')) {
+                  console.error(`  - ⚠️ Request timed out after 10 seconds`)
+                } else if (error.message.includes('400')) {
+                  console.error(`  - ⚠️ Bad request - query may be malformed`)
+                }
+              } else {
+                console.error(`[USDA] Unknown error for "${ing.ingredient}":`, error)
+              }
             }
             return null
           })
@@ -441,7 +468,7 @@ export default function ReviewPage() {
                     </div>
                   ) : ing.usdaFood ? (
                     <div className="text-sm text-green-700 mt-1 font-medium">
-                      ✓ Selected: {ing.usdaFood.description}
+                      ✓ USDA Match Selected: {ing.usdaFood.description}
                     </div>
                   ) : (
                     <div className="text-sm text-red-600 mt-1 font-medium">
@@ -511,7 +538,7 @@ export default function ReviewPage() {
                       </div>
                     ) : ing.usdaFood ? (
                       <div className="text-sm text-green-700 mt-1 font-medium">
-                        ✓ Selected: {ing.usdaFood.description}
+                        ✓ USDA Match Selected: {ing.usdaFood.description}
                       </div>
                     ) : (
                       <div className="text-sm text-red-600 mt-1 font-medium">
