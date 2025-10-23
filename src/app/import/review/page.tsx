@@ -38,6 +38,87 @@ export default function ReviewPage() {
   } | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveProgress, setSaveProgress] = useState('')
+  const [autoSearching, setAutoSearching] = useState(false)
+
+  // Auto-search USDA for all ingredients on mount
+  useEffect(() => {
+    const autoSearchUSDA = async () => {
+      if (!parseResult) return
+      
+      setAutoSearching(true)
+      
+      try {
+        // Search for final dish ingredients
+        const finalPromises = finalDishIngredients.map(async (ing, idx) => {
+          try {
+            const response = await fetch(`/api/usda-search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
+            if (!response.ok) return null
+            
+            const data = await response.json()
+            if (data.foods && data.foods.length > 0) {
+              return { idx, food: data.foods[0], type: 'final' as const }
+            }
+          } catch (error) {
+            console.error(`Failed to auto-search for ${ing.ingredient}:`, error)
+          }
+          return null
+        })
+        
+        // Search for sub-recipe ingredients
+        const subPromises = subRecipes.flatMap((sub, subIdx) =>
+          sub.ingredients.map(async (ing, ingIdx) => {
+            try {
+              const response = await fetch(`/api/usda-search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
+              if (!response.ok) return null
+              
+              const data = await response.json()
+              if (data.foods && data.foods.length > 0) {
+                return { subIdx, ingIdx, food: data.foods[0], type: 'sub' as const }
+              }
+            } catch (error) {
+              console.error(`Failed to auto-search for ${ing.ingredient}:`, error)
+            }
+            return null
+          })
+        )
+        
+        const allResults = await Promise.all([...finalPromises, ...subPromises])
+        
+        // Update state with proposed matches
+        const newFinalIngredients = [...finalDishIngredients]
+        const newSubRecipes = JSON.parse(JSON.stringify(subRecipes))
+        
+        allResults.forEach(result => {
+          if (!result) return
+          
+          if (result.type === 'final') {
+            newFinalIngredients[result.idx] = {
+              ...newFinalIngredients[result.idx],
+              usdaFood: result.food,
+              confirmed: false // Not confirmed yet, just proposed
+            }
+          } else {
+            newSubRecipes[result.subIdx].ingredients[result.ingIdx] = {
+              ...newSubRecipes[result.subIdx].ingredients[result.ingIdx],
+              usdaFood: result.food,
+              confirmed: false
+            }
+          }
+        })
+        
+        setFinalDishIngredients(newFinalIngredients)
+        setSubRecipes(newSubRecipes)
+      } catch (error) {
+        console.error('Auto-search failed:', error)
+      } finally {
+        setAutoSearching(false)
+      }
+    }
+    
+    if (finalDishIngredients.length > 0 && !autoSearching) {
+      autoSearchUSDA()
+    }
+  }, [parseResult]) // Only run once when parseResult is loaded
 
   useEffect(() => {
     // Load parsed recipe from sessionStorage
@@ -345,26 +426,57 @@ export default function ReviewPage() {
                     {ing.quantity} {ing.unit} {ing.ingredient}
                   </div>
                   {ing.usdaFood ? (
-                    <div className="text-sm text-green-700 mt-1">
-                      ✓ Matched: {ing.usdaFood.description}
+                    <div className="text-sm text-blue-700 mt-1 font-medium">
+                      {ing.confirmed ? '✓ ' : '💡 Proposed: '}{ing.usdaFood.description}
+                    </div>
+                  ) : autoSearching ? (
+                    <div className="text-sm text-gray-500 mt-1">
+                      🔍 Searching USDA database...
                     </div>
                   ) : (
                     <div className="text-sm text-amber-700 mt-1">
-                      ⚠ No USDA match yet
+                      ⚠ No USDA match found
                     </div>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      ing.confirmed
-                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
-                        : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
-                    }`}
-                  >
-                    {ing.confirmed ? '✏️ Change' : 'Select USDA'}
-                  </button>
+                  {ing.usdaFood && !ing.confirmed ? (
+                    // Show Accept button for proposed matches
+                    <>
+                      <button
+                        onClick={() => {
+                          const updated = [...finalDishIngredients]
+                          updated[idx] = { ...updated[idx], confirmed: true }
+                          setFinalDishIngredients(updated)
+                        }}
+                        className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
+                      >
+                        ✓ Accept
+                      </button>
+                      <button
+                        onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
+                        className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
+                      >
+                        ✏️ Change
+                      </button>
+                    </>
+                  ) : ing.confirmed ? (
+                    // Show Change button for confirmed matches
+                    <button
+                      onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
+                      className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
+                    >
+                      ✏️ Change
+                    </button>
+                  ) : (
+                    // Show Select USDA button if no match found
+                    <button
+                      onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
+                      className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
+                    >
+                      Select USDA
+                    </button>
+                  )}
                   {!ing.confirmed && (
                     <button
                       onClick={() => {
@@ -404,26 +516,60 @@ export default function ReviewPage() {
                       {ing.quantity} {ing.unit} {ing.ingredient}
                     </div>
                     {ing.usdaFood ? (
-                      <div className="text-sm text-green-700 mt-1">
-                        ✓ Matched: {ing.usdaFood.description}
+                      <div className="text-sm text-blue-700 mt-1 font-medium">
+                        {ing.confirmed ? '✓ ' : '💡 Proposed: '}{ing.usdaFood.description}
+                      </div>
+                    ) : autoSearching ? (
+                      <div className="text-sm text-gray-500 mt-1">
+                        🔍 Searching USDA database...
                       </div>
                     ) : (
                       <div className="text-sm text-amber-700 mt-1">
-                        ⚠ No USDA match yet
+                        ⚠ No USDA match found
                       </div>
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        ing.confirmed
-                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
-                          : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
-                      }`}
-                    >
-                      {ing.confirmed ? '✏️ Change' : 'Select USDA'}
-                    </button>
+                    {ing.usdaFood && !ing.confirmed ? (
+                      // Show Accept button for proposed matches
+                      <>
+                        <button
+                          onClick={() => {
+                            const updated = [...subRecipes]
+                            updated[subIdx].ingredients[ingIdx] = { 
+                              ...updated[subIdx].ingredients[ingIdx], 
+                              confirmed: true 
+                            }
+                            setSubRecipes(updated)
+                          }}
+                          className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
+                        >
+                          ✓ Accept
+                        </button>
+                        <button
+                          onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
+                          className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
+                        >
+                          ✏️ Change
+                        </button>
+                      </>
+                    ) : ing.confirmed ? (
+                      // Show Change button for confirmed matches
+                      <button
+                        onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
+                        className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors border border-blue-300"
+                      >
+                        ✏️ Change
+                      </button>
+                    ) : (
+                      // Show Select USDA button if no match found
+                      <button
+                        onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
+                        className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-medium transition-colors shadow-sm"
+                      >
+                        Select USDA
+                      </button>
+                    )}
                     {!ing.confirmed && (
                       <button
                         onClick={() => {
