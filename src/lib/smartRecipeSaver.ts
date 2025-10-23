@@ -6,6 +6,44 @@
 import { Ingredient, NutrientProfile } from '@/types/liturgist'
 import { calculateNutritionProfile, convertToGrams } from './calculator'
 
+/**
+ * Better fallback for unknown units
+ * Uses reasonable estimates based on unit type instead of always 100g
+ */
+function getFallbackGrams(quantity: number, unit: string): number {
+  const normalizedUnit = unit.toLowerCase().trim()
+  
+  // Volume-based units (assume water-like density)
+  if (normalizedUnit.includes('cup')) return quantity * 236.588
+  if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) return quantity * 14.7868
+  if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) return quantity * 4.92892
+  if (normalizedUnit.includes('ml') || normalizedUnit.includes('milliliter')) return quantity * 1
+  if (normalizedUnit.includes('liter') || normalizedUnit === 'l') return quantity * 1000
+  if (normalizedUnit.includes('fl oz') || normalizedUnit.includes('fluid ounce')) return quantity * 29.5735
+  if (normalizedUnit.includes('pint')) return quantity * 473.176
+  if (normalizedUnit.includes('quart')) return quantity * 946.353
+  if (normalizedUnit.includes('gallon')) return quantity * 3785.41
+  
+  // Weight-based units
+  if (normalizedUnit.includes('oz') || normalizedUnit.includes('ounce')) return quantity * 28.3495
+  if (normalizedUnit.includes('lb') || normalizedUnit.includes('pound')) return quantity * 453.592
+  if (normalizedUnit.includes('kg') || normalizedUnit.includes('kilogram')) return quantity * 1000
+  
+  // Count-based (assume medium size ~150g per item)
+  if (normalizedUnit === 'whole' || normalizedUnit === 'item' || normalizedUnit === 'piece') return quantity * 150
+  if (normalizedUnit === 'small') return quantity * 100
+  if (normalizedUnit === 'medium') return quantity * 150
+  if (normalizedUnit === 'large') return quantity * 200
+  
+  // Very small amounts
+  if (normalizedUnit === 'pinch') return quantity * 0.5
+  if (normalizedUnit === 'dash') return quantity * 0.6
+  
+  // Unknown unit - use conservative estimate
+  console.warn(`Unknown unit "${unit}" - using 50g per unit as fallback`)
+  return quantity * 50
+}
+
 export interface IngredientWithUSDA {
   quantity: number
   unit: string
@@ -51,8 +89,10 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
       const grams = convertToGrams(ing)
       totalWeight += grams
     } catch (error) {
-      console.warn(`Could not convert ${ing.name} to grams, using standard conversion`)
-      totalWeight += ing.quantity * 100 // Fallback estimate
+      console.warn(`Could not convert ${ing.name} (${ing.quantity} ${ing.unit}) to grams, using fallback estimate`)
+      // Better fallback: use reasonable per-unit estimates instead of always 100g
+      const fallbackGrams = getFallbackGrams(ing.quantity, ing.unit)
+      totalWeight += fallbackGrams
     }
   }
 
@@ -95,6 +135,24 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
 }
 
 /**
+ * Check if a final dish with this name already exists
+ */
+async function checkDuplicateDish(name: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/final-dishes')
+    if (!response.ok) return false
+    
+    const { finalDishes } = await response.json()
+    return finalDishes.some((dish: any) => 
+      dish.name.toLowerCase().trim() === name.toLowerCase().trim()
+    )
+  } catch (error) {
+    console.warn('Could not check for duplicate dishes:', error)
+    return false
+  }
+}
+
+/**
  * Create a final dish using sub-recipes and ingredients
  * 
  * For now, this is simplified - the full implementation will come next
@@ -104,6 +162,15 @@ export async function createFinalDish(
   finalDishIngredients: IngredientWithUSDA[],
   subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, quantityInFinalDish: number, unitInFinalDish: string }>
 ): Promise<string> {
+  // Check for duplicate dish name
+  const isDuplicate = await checkDuplicateDish(dishName)
+  if (isDuplicate) {
+    throw new Error(
+      `A final dish named "${dishName}" already exists. ` +
+      `Please use a different name or delete the existing dish first.`
+    )
+  }
+  
   // Build components array - simplified version
   const components: any[] = []
 
@@ -147,10 +214,13 @@ export async function createFinalDish(
         const grams = convertToGrams(comp as Ingredient)
         totalWeight += grams
       } catch {
-        totalWeight += comp.quantity * 100 // Fallback
+        const fallbackGrams = getFallbackGrams(comp.quantity, comp.unit)
+        totalWeight += fallbackGrams
       }
     } else {
-      totalWeight += comp.quantity * 100 // Simplified for sub-recipes
+      // For sub-recipes: assume unit is weight-based or use fallback
+      const fallbackGrams = getFallbackGrams(comp.quantity, comp.unit)
+      totalWeight += fallbackGrams
     }
   }
 
