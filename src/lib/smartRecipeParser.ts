@@ -55,8 +55,16 @@ function parseIngredientLine(line: string): {
   let trimmed = line.trim()
   if (!trimmed) return null
   
+  // Remove common bullet points and list markers from the beginning
+  // Supports: •, -, *, ○, ▪, ▫, →, ›, », numbers with dots/parentheses
+  trimmed = trimmed.replace(/^[\u2022\u2023\u25E6\u2043\u2219\-\*\+•○●▪▫■□→›»]\s*/, '') // bullets
+  trimmed = trimmed.replace(/^\d+[\.\)]\s*/, '') // numbered lists like "1. " or "1) "
+  trimmed = trimmed.trim() // trim again after removing markers
+  
+  if (!trimmed) return null
+  
   // Debug log to understand what's being parsed
-  console.log('🔍 Parsing line:', JSON.stringify(line), '→ trimmed:', JSON.stringify(trimmed))
+  console.log('🔍 Parsing line:', JSON.stringify(line), '→ cleaned:', JSON.stringify(trimmed))
 
   // Convert Unicode fractions to standard fractions
   const unicodeFractions: Record<string, string> = {
@@ -81,17 +89,16 @@ function parseIngredientLine(line: string): {
     trimmed = trimmed.replace(new RegExp(unicode, 'g'), standard)
   }
 
-  // Pattern: optional quantity (with fractions), optional unit, then ingredient
-  // Supports: "2 cups flour", "1/2 tsp salt", "3 eggs", "flour" (no quantity)
-  // More robust: matches quantities, then looks for units, then rest is ingredient
-  const pattern = /^\s*([\d\s\/\.]+)\s+([a-zA-Z]+)\s+(.+)$/
+  // Pattern: quantity (numbers, fractions, decimals) + unit + ingredient
+  // Key fix: Don't include \s in quantity capture group to avoid consuming the separator space
+  const pattern = /^([\d\/\.\s]+?)\s+([a-zA-Z]+)\s+(.+)$/
   const match = trimmed.match(pattern)
   
   console.log('🎯 Testing main pattern:', pattern, '→ match:', match)
 
   if (!match) {
     // Try pattern without unit: "150 boneless chicken" or just "flour"
-    const noUnitPattern = /^\s*([\d\s\/\.]+)\s+(.+)$/
+    const noUnitPattern = /^([\d\/\.\s]+?)\s+(.+)$/
     const noUnitMatch = trimmed.match(noUnitPattern)
     
     console.log('🎯 Testing no-unit pattern:', noUnitPattern, '→ match:', noUnitMatch)
