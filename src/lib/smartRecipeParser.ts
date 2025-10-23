@@ -80,11 +80,41 @@ function parseIngredientLine(line: string): {
 
   // Pattern: optional quantity (with fractions), optional unit, then ingredient
   // Supports: "2 cups flour", "1/2 tsp salt", "3 eggs", "flour" (no quantity)
-  const pattern = /^\s*([\d\s\/\.]+)?\s*([a-zA-Z]+)?\s+(.+)$/
+  // More robust: matches quantities, then looks for units, then rest is ingredient
+  const pattern = /^\s*([\d\s\/\.]+)\s+([a-zA-Z]+)\s+(.+)$/
   const match = trimmed.match(pattern)
 
   if (!match) {
-    // Try to match just ingredient with no quantity/unit
+    // Try pattern without unit: "150 boneless chicken" or just "flour"
+    const noUnitPattern = /^\s*([\d\s\/\.]+)\s+(.+)$/
+    const noUnitMatch = trimmed.match(noUnitPattern)
+    
+    if (noUnitMatch) {
+      const [, quantityStr, ingredient] = noUnitMatch
+      let quantity = 1
+      if (quantityStr) {
+        const parts = quantityStr.trim().split(/\s+/)
+        quantity = parts.reduce((sum, part) => {
+          if (part.includes('/')) {
+            const [num, denom] = part.split('/').map(Number)
+            if (denom === 0 || isNaN(num) || isNaN(denom)) {
+              return sum + 1
+            }
+            return sum + num / denom
+          }
+          const parsed = parseFloat(part)
+          return sum + (isNaN(parsed) ? 0 : parsed)
+        }, 0)
+      }
+      
+      return {
+        quantity: quantity || 1,
+        unit: 'item',
+        ingredient: ingredient.trim()
+      }
+    }
+    
+    // No quantity or unit, just ingredient name
     return {
       quantity: 1,
       unit: 'item',
