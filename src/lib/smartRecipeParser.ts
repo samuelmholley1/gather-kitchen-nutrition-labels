@@ -52,8 +52,31 @@ function parseIngredientLine(line: string): {
   unit: string
   ingredient: string
 } | null {
-  const trimmed = line.trim()
+  let trimmed = line.trim()
   if (!trimmed) return null
+
+  // Convert Unicode fractions to standard fractions
+  const unicodeFractions: Record<string, string> = {
+    '¼': '1/4',
+    '½': '1/2',
+    '¾': '3/4',
+    '⅓': '1/3',
+    '⅔': '2/3',
+    '⅕': '1/5',
+    '⅖': '2/5',
+    '⅗': '3/5',
+    '⅘': '4/5',
+    '⅙': '1/6',
+    '⅚': '5/6',
+    '⅛': '1/8',
+    '⅜': '3/8',
+    '⅝': '5/8',
+    '⅞': '7/8'
+  }
+  
+  for (const [unicode, standard] of Object.entries(unicodeFractions)) {
+    trimmed = trimmed.replace(new RegExp(unicode, 'g'), standard)
+  }
 
   // Pattern: optional quantity (with fractions), optional unit, then ingredient
   // Supports: "2 cups flour", "1/2 tsp salt", "3 eggs", "flour" (no quantity)
@@ -78,16 +101,32 @@ function parseIngredientLine(line: string): {
     quantity = parts.reduce((sum, part) => {
       if (part.includes('/')) {
         const [num, denom] = part.split('/').map(Number)
+        // Prevent division by zero
+        if (denom === 0 || isNaN(num) || isNaN(denom)) {
+          return sum + 1 // Default to 1 if invalid fraction
+        }
         return sum + num / denom
       }
-      return sum + parseFloat(part)
+      const parsed = parseFloat(part)
+      return sum + (isNaN(parsed) ? 0 : parsed)
     }, 0)
   }
 
+  // Ensure quantity is valid and within reasonable bounds
+  const MAX_QUANTITY = 1000000 // Prevent overflow
+  if (isNaN(quantity) || !isFinite(quantity) || quantity <= 0) {
+    quantity = 1
+  } else if (quantity > MAX_QUANTITY) {
+    quantity = MAX_QUANTITY // Cap at maximum
+  }
+
+  // Limit ingredient name length
+  const ingredientName = ingredient.trim().slice(0, 255)
+
   return {
-    quantity: quantity || 1,
+    quantity,
     unit: unit || 'item',
-    ingredient: ingredient.trim()
+    ingredient: ingredientName
   }
 }
 
@@ -171,10 +210,25 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]
     
+    // Check for unbalanced parentheses
+    const openParens = (line.match(/\(/g) || []).length
+    const closeParens = (line.match(/\)/g) || []).length
+    
+    if (openParens !== closeParens) {
+      errors.push(`❌ Error: Line "${line}" has unbalanced parentheses (${openParens} opening, ${closeParens} closing). Each opening parenthesis must have a matching closing parenthesis.`)
+      continue
+    }
+    
     // Check if this line contains a sub-recipe
     const subRecipeMatch = detectSubRecipe(line)
     
     if (subRecipeMatch) {
+      // Check for empty parentheses
+      if (!subRecipeMatch.subRecipeIngredients.trim()) {
+        errors.push(`❌ Error: "${subRecipeMatch.subRecipeName}" has empty parentheses. Sub-recipes must have ingredients listed inside parentheses.`)
+        continue
+      }
+
       // Warn about nested parentheses
       if (subRecipeMatch.hasNestedParentheses) {
         errors.push(`⚠️ Warning: "${subRecipeMatch.subRecipeName}" contains nested parentheses. Only the outermost level is supported. Inner parentheses will be treated as regular text.`)
@@ -184,6 +238,7 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
       const subRecipeIngredientLines = subRecipeMatch.subRecipeIngredients
         .split(',')
         .map(l => l.trim())
+        .filter(l => l) // Remove empty lines
       
       const subRecipeIngredients = subRecipeIngredientLines
         .map(ingredientLine => {

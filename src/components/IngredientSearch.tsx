@@ -34,9 +34,16 @@ export default function IngredientSearch({
     setError(null)
 
     try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
       const response = await fetch(
-        `/api/usda/search?query=${encodeURIComponent(searchQuery)}&pageSize=20`
+        `/api/usda/search?query=${encodeURIComponent(searchQuery)}&pageSize=20`,
+        { signal: controller.signal }
       )
+      
+      clearTimeout(timeoutId)
       
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`)
@@ -47,13 +54,24 @@ export default function IngredientSearch({
       if (data.success && data.foods) {
         setResults(data.foods)
         setIsOpen(true)
+        
+        // If no results, show helpful message
+        if (data.foods.length === 0) {
+          setError('No ingredients found. Try a simpler search term (e.g., "chicken breast" instead of "grilled seasoned chicken breast")')
+        }
       } else {
         setResults([])
-        setError(data.error || 'No results found')
+        setError(data.error || 'No results found. Try a different search term.')
       }
     } catch (err) {
       console.error('Ingredient search error:', err)
-      setError(err instanceof Error ? err.message : 'Search failed')
+      
+      // Better error messages
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Search timed out. Check your internet connection and try again.')
+      } else {
+        setError('Search failed. Please check your internet connection and try again.')
+      }
       setResults([])
     } finally {
       setLoading(false)

@@ -50,6 +50,18 @@ export default function ReviewPage() {
     const result: SmartParseResult = JSON.parse(stored)
     setParseResult(result)
 
+    // Warn before leaving page if there are unconfirmed ingredients
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!saving && !allIngredientsConfirmed()) {
+        e.preventDefault()
+        e.returnValue = 'You have unconfirmed ingredients. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+
     // Initialize final dish ingredients with USDA search queries
     const finalIngredients = result.finalDish.ingredients
       .filter(ing => !ing.isSubRecipe)
@@ -116,6 +128,8 @@ export default function ReviewPage() {
     setSaving(true)
     setSaveProgress('Preparing to save...')
     
+    const createdSubRecipeIds: string[] = []
+    
     try {
       const { createSubRecipe, createFinalDish } = await import('@/lib/smartRecipeSaver')
       
@@ -124,14 +138,19 @@ export default function ReviewPage() {
       
       for (let i = 0; i < subRecipes.length; i++) {
         setSaveProgress(`Creating sub-recipe ${i + 1} of ${subRecipes.length}: "${subRecipes[i].name}"...`)
-        const result = await createSubRecipe(subRecipes[i])
-        subRecipesData.push({
-          id: result.id,
-          name: subRecipes[i].name,
-          nutritionProfile: result.nutritionProfile,
-          quantityInFinalDish: subRecipes[i].quantityInFinalDish,
-          unitInFinalDish: subRecipes[i].unitInFinalDish
-        })
+        try {
+          const result = await createSubRecipe(subRecipes[i])
+          createdSubRecipeIds.push(result.id)
+          subRecipesData.push({
+            id: result.id,
+            name: subRecipes[i].name,
+            nutritionProfile: result.nutritionProfile,
+            quantityInFinalDish: subRecipes[i].quantityInFinalDish,
+            unitInFinalDish: subRecipes[i].unitInFinalDish
+          })
+        } catch (subError) {
+          throw new Error(`Failed to create sub-recipe "${subRecipes[i].name}": ${subError instanceof Error ? subError.message : 'Unknown error'}`)
+        }
       }
 
       // Step 2: Create final dish with sub-recipes
@@ -153,7 +172,17 @@ export default function ReviewPage() {
     } catch (error) {
       console.error('Save failed:', error)
       setSaveProgress('')
-      alert(`❌ Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact support if the issue persists.`)
+      
+      // If some sub-recipes were created, inform user
+      let errorMessage = `❌ Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}\n\n`
+      
+      if (createdSubRecipeIds.length > 0) {
+        errorMessage += `⚠️ Warning: ${createdSubRecipeIds.length} sub-recipe(s) were created before the error occurred. You may need to delete them manually from the Sub-Recipes page to avoid duplicates.\n\n`
+      }
+      
+      errorMessage += 'Please try again or contact support if the issue persists.'
+      
+      alert(errorMessage)
     } finally {
       setSaving(false)
       setSaveProgress('')
