@@ -1,8 +1,8 @@
-# 🎯 CURRENT STATUS - Ready for Airtable Setup!
+# 🎯 CURRENT STATUS - Tables Imported!
 
 **Date:** October 23, 2025
-**Base ID:** `appJcMC1FeOF4991w`
-**Status:** 🟡 Backend Ready, Waiting for Manual Airtable Setup
+**Base ID:** `appypvroUCuby2grq` (Nutrition App)
+**Status:** � Tables Ready - Configure Special Fields (5 min)
 
 ---
 
@@ -36,21 +36,24 @@
 
 ---
 
-## ⏳ What's PENDING (Your Task - 10-15 Minutes)
+## ⏳ What's PENDING (Your Task - 5 Minutes)
 
-### **Airtable Manual Setup**
+### **Configure Special Field Types**
 
-Your PAT token doesn't have `schema.bases:write` permission, so we can't create tables automatically. But manual setup is easy!
+CSV import created all tables and basic fields, but 4 special fields need manual configuration:
 
-**👉 Follow this guide:** `AIRTABLE_MANUAL_SETUP.md`
+**👉 Follow Step 4 in:** `AIRTABLE_MANUAL_SETUP.md`
 
 **Quick Steps:**
-1. Open base: https://airtable.com/appJcMC1FeOF4991w
-2. Rename default table to "SubRecipes"
-3. Create 2 more tables: "FinalDishes" and "USDACache"
-4. Add fields to each table (34 total fields across 3 tables)
-5. Add env vars to Vercel
-6. Redeploy
+1. Open base: https://airtable.com/appypvroUCuby2grq
+2. Configure FinalDishes table:
+   - SubRecipeLinks → Change to "Link to another record" (link to SubRecipes table)
+   - Allergens → Change to "Multiple select" (add 9 allergen options)
+   - Status → Change to "Single select" (add Draft/Active/Archived)
+3. Configure USDACache table:
+   - DataType → Change to "Single select" (add 4 data type options)
+4. Add env vars to Vercel
+5. Redeploy
 
 **Why Manual?** Your Airtable PAT has these permissions:
 - ✅ `data.records:read` - Can read data
@@ -176,7 +179,7 @@ Once you finish the manual Airtable setup (10-15 min):
 ### **Step 2: Update Vercel Env Vars** (2 min)
 ```
 AIRTABLE_PAT_TOKEN=your_token_here
-AIRTABLE_BASE_ID=appJcMC1FeOF4991w
+AIRTABLE_BASE_ID=appypvroUCuby2grq
 AIRTABLE_SUBRECIPES_TABLE=SubRecipes
 AIRTABLE_FINALDISHES_TABLE=FinalDishes
 AIRTABLE_USDACACHE_TABLE=USDACache

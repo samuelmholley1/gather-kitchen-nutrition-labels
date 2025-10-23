@@ -1,17 +1,17 @@
 # 🚀 Airtable Manual Setup Guide - CSV Import Method
 
 ## Current Situation
-- ✅ Base created: `appJcMC1FeOF4991w`
-- ✅ PAT token exists
-- ❌ PAT token lacks schema modification permissions
-- ⚠️ One default table exists (will delete after import)
+- ✅ Base created: `appypvroUCuby2grq` (Nutrition App)
+- ✅ All 3 tables imported successfully from CSV blocks
+- ✅ PAT token configured
+- ✅ Ready to configure special fields
 
 ---
 
 ## 🎯 EASIEST METHOD: CSV Import (2 Minutes!)
 
 ### Step 1: Import SubRecipes Table
-1. Open your base: https://airtable.com/appJcMC1FeOF4991w
+1. Open your base: https://airtable.com/appypvroUCuby2grq
 2. Click "Add or import" → "CSV file"
 3. Copy the CSV block below and save as `SubRecipes.csv`
 4. Upload the file
@@ -184,7 +184,7 @@ Once tables are set up, add these to Vercel:
 
 ```
 AIRTABLE_PAT_TOKEN=your_airtable_pat_token_here
-AIRTABLE_BASE_ID=appJcMC1FeOF4991w
+AIRTABLE_BASE_ID=appypvroUCuby2grq
 AIRTABLE_SUBRECIPES_TABLE=SubRecipes
 AIRTABLE_FINALDISHES_TABLE=FinalDishes
 AIRTABLE_USDACACHE_TABLE=USDACache
