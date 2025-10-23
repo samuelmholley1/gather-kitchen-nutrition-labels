@@ -16,6 +16,9 @@ export default function Header() {
             <a href="/" className="hover:text-emerald-200 transition-colors">
               Home
             </a>
+            <a href="/import" className="hover:text-emerald-200 transition-colors font-semibold">
+              🚀 Import Recipe
+            </a>
             <a href="/sub-recipes" className="hover:text-emerald-200 transition-colors">
               Sub-Recipes
             </a>

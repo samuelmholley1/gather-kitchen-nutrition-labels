@@ -1,0 +1,156 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Header from '@/components/Header'
+import { parseSmartRecipe, SmartParseResult } from '@/lib/smartRecipeParser'
+
+export default function RecipeImporterPage() {
+  const router = useRouter()
+  const [recipeText, setRecipeText] = useState('')
+  const [parsing, setParsing] = useState(false)
+
+  const handleParse = () => {
+    if (!recipeText.trim()) {
+      alert('Please paste a recipe first')
+      return
+    }
+
+    setParsing(true)
+    // Small delay for UX (shows we're processing)
+    setTimeout(() => {
+      const result = parseSmartRecipe(recipeText)
+      // Store result in sessionStorage and navigate to review page
+      sessionStorage.setItem('parsedRecipe', JSON.stringify(result))
+      router.push('/import/review')
+    }, 300)
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Recipe Importer
+          </h1>
+          <p className="text-gray-600 text-lg">
+            Paste your complete recipe below. The app will automatically detect sub-recipes 
+            (ingredients with components in parentheses) and create them for you.
+          </p>
+        </div>
+
+        {/* Instructions Card */}
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+          <h2 className="text-xl font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <span className="text-2xl">💡</span>
+            How to Format Your Recipe
+          </h2>
+          <div className="space-y-3 text-blue-900">
+            <div>
+              <strong>1. Recipe Name:</strong> First line is your dish name
+            </div>
+            <div>
+              <strong>2. Ingredients:</strong> One per line with quantity and unit
+            </div>
+            <div>
+              <strong>3. Sub-Recipes:</strong> Use parentheses to define components
+            </div>
+          </div>
+          
+          <div className="mt-4 bg-white rounded-lg p-4 font-mono text-sm">
+            <div className="text-gray-500 mb-2">Example:</div>
+            <div className="text-gray-900">
+              Chicken Tacos<br/>
+              <br/>
+              2 cups shredded chicken<br/>
+              1 cup salsa verde (1/2 cup tomatillos, 1/4 cup onions, 2 tbsp cilantro, 1 jalapeño)<br/>
+              8 corn tortillas<br/>
+              1/2 cup cheese
+            </div>
+          </div>
+        </div>
+
+        {/* Paste Area */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Paste Your Recipe Here
+          </label>
+          <textarea
+            value={recipeText}
+            onChange={(e) => setRecipeText(e.target.value)}
+            placeholder="Paste your recipe here...
+
+Example:
+Chicken Tacos
+
+2 cups shredded chicken
+1 cup salsa verde (1/2 cup tomatillos, 1/4 cup onions, 2 tbsp cilantro, 1 jalapeño)
+8 corn tortillas
+1/2 cup cheese"
+            className="w-full h-96 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-mono text-sm resize-none"
+          />
+          <div className="mt-2 text-sm text-gray-500">
+            {recipeText.split('\n').filter(l => l.trim()).length} lines
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4">
+          <button
+            onClick={handleParse}
+            disabled={parsing || !recipeText.trim()}
+            className="flex-1 px-8 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-lg font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {parsing ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Parsing Recipe...
+              </>
+            ) : (
+              <>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Parse Recipe
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setRecipeText('')}
+            disabled={!recipeText}
+            className="px-6 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Clear
+          </button>
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-8 flex justify-center gap-4 text-sm">
+          <button
+            onClick={() => router.push('/')}
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
+          >
+            ← Back to Home
+          </button>
+          <span className="text-gray-400">|</span>
+          <button
+            onClick={() => router.push('/sub-recipes')}
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
+          >
+            Sub-Recipes
+          </button>
+          <span className="text-gray-400">|</span>
+          <button
+            onClick={() => router.push('/final-dishes')}
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
+          >
+            Final Dishes
+          </button>
+        </div>
+      </main>
+    </div>
+  )
+}

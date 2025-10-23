@@ -29,17 +29,17 @@ export default function Home() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/sub-recipes/new"
-              className="px-8 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-lg font-semibold shadow-lg hover:shadow-xl"
+              href="/import"
+              className="px-8 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-lg font-semibold shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
-              Create Your First Recipe
+              🚀 Smart Recipe Importer
             </Link>
             
             <Link
-              href="/final-dishes"
+              href="/sub-recipes/new"
               className="px-8 py-4 bg-white text-emerald-600 border-2 border-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors text-lg font-semibold"
             >
-              View Nutrition Labels
+              Manual Recipe Builder
             </Link>
           </div>
         </div>

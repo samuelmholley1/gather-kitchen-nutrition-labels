@@ -7,14 +7,16 @@ interface IngredientSearchProps {
   onSelectIngredient: (food: USDAFood) => void
   placeholder?: string
   autoFocus?: boolean
+  initialQuery?: string
 }
 
 export default function IngredientSearch({ 
   onSelectIngredient, 
   placeholder = "Search USDA ingredients...",
-  autoFocus = false 
+  autoFocus = false,
+  initialQuery = ''
 }: IngredientSearchProps) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [results, setResults] = useState<USDAFood[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
