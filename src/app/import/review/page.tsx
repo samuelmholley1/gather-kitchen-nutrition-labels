@@ -137,7 +137,7 @@ export default function ReviewPage() {
       const { createSubRecipe, createFinalDish } = await import('@/lib/smartRecipeSaver')
       
       // Step 1: Create all sub-recipes first
-      const subRecipesData: Array<{ id: string, name: string, nutritionProfile: any, quantityInFinalDish: number, unitInFinalDish: string }> = []
+      const subRecipesData: Array<{ id: string, name: string, nutritionProfile: any, totalWeight: number, quantityInFinalDish: number, unitInFinalDish: string }> = []
       
       for (let i = 0; i < subRecipes.length; i++) {
         setSaveProgress(`Creating sub-recipe ${i + 1} of ${subRecipes.length}: "${subRecipes[i].name}"...`)
@@ -148,6 +148,7 @@ export default function ReviewPage() {
             id: result.id,
             name: subRecipes[i].name,
             nutritionProfile: result.nutritionProfile,
+            totalWeight: result.totalWeight,
             quantityInFinalDish: subRecipes[i].quantityInFinalDish,
             unitInFinalDish: subRecipes[i].unitInFinalDish
           })

@@ -64,7 +64,7 @@ export interface SubRecipeWithUSDA {
 /**
  * Create a sub-recipe in the database
  */
-export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ id: string, nutritionProfile: NutrientProfile }> {
+export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ id: string, nutritionProfile: NutrientProfile, totalWeight: number }> {
   // Filter out skipped ingredients (null usdaFood)
   const validIngredients = subRecipe.ingredients.filter(ing => ing.usdaFood !== null)
   
@@ -130,7 +130,8 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
   const result = await response.json()
   return {
     id: result.subRecipe.id,
-    nutritionProfile: result.subRecipe.nutritionProfile
+    nutritionProfile: result.subRecipe.nutritionProfile,
+    totalWeight // Return total weight so we can scale it in final dish
   }
 }
 
@@ -160,7 +161,7 @@ async function checkDuplicateDish(name: string): Promise<boolean> {
 export async function createFinalDish(
   dishName: string,
   finalDishIngredients: IngredientWithUSDA[],
-  subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, quantityInFinalDish: number, unitInFinalDish: string }>
+  subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, totalWeight: number, quantityInFinalDish: number, unitInFinalDish: string }>
 ): Promise<string> {
   // Check for duplicate dish name
   const isDuplicate = await checkDuplicateDish(dishName)
@@ -194,15 +195,29 @@ export async function createFinalDish(
     })
   }
 
-  // Add sub-recipes
+  // Add sub-recipes with intelligent volume-to-weight conversion and scaling
   for (const subRecipe of subRecipesData) {
+    // Convert the requested quantity+unit to grams
+    const requestedWeightInGrams = getFallbackGrams(subRecipe.quantityInFinalDish, subRecipe.unitInFinalDish)
+    
+    // Calculate scaling ratio: how much of the sub-recipe we're using
+    // Example: If sub-recipe total is 500g and we want "1 cup" (237g), ratio = 237/500 = 0.474
+    const scalingRatio = requestedWeightInGrams / subRecipe.totalWeight
+    
+    // Scale the nutrition profile accordingly
+    const scaledNutrition: NutrientProfile = {} as NutrientProfile
+    for (const key of Object.keys(subRecipe.nutritionProfile) as Array<keyof NutrientProfile>) {
+      const value = subRecipe.nutritionProfile[key]
+      scaledNutrition[key] = (value || 0) * scalingRatio
+    }
+    
     components.push({
       type: 'subrecipe',
       subRecipeId: subRecipe.id,
       name: subRecipe.name,
-      quantity: subRecipe.quantityInFinalDish,
-      unit: subRecipe.unitInFinalDish,
-      nutritionProfile: subRecipe.nutritionProfile
+      quantity: requestedWeightInGrams, // Actual weight being used
+      unit: 'g', // Always use grams for sub-recipes
+      nutritionProfile: scaledNutrition // Scaled to match actual usage
     })
   }
 
