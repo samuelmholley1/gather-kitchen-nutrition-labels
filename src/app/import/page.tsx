@@ -129,7 +129,11 @@ Chicken Tacos
           </button>
           
           <button
-            onClick={() => setRecipeText('')}
+            onClick={() => {
+              if (confirm('Are you sure you want to clear the recipe text?')) {
+                setRecipeText('')
+              }
+            }}
             disabled={!recipeText}
             className="px-6 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
