@@ -113,12 +113,39 @@ export default function ReviewPage() {
 
     setSaving(true)
     try {
-      // TODO: Implement save logic to create sub-recipes and final dish in Airtable
-      alert('Save functionality coming next! For now, this is the review UI.')
-      console.log('Would save:', { finalDishIngredients, subRecipes, parseResult })
+      const { createSubRecipe, createFinalDish } = await import('@/lib/smartRecipeSaver')
+      
+      // Step 1: Create all sub-recipes first
+      const subRecipesData: Array<{ id: string, name: string, nutritionProfile: any, quantityInFinalDish: number, unitInFinalDish: string }> = []
+      
+      for (const subRecipe of subRecipes) {
+        const result = await createSubRecipe(subRecipe)
+        subRecipesData.push({
+          id: result.id,
+          name: subRecipe.name,
+          nutritionProfile: result.nutritionProfile,
+          quantityInFinalDish: subRecipe.quantityInFinalDish,
+          unitInFinalDish: subRecipe.unitInFinalDish
+        })
+      }
+
+      // Step 2: Create final dish with sub-recipes
+      const finalDishId = await createFinalDish(
+        parseResult.finalDish.name,
+        finalDishIngredients,
+        subRecipesData
+      )
+
+      // Success!
+      alert(`✅ Recipe "${parseResult.finalDish.name}" created successfully!\n\n${subRecipes.length} sub-recipes created\n1 final dish created`)
+      
+      // Clear session storage and redirect
+      sessionStorage.removeItem('parsedRecipe')
+      router.push(`/final-dishes`)
+      
     } catch (error) {
       console.error('Save failed:', error)
-      alert('Failed to save recipe')
+      alert(`Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setSaving(false)
     }
