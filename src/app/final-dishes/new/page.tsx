@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import Link from 'next/link'
 import IngredientSearch from '@/components/IngredientSearch'
 import NutritionLabel from '@/components/NutritionLabel'
+import Header from '@/components/Header'
 import { USDAFood, NutrientProfile } from '@/types/liturgist'
 
 interface FinalDishComponent {
@@ -203,8 +204,9 @@ export default function NewFinalDishPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
           <Link 
@@ -468,7 +470,7 @@ export default function NewFinalDishPage() {
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }

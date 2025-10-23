@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import Link from 'next/link'
 import IngredientSearch from '@/components/IngredientSearch'
 import RecipePaste from '@/components/RecipePaste'
+import Header from '@/components/Header'
 import { USDAFood, Ingredient, SubRecipe, NutrientProfile } from '@/types/liturgist'
 import { ParsedIngredient, cleanIngredientForSearch } from '@/lib/recipeParser'
 
@@ -198,8 +199,9 @@ export default function NewSubRecipePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Header */}
         <div className="mb-8">
           <Link 
@@ -526,7 +528,7 @@ export default function NewSubRecipePage() {
             </p>
           )}
         </form>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }

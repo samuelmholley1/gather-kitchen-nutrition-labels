@@ -15,7 +15,7 @@ interface RecipePasteProps {
 
 export default function RecipePaste({ onParsed }: RecipePasteProps) {
   const [recipeText, setRecipeText] = useState('')
-  const [showPaste, setShowPaste] = useState(false)
+  const [showPaste, setShowPaste] = useState(true) // Open by default
   const [errors, setErrors] = useState<string[]>([])
   const [preview, setPreview] = useState<ParsedIngredient[]>([])
   const [recipeName, setRecipeName] = useState('')
@@ -60,7 +60,7 @@ export default function RecipePaste({ onParsed }: RecipePasteProps) {
         onClick={() => setShowPaste(true)}
         className="w-full py-3 px-4 border-2 border-dashed border-emerald-300 rounded-lg text-emerald-600 hover:border-emerald-500 hover:text-emerald-700 transition-colors"
       >
-        📋 Paste Full Recipe (Quick Import)
+        📋 Open Recipe Paste
       </button>
     )
   }

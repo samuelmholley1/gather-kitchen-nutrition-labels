@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import NutritionLabel from '@/components/NutritionLabel'
+import Header from '@/components/Header'
 
 interface FinalDish {
   id: string
@@ -74,15 +75,19 @@ export default function FinalDishesPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
-      </main>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+        <Header />
+        <main className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -222,7 +227,7 @@ export default function FinalDishesPage() {
             ))}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Nutrition Label Modal */}
       {viewingLabel && (
@@ -256,6 +261,6 @@ export default function FinalDishesPage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   )
 }

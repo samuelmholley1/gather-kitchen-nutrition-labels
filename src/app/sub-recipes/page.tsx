@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Header from '@/components/Header'
 import { SubRecipe } from '@/types/liturgist'
 
 export default function SubRecipesPage() {
@@ -72,8 +73,9 @@ export default function SubRecipesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -306,7 +308,7 @@ export default function SubRecipesPage() {
             and ensures consistency across your menu.
           </p>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }
