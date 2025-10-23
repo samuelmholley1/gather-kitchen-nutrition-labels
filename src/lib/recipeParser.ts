@@ -43,7 +43,8 @@ export function parseIngredientLine(line: string): ParsedIngredient | null {
   
   // Pattern: [quantity] [unit] [ingredient name]
   // Handles: "150 G chicken", "1 1/2 cups flour", "2 Tbsp oil"
-  const pattern = /^([\d\s\/\.]+)\s*([a-zA-Z]+)\s+(.+)$/
+  // Updated to handle leading/trailing spaces
+  const pattern = /^\s*([\d\s\/\.]+)\s*([a-zA-Z]+)\s+(.+)$/
   const match = trimmed.match(pattern)
   
   if (!match) {
