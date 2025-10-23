@@ -86,11 +86,15 @@ function parseIngredientLine(line: string): {
   // More robust: matches quantities, then looks for units, then rest is ingredient
   const pattern = /^\s*([\d\s\/\.]+)\s+([a-zA-Z]+)\s+(.+)$/
   const match = trimmed.match(pattern)
+  
+  console.log('🎯 Testing main pattern:', pattern, '→ match:', match)
 
   if (!match) {
     // Try pattern without unit: "150 boneless chicken" or just "flour"
     const noUnitPattern = /^\s*([\d\s\/\.]+)\s+(.+)$/
     const noUnitMatch = trimmed.match(noUnitPattern)
+    
+    console.log('🎯 Testing no-unit pattern:', noUnitPattern, '→ match:', noUnitMatch)
     
     if (noUnitMatch) {
       const [, quantityStr, ingredient] = noUnitMatch
