@@ -10,7 +10,11 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "setup:airtable": "node scripts/setup-airtable.js",
-    "verify:env": "node scripts/verify-setup.js"
+    "verify:env": "node scripts/verify-setup.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
   },
   "dependencies": {
     "airtable": "^0.12.2",
@@ -21,7 +25,8 @@
     "react-hook-form": "^7.65.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.12",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^20.19.23",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",

@@ -50,18 +50,6 @@ export default function ReviewPage() {
     const result: SmartParseResult = JSON.parse(stored)
     setParseResult(result)
 
-    // Warn before leaving page if there are unconfirmed ingredients
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!saving && !allIngredientsConfirmed()) {
-        e.preventDefault()
-        e.returnValue = 'You have unconfirmed ingredients. Are you sure you want to leave?'
-        return e.returnValue
-      }
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-
     // Initialize final dish ingredients with USDA search queries
     const finalIngredients = result.finalDish.ingredients
       .filter(ing => !ing.isSubRecipe)
@@ -84,7 +72,22 @@ export default function ReviewPage() {
       }))
     }))
     setSubRecipes(subsWithUSDA)
-  }, [router])
+
+    // Warn before leaving page if there are unconfirmed ingredients
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const allConfirmed = [...finalIngredients, ...subsWithUSDA.flatMap(s => s.ingredients)]
+        .every(ing => ing.confirmed)
+      
+      if (!saving && !allConfirmed) {
+        e.preventDefault()
+        e.returnValue = 'You have unconfirmed ingredients. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [router, saving])
 
   const handleSelectUSDA = (food: USDAFood) => {
     if (!editingIngredient) return
