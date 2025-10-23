@@ -27,8 +27,15 @@ export interface SubRecipeWithUSDA {
  * Create a sub-recipe in the database
  */
 export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ id: string, nutritionProfile: NutrientProfile }> {
+  // Filter out skipped ingredients (null usdaFood)
+  const validIngredients = subRecipe.ingredients.filter(ing => ing.usdaFood !== null)
+  
+  if (validIngredients.length === 0) {
+    throw new Error(`Sub-recipe "${subRecipe.name}" has no valid USDA-matched ingredients. Please match at least one ingredient or remove this sub-recipe.`)
+  }
+  
   // Convert ingredients to the format expected by the API
-  const ingredientsForCalc: Ingredient[] = subRecipe.ingredients.map((ing, idx) => ({
+  const ingredientsForCalc: Ingredient[] = validIngredients.map((ing, idx) => ({
     id: `temp-${idx}`,
     fdcId: ing.usdaFood.fdcId,
     name: ing.usdaFood.description,
@@ -100,8 +107,11 @@ export async function createFinalDish(
   // Build components array - simplified version
   const components: any[] = []
 
-  // Add raw ingredients
+  // Add raw ingredients (skip those without USDA match)
   for (const ing of finalDishIngredients) {
+    // Skip ingredients that were marked as "Skip" (null usdaFood)
+    if (!ing.usdaFood) continue
+    
     const ingredientForCalc: Ingredient = {
       id: `temp-${Math.random()}`,
       fdcId: ing.usdaFood.fdcId,

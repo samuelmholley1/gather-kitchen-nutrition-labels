@@ -299,12 +299,14 @@ export default function ReviewPage() {
                   {!ing.confirmed && (
                     <button
                       onClick={() => {
-                        const updated = [...finalDishIngredients]
-                        updated[idx] = { ...updated[idx], confirmed: true, usdaFood: null }
-                        setFinalDishIngredients(updated)
+                        if (confirm(`Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`)) {
+                          const updated = [...finalDishIngredients]
+                          updated[idx] = { ...updated[idx], confirmed: true, usdaFood: null }
+                          setFinalDishIngredients(updated)
+                        }
                       }}
                       className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-                      title="Skip USDA match for this ingredient"
+                      title="Skip USDA match - won't contribute to nutrition"
                     >
                       Skip
                     </button>
@@ -356,16 +358,18 @@ export default function ReviewPage() {
                     {!ing.confirmed && (
                       <button
                         onClick={() => {
-                          const updated = [...subRecipes]
-                          updated[subIdx].ingredients[ingIdx] = { 
-                            ...updated[subIdx].ingredients[ingIdx], 
-                            confirmed: true, 
-                            usdaFood: null 
+                          if (confirm(`Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`)) {
+                            const updated = [...subRecipes]
+                            updated[subIdx].ingredients[ingIdx] = { 
+                              ...updated[subIdx].ingredients[ingIdx], 
+                              confirmed: true, 
+                              usdaFood: null 
+                            }
+                            setSubRecipes(updated)
                           }
-                          setSubRecipes(updated)
                         }}
                         className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-                        title="Skip USDA match for this ingredient"
+                        title="Skip USDA match - won't contribute to nutrition"
                       >
                         Skip
                       </button>

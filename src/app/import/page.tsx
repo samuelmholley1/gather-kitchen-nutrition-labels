@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
@@ -11,6 +11,14 @@ export default function RecipeImporterPage() {
   const router = useRouter()
   const [recipeText, setRecipeText] = useState('')
   const [parsing, setParsing] = useState(false)
+  
+  // On mount, restore recipe text if returning from review page
+  useEffect(() => {
+    const stored = sessionStorage.getItem('originalRecipeText')
+    if (stored) {
+      setRecipeText(stored)
+    }
+  }, [])
 
   const handleParse = () => {
     if (!recipeText.trim()) {
@@ -29,8 +37,9 @@ export default function RecipeImporterPage() {
     // Small delay for UX (shows we're processing)
     setTimeout(() => {
       const result = parseSmartRecipe(recipeText)
-      // Store result in sessionStorage and navigate to review page
+      // Store BOTH result AND original text in sessionStorage
       sessionStorage.setItem('parsedRecipe', JSON.stringify(result))
+      sessionStorage.setItem('originalRecipeText', recipeText)
       router.push('/import/review')
     }, 300)
   }
