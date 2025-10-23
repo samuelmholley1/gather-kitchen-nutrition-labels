@@ -18,10 +18,14 @@ import type {
 import { initializeNutrientProfile } from '@/types/nutrition'
 
 const USDA_API_BASE = 'https://api.nal.usda.gov/fdc/v1'
-const USDA_API_KEY = process.env.USDA_API_KEY!
 
-if (!USDA_API_KEY) {
-  throw new Error('USDA_API_KEY environment variable is required')
+// Helper to get API key (throws at runtime, not build time)
+function getApiKey(): string {
+  const apiKey = process.env.USDA_API_KEY
+  if (!apiKey) {
+    throw new Error('USDA_API_KEY environment variable is required')
+  }
+  return apiKey
 }
 
 // ============================================================================
@@ -44,7 +48,7 @@ export async function searchFoods(
   dataType?: 'Foundation' | 'SR Legacy' | 'Survey (FNDDS)' | 'Branded'
 ): Promise<USDASearchResponse> {
   const params = new URLSearchParams({
-    api_key: USDA_API_KEY,
+    api_key: getApiKey(),
     query,
     pageSize: Math.min(pageSize, 200).toString(),
     pageNumber: pageNumber.toString(),
@@ -77,7 +81,7 @@ export async function searchFoods(
  * @returns Full food details with nutrients and portions
  */
 export async function getFoodDetails(fdcId: number): Promise<any> {
-  const url = `${USDA_API_BASE}/food/${fdcId}?api_key=${USDA_API_KEY}`
+  const url = `${USDA_API_BASE}/food/${fdcId}?api_key=${getApiKey()}`
   
   const response = await fetch(url)
   
@@ -100,7 +104,7 @@ export async function getFoodsBatch(fdcIds: number[]): Promise<any[]> {
     throw new Error('Maximum 20 foods per batch request')
   }
   
-  const url = `${USDA_API_BASE}/foods?api_key=${USDA_API_KEY}`
+  const url = `${USDA_API_BASE}/foods?api_key=${getApiKey()}`
   
   const response = await fetch(url, {
     method: 'POST',
