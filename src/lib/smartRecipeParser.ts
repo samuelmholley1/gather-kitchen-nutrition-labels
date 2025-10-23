@@ -66,10 +66,6 @@ function parseIngredientLine(line: string): {
   trimmed = trimmed.replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+$/, '')
   
   if (!trimmed) return null
-  
-  // Debug: show character codes of first few characters
-  const charCodes = trimmed.split('').slice(0, 5).map((c, i) => `[${i}]='${c}' (U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')})`).join(' ')
-  console.log('🔍 Parsing line:', JSON.stringify(line), '→ cleaned:', JSON.stringify(trimmed), '→ first chars:', charCodes)
 
   // Convert Unicode fractions to standard fractions
   const unicodeFractions: Record<string, string> = {
@@ -98,15 +94,11 @@ function parseIngredientLine(line: string): {
   // Key fix: Don't include \s in quantity capture group to avoid consuming the separator space
   const pattern = /^([\d\/\.\s]+?)\s+([a-zA-Z]+)\s+(.+)$/
   const match = trimmed.match(pattern)
-  
-  console.log('🎯 Testing main pattern:', pattern, '→ match:', match)
 
   if (!match) {
     // Try pattern without unit: "150 boneless chicken" or just "flour"
     const noUnitPattern = /^([\d\/\.\s]+?)\s+(.+)$/
     const noUnitMatch = trimmed.match(noUnitPattern)
-    
-    console.log('🎯 Testing no-unit pattern:', noUnitPattern, '→ match:', noUnitMatch)
     
     if (noUnitMatch) {
       const [, quantityStr, ingredient] = noUnitMatch
