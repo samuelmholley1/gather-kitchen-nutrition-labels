@@ -36,6 +36,7 @@ export default function ReviewPage() {
     ingredientIndex: number
   } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveProgress, setSaveProgress] = useState('')
 
   useEffect(() => {
     // Load parsed recipe from sessionStorage
@@ -112,24 +113,28 @@ export default function ReviewPage() {
     }
 
     setSaving(true)
+    setSaveProgress('Preparing to save...')
+    
     try {
       const { createSubRecipe, createFinalDish } = await import('@/lib/smartRecipeSaver')
       
       // Step 1: Create all sub-recipes first
       const subRecipesData: Array<{ id: string, name: string, nutritionProfile: any, quantityInFinalDish: number, unitInFinalDish: string }> = []
       
-      for (const subRecipe of subRecipes) {
-        const result = await createSubRecipe(subRecipe)
+      for (let i = 0; i < subRecipes.length; i++) {
+        setSaveProgress(`Creating sub-recipe ${i + 1} of ${subRecipes.length}: "${subRecipes[i].name}"...`)
+        const result = await createSubRecipe(subRecipes[i])
         subRecipesData.push({
           id: result.id,
-          name: subRecipe.name,
+          name: subRecipes[i].name,
           nutritionProfile: result.nutritionProfile,
-          quantityInFinalDish: subRecipe.quantityInFinalDish,
-          unitInFinalDish: subRecipe.unitInFinalDish
+          quantityInFinalDish: subRecipes[i].quantityInFinalDish,
+          unitInFinalDish: subRecipes[i].unitInFinalDish
         })
       }
 
       // Step 2: Create final dish with sub-recipes
+      setSaveProgress(`Creating final dish "${parseResult.finalDish.name}"...`)
       const finalDishId = await createFinalDish(
         parseResult.finalDish.name,
         finalDishIngredients,
@@ -137,6 +142,7 @@ export default function ReviewPage() {
       )
 
       // Success!
+      setSaveProgress('Success! Redirecting...')
       alert(`✅ Recipe "${parseResult.finalDish.name}" created successfully!\n\n${subRecipes.length} sub-recipes created\n1 final dish created`)
       
       // Clear session storage and redirect
@@ -145,9 +151,11 @@ export default function ReviewPage() {
       
     } catch (error) {
       console.error('Save failed:', error)
-      alert(`Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setSaveProgress('')
+      alert(`❌ Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact support if the issue persists.`)
     } finally {
       setSaving(false)
+      setSaveProgress('')
     }
   }
 
@@ -173,13 +181,28 @@ export default function ReviewPage() {
           </p>
         </div>
 
-        {/* Errors */}
+        {/* Errors/Warnings */}
         {parseResult.errors.length > 0 && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 mb-6">
-            <h3 className="text-lg font-bold text-red-900 mb-2">Parsing Warnings</h3>
-            <ul className="list-disc list-inside space-y-1">
+          <div className={`border-2 rounded-xl p-6 mb-6 ${
+            parseResult.errors.some(e => !e.startsWith('⚠️'))
+              ? 'bg-red-50 border-red-200'
+              : 'bg-amber-50 border-amber-200'
+          }`}>
+            <h3 className={`text-lg font-bold mb-2 ${
+              parseResult.errors.some(e => !e.startsWith('⚠️'))
+                ? 'text-red-900'
+                : 'text-amber-900'
+            }`}>
+              {parseResult.errors.some(e => !e.startsWith('⚠️')) ? '🚨 Errors & Warnings' : '⚠️ Warnings'}
+            </h3>
+            <ul className="space-y-2">
               {parseResult.errors.map((error, idx) => (
-                <li key={idx} className="text-red-800">{error}</li>
+                <li key={idx} className={`flex items-start gap-2 ${
+                  error.startsWith('⚠️') ? 'text-amber-800' : 'text-red-800'
+                }`}>
+                  <span className="flex-shrink-0">{error.startsWith('⚠️') ? '⚠️' : '❌'}</span>
+                  <span>{error.replace(/^⚠️\s*/, '').replace(/^Warning:\s*/i, '')}</span>
+                </li>
               ))}
             </ul>
           </div>
@@ -294,11 +317,22 @@ export default function ReviewPage() {
           </div>
         )}
 
+        {/* Save Progress */}
+        {saveProgress && (
+          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 mb-6 text-center">
+            <div className="flex items-center justify-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600"></div>
+              <span className="text-emerald-900 font-medium">{saveProgress}</span>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-4 sticky bottom-4">
           <button
             onClick={() => router.push('/import')}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+            disabled={saving}
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ← Back to Import
           </button>

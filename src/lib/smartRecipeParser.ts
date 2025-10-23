@@ -100,12 +100,17 @@ function detectSubRecipe(line: string): {
   unit: string
   subRecipeName: string
   subRecipeIngredients: string
+  hasNestedParentheses?: boolean
 } | null {
   // Pattern: "1 cup salsa verde (ingredients here)"
   const pattern = /^\s*([\d\s\/\.]+)?\s*([a-zA-Z]+)?\s+([^(]+)\s*\(([^)]+)\)\s*$/
   const match = line.match(pattern)
 
   if (!match) return null
+
+  // Check for nested parentheses in the ingredients
+  const ingredientsText = match[4]
+  const hasNestedParentheses = /\(|\)/.test(ingredientsText)
 
   const [, quantityStr, unit, name, ingredients] = match
 
@@ -127,7 +132,8 @@ function detectSubRecipe(line: string): {
     quantity: quantity || 1,
     unit: unit || 'item',
     subRecipeName: name.trim(),
-    subRecipeIngredients: ingredients.trim()
+    subRecipeIngredients: ingredients.trim(),
+    hasNestedParentheses
   }
 }
 
@@ -149,6 +155,15 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
     }
   }
 
+  if (lines.length === 1) {
+    errors.push('Recipe must have at least one ingredient. Add ingredients on separate lines after the recipe name.')
+    return {
+      finalDish: { name: lines[0], ingredients: [] },
+      subRecipes: [],
+      errors
+    }
+  }
+
   // First line is the recipe name
   const finalDishName = lines[0]
   
@@ -160,6 +175,11 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
     const subRecipeMatch = detectSubRecipe(line)
     
     if (subRecipeMatch) {
+      // Warn about nested parentheses
+      if (subRecipeMatch.hasNestedParentheses) {
+        errors.push(`⚠️ Warning: "${subRecipeMatch.subRecipeName}" contains nested parentheses. Only the outermost level is supported. Inner parentheses will be treated as regular text.`)
+      }
+
       // This is a sub-recipe - parse its ingredients
       const subRecipeIngredientLines = subRecipeMatch.subRecipeIngredients
         .split(',')
@@ -186,6 +206,12 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
         unitInFinalDish: subRecipeMatch.unit
       }
 
+      // Check for duplicate sub-recipe names
+      const existingSubRecipe = subRecipes.find(sr => sr.name.toLowerCase() === subRecipe.name.toLowerCase())
+      if (existingSubRecipe) {
+        errors.push(`⚠️ Warning: Duplicate sub-recipe name "${subRecipe.name}". Each sub-recipe will be created separately. Consider using different names if they're different recipes.`)
+      }
+
       subRecipes.push(subRecipe)
 
       // Add reference to sub-recipe in final dish
@@ -203,6 +229,11 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
       if (!parsed) {
         errors.push(`Failed to parse ingredient: "${line}"`)
         continue
+      }
+
+      // Warn if unit is 'item' (likely missing unit)
+      if (parsed.unit === 'item' && !line.toLowerCase().includes('item')) {
+        errors.push(`⚠️ Warning: "${parsed.ingredient}" has no unit specified. Defaulting to "item" which may affect nutrition calculations. Consider adding a unit (cups, grams, etc.)`)
       }
 
       finalDishIngredients.push({
