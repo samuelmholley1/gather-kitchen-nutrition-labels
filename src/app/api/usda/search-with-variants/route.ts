@@ -60,10 +60,9 @@ export async function POST(request: NextRequest) {
         const results = await searchFoods(variant, 1)
         
         if (results.foods && results.foods.length > 0) {
-          // Found a match! Get full details
+          // Found a match! Return the raw food data (not transformed)
+          // This keeps it consistent with the /api/usda/search endpoint
           const firstResult = results.foods[0]
-          const details = await getFoodDetails(firstResult.fdcId)
-          const food = transformUSDAFood(details)
           
           if (i > 0) {
             console.log(`[USDA Variants] ✓ Match found on attempt ${i + 1} using variant: "${variant}"`)
@@ -71,7 +70,7 @@ export async function POST(request: NextRequest) {
           
           return NextResponse.json({
             success: true,
-            food,
+            food: firstResult, // Return raw USDA food object
             variantUsed: variant,
             attemptNumber: i + 1,
             variantsTried: variants.slice(0, i + 1)
