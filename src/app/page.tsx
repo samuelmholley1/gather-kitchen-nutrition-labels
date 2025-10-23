@@ -1,10 +1,13 @@
 import Link from "next/link";
+import Header from "@/components/Header";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
+      <Header />
+      <main>
+        {/* Hero Section */}
+        <section className="container mx-auto px-4 py-20">
         <div className="max-w-5xl mx-auto text-center">
           <div className="mb-8">
             <span className="inline-block px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-semibold mb-4">
@@ -243,6 +246,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
-    </main>
+      </main>
+    </div>
   );
 }
