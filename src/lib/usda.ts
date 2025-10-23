@@ -60,14 +60,27 @@ export async function searchFoods(
   
   const url = `${USDA_API_BASE}/foods/search?${params}`
   
-  const response = await fetch(url)
+  // Add timeout to prevent hanging
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
   
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`USDA API search failed: ${response.status} ${error}`)
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`USDA API search failed: ${response.status} ${error}`)
+    }
+    
+    return await response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('USDA API search timed out after 10 seconds')
+    }
+    throw error
   }
-  
-  return await response.json()
 }
 
 // ============================================================================

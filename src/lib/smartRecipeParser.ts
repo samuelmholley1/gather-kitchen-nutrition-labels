@@ -351,14 +351,20 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
 }
 
 /**
- * Clean ingredient name for USDA search
+ * Clean ingredient name for better USDA search results
  * Removes common descriptors to get better matches
  */
 export function cleanIngredientForUSDASearch(ingredient: string): string {
-  // Remove common descriptors
+  // Remove common descriptors and clean up special characters
   const cleaned = ingredient
     .toLowerCase()
-    .replace(/\b(fresh|raw|cooked|dried|frozen|canned|chopped|diced|minced|sliced|shredded|grated)\b/g, '')
+    // Replace forward slashes with spaces (e.g., "boneless/skinless" → "boneless skinless")
+    .replace(/\//g, ' ')
+    // Remove parentheses and their contents
+    .replace(/\([^)]*\)/g, '')
+    // Remove common cooking descriptors
+    .replace(/\b(fresh|raw|cooked|dried|frozen|canned|chopped|diced|minced|sliced|shredded|grated|julienned|peddled)\b/g, '')
+    // Collapse multiple spaces
     .replace(/\s+/g, ' ')
     .trim()
   
