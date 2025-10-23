@@ -54,6 +54,9 @@ function parseIngredientLine(line: string): {
 } | null {
   let trimmed = line.trim()
   if (!trimmed) return null
+  
+  // Debug log to understand what's being parsed
+  console.log('🔍 Parsing line:', JSON.stringify(line), '→ trimmed:', JSON.stringify(trimmed))
 
   // Convert Unicode fractions to standard fractions
   const unicodeFractions: Record<string, string> = {
