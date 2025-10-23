@@ -56,12 +56,12 @@ function parseIngredientLine(line: string): {
   if (!trimmed) return null
   
   // Remove common bullet points and list markers from the beginning
-  // Supports: •, -, *, ○, ▪, ▫, →, ›, », numbers with dots/parentheses
-  trimmed = trimmed.replace(/^[\u2022\u2023\u25E6\u2043\u2219\-\*\+•○●▪▫■□→›»]\s*/, '') // bullets
+  // First remove U+F0B7 (Private Use Area bullet used by Apple/Microsoft) and other PUA chars
+  trimmed = trimmed.replace(/^[\uE000-\uF8FF]+\s*/, '') // Private Use Area bullets
+  trimmed = trimmed.replace(/^[\u2022\u2023\u25E6\u2043\u2219\-\*\+•○●▪▫■□→›»]\s*/, '') // standard bullets
   trimmed = trimmed.replace(/^\d+[\.\)]\s*/, '') // numbered lists like "1. " or "1) "
   
   // Aggressively remove ALL leading/trailing whitespace including Unicode spaces
-  // \s matches [ \t\n\r\f\v], but also add common Unicode spaces
   trimmed = trimmed.replace(/^[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/, '')
   trimmed = trimmed.replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+$/, '')
   
