@@ -5,9 +5,9 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <img 
-              src="/gather_icon.png" 
+              src="/gather_logo.png" 
               alt="Gather Kitchen" 
-              className="w-8 h-8"
+              className="h-8 w-auto"
             />
             <h1 className="text-xl font-bold">Gather Kitchen</h1>
           </div>
