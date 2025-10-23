@@ -1,35 +1,112 @@
-# 🚀 Airtable Manual Setup Guide
+# 🚀 Airtable Manual Setup Guide - CSV Import Method
 
 ## Current Situation
 - ✅ Base created: `appJcMC1FeOF4991w`
 - ✅ PAT token exists
 - ❌ PAT token lacks schema modification permissions
-- ⚠️ One default table exists (can't delete it)
-
-## 📋 Manual Setup Steps (5 Minutes)
-
-### Step 1: Rename the Default Table
-1. Open your base: https://airtable.com/appJcMC1FeOF4991w
-2. Click on the default table name (probably "Table 1")
-3. Rename it to: **SubRecipes**
-
-### Step 2: Create Table #2 - FinalDishes
-1. Click "Add or import" button (near top left)
-2. Select "Add table"
-3. Name it: **FinalDishes**
-4. Click "Create table"
-
-### Step 3: Create Table #3 - USDACache
-1. Click "Add or import" button again
-2. Select "Add table"
-3. Name it: **USDACache**
-4. Click "Create table"
+- ⚠️ One default table exists (will delete after import)
 
 ---
 
-## 📊 Field Configuration
+## 🎯 EASIEST METHOD: CSV Import (2 Minutes!)
 
-Now add fields to each table. Copy/paste the field names exactly!
+### Step 1: Import SubRecipes Table
+1. Open your base: https://airtable.com/appJcMC1FeOF4991w
+2. Click "Add or import" → "CSV file"
+3. Copy the CSV block below and save as `SubRecipes.csv`
+4. Upload the file
+5. Name the table: **SubRecipes**
+
+**CSV for SubRecipes:**
+```csv
+Name,Ingredients,TotalWeight,YieldMultiplier,ServingSize,ServingsPerRecipe,NutritionProfile,CustomConversions,Category,Notes,CreatedAt,UpdatedAt
+Marinara Sauce,"[{""id"":""1"",""name"":""Tomatoes"",""quantity"":800,""unit"":""grams""}]",750,0.94,100,7.5,"{""calories"":45,""protein"":2,""totalFat"":0.5,""totalCarbohydrate"":9,""dietaryFiber"":2,""totalSugars"":6,""addedSugars"":0,""saturatedFat"":0,""transFat"":0,""cholesterol"":0,""sodium"":300,""vitaminD"":0,""calcium"":20,""iron"":1,""potassium"":400}","{}",Sauce,Classic Italian tomato sauce,2025-10-23T12:00:00Z,2025-10-23T12:00:00Z
+```
+
+### Step 2: Import FinalDishes Table
+1. Click "Add or import" → "CSV file"
+2. Copy the CSV block below and save as `FinalDishes.csv`
+3. Upload the file
+4. Name the table: **FinalDishes**
+
+**CSV for FinalDishes:**
+```csv
+Name,Components,TotalWeight,ServingSize,ServingsPerContainer,NutritionLabel,SubRecipeLinks,Allergens,Category,Notes,CreatedAt,UpdatedAt,Status
+Spaghetti with Marinara,"[{""type"":""subRecipe"",""id"":""recXXX"",""name"":""Marinara Sauce"",""quantity"":200,""unit"":""grams""},{""type"":""ingredient"",""fdcId"":123456,""name"":""Spaghetti pasta"",""quantity"":100,""unit"":""grams""}]",300,150,2,"{""servingSize"":150,""servingsPerContainer"":2,""calories"":280,""totalFat"":2,""saturatedFat"":0.5,""transFat"":0,""cholesterol"":0,""sodium"":450,""totalCarbohydrate"":55,""dietaryFiber"":4,""totalSugars"":8,""addedSugars"":0,""protein"":10,""vitaminD"":0,""calcium"":40,""iron"":3,""potassium"":500}",,"Wheat",Pasta,Fresh marinara with al dente pasta,2025-10-23T12:00:00Z,2025-10-23T12:00:00Z,Active
+```
+
+### Step 3: Import USDACache Table
+1. Click "Add or import" → "CSV file"
+2. Copy the CSV block below and save as `USDACache.csv`
+3. Upload the file
+4. Name the table: **USDACache**
+
+**CSV for USDACache:**
+```csv
+FdcId,Description,FoodData,DataType,BrandOwner,Portions,CachedAt,HitCount,LastUsed
+171289,Tomatoes raw,"{""fdcId"":171289,""description"":""Tomatoes, raw"",""foodNutrients"":[{""nutrientId"":1008,""nutrientName"":""Energy"",""value"":18,""unitName"":""kcal""}]}",Foundation,,"[{""amount"":1,""gramWeight"":123,""modifier"":""medium""}]",2025-10-23T12:00:00Z,5,2025-10-23T12:00:00Z
+```
+
+### Step 4: Delete Default Table
+1. After importing all 3 tables, click on the original "Table 1"
+2. Click the dropdown arrow next to the table name
+3. Select "Delete table"
+4. Confirm deletion
+
+---
+
+## � Post-Import Configuration
+
+After importing, you need to configure special field types that CSV can't handle:
+
+### SubRecipes Table - No special fields needed! ✅
+
+### FinalDishes Table - Configure 3 fields:
+
+1. **SubRecipeLinks** field:
+   - Click the field header
+   - Change type to: "Link to another record"
+   - Select: "SubRecipes" table
+   - Allow linking to multiple records: Yes
+
+2. **Allergens** field:
+   - Click the field header
+   - Change type to: "Multiple select"
+   - Add these options (click each time):
+     - Milk
+     - Eggs
+     - Fish
+     - Shellfish
+     - Tree Nuts
+     - Peanuts
+     - Wheat
+     - Soybeans
+     - Sesame
+
+3. **Status** field:
+   - Click the field header
+   - Change type to: "Single select"
+   - Add these options:
+     - Draft (default)
+     - Active
+     - Archived
+
+### USDACache Table - Configure 1 field:
+
+1. **DataType** field:
+   - Click the field header
+   - Change type to: "Single select"
+   - Add these options:
+     - Foundation
+     - SR Legacy
+     - Survey (FNDDS)
+     - Branded
+
+---
+
+## 📊 Alternative: Manual Field Configuration
+
+If CSV import doesn't work, add fields manually:
 
 ### Table 1: SubRecipes
 

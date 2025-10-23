@@ -1,7 +1,7 @@
 {
-  "name": "Ukiah United Methodist Church - Weekly Bulletin",
-  "short_name": "UUMC Bulletin",
-  "description": "Weekly worship bulletin and announcements for Ukiah United Methodist Church",
+  "name": "Gather Kitchen - Nutrition Label Calculator",
+  "short_name": "Gather Kitchen",
+  "description": "Create FDA-compliant nutrition labels for your recipes. Search USDA foods, build sub-recipes, and generate professional nutrition facts labels.",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -21,11 +21,11 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#000000",
+  "theme_color": "#059669",
   "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
-  "categories": ["lifestyle", "religious"]
+  "categories": ["food", "productivity", "lifestyle"]
 }

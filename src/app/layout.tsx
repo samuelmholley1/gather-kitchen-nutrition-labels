@@ -5,24 +5,38 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Ukiah United Methodist Church - Liturgist Signup',
-  description: 'Sign up to serve as a liturgist for worship services at Ukiah United Methodist Church',
+  title: 'Gather Kitchen - Nutrition Label Calculator',
+  description: 'Create FDA-compliant nutrition labels for your recipes. Search 400,000+ USDA foods, build sub-recipes, and generate professional nutrition facts labels.',
   manifest: '/site.webmanifest',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+    ],
+    other: [
+      { rel: 'android-chrome', url: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+      { rel: 'android-chrome', url: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+    ]
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'UUMC Liturgists'
+    title: 'Gather Kitchen'
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: 'website',
-    siteName: 'UUMC Liturgist Signup',
-    title: 'Ukiah United Methodist Church - Liturgist Signup',
-    description: 'Sign up to serve as a liturgist for worship services',
+    siteName: 'Gather Kitchen',
+    title: 'Gather Kitchen - Nutrition Label Calculator',
+    description: 'Create FDA-compliant nutrition labels for your recipes',
   },
-  keywords: ['church', 'liturgist', 'signup', 'ukiah', 'methodist', 'worship', 'volunteer']
+  keywords: ['nutrition', 'label', 'calculator', 'FDA', 'USDA', 'recipe', 'food', 'ingredients', 'nutrition facts']
 }
 
 export const viewport: Viewport = {
@@ -30,7 +44,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#2563eb',
+  themeColor: '#059669',
   viewportFit: 'cover'
 }
 
@@ -41,31 +55,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="UUMC Liturgists" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              }
-            `,
-          }}
-        />
-      </head>
       <body className={inter.className}>{children}</body>
     </html>
   )
