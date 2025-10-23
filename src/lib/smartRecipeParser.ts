@@ -67,8 +67,9 @@ function parseIngredientLine(line: string): {
   
   if (!trimmed) return null
   
-  // Debug log to understand what's being parsed
-  console.log('🔍 Parsing line:', JSON.stringify(line), '→ cleaned:', JSON.stringify(trimmed))
+  // Debug: show character codes of first few characters
+  const charCodes = trimmed.split('').slice(0, 5).map((c, i) => `[${i}]='${c}' (U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')})`).join(' ')
+  console.log('🔍 Parsing line:', JSON.stringify(line), '→ cleaned:', JSON.stringify(trimmed), '→ first chars:', charCodes)
 
   // Convert Unicode fractions to standard fractions
   const unicodeFractions: Record<string, string> = {
