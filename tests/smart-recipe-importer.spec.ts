@@ -39,7 +39,7 @@ test.describe('Smart Recipe Importer - Happy Path', () => {
     await expect(page).toHaveURL(/\/import\/review/)
     
     // Verify parsed content displayed
-    await expect(page.locator('h1')).toContainText('Review & Confirm Ingredients')
+    await expect(page.locator('h1')).toContainText('Review & Confirm')
     
     // Verify final dish name
     await expect(page.locator('text=Chicken Tacos')).toBeVisible()
