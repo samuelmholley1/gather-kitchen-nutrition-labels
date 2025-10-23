@@ -31,13 +31,13 @@ build
 *.tsbuildinfo
 next-env.d.ts
 
-# Yarn
+# Yarn (exclude cache - too large for GitHub)
 .yarn/*
-!.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+!.yarn/sdks
 .pnp.*
 
 # OS
