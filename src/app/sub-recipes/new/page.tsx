@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import Link from 'next/link'
 import IngredientSearch from '@/components/IngredientSearch'
+import RecipePaste from '@/components/RecipePaste'
 import { USDAFood, Ingredient, SubRecipe, NutrientProfile } from '@/types/liturgist'
+import { ParsedIngredient, cleanIngredientForSearch } from '@/lib/recipeParser'
 
 interface SubRecipeForm {
   name: string
@@ -23,8 +25,9 @@ export default function NewSubRecipePage() {
   const [customGrams, setCustomGrams] = useState('')
   const [saving, setSaving] = useState(false)
   const [previewNutrition, setPreviewNutrition] = useState<NutrientProfile | null>(null)
+  const [searchingIngredients, setSearchingIngredients] = useState(false)
 
-  const { register, control, handleSubmit, watch, formState: { errors } } = useForm<SubRecipeForm>({
+  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<SubRecipeForm>({
     defaultValues: {
       name: '',
       ingredients: [],
@@ -75,6 +78,64 @@ export default function NewSubRecipePage() {
     setQuantity('')
     setUnit('grams')
     setCustomGrams('')
+  }
+
+  const handleParsedRecipe = async (name: string, parsedIngredients: ParsedIngredient[]) => {
+    // Set recipe name
+    setValue('name', name)
+    
+    // Calculate total raw weight
+    const totalWeight = parsedIngredients.reduce((sum, ing) => sum + (ing.grams || 0), 0)
+    setValue('rawWeight', Math.round(totalWeight))
+    setValue('finalWeight', Math.round(totalWeight)) // Default to same as raw
+    
+    // Auto-search USDA for each ingredient
+    setSearchingIngredients(true)
+    
+    for (const parsed of parsedIngredients) {
+      try {
+        const searchTerm = cleanIngredientForSearch(parsed.name)
+        const response = await fetch(`/api/usda/search?query=${encodeURIComponent(searchTerm)}&pageSize=1`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.foods && data.foods.length > 0) {
+            const usdaFood = data.foods[0]
+            
+            const ingredient: Ingredient = {
+              id: `ing_${Date.now()}_${Math.random()}`,
+              fdcId: usdaFood.fdcId,
+              name: parsed.name, // Keep original name from recipe
+              quantity: parsed.grams || parsed.quantity,
+              unit: 'grams',
+              notes: `Auto-matched: ${usdaFood.description}`
+            }
+            
+            append(ingredient)
+          } else {
+            // No USDA match found - add with placeholder
+            const ingredient: Ingredient = {
+              id: `ing_${Date.now()}_${Math.random()}`,
+              fdcId: 0, // Placeholder
+              name: parsed.name,
+              quantity: parsed.grams || parsed.quantity,
+              unit: 'grams',
+              notes: '⚠️ No USDA match - please search manually'
+            }
+            
+            append(ingredient)
+          }
+        }
+        
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 300))
+      } catch (error) {
+        console.error(`Failed to search for ${parsed.name}:`, error)
+      }
+    }
+    
+    setSearchingIngredients(false)
   }
 
   const onSubmit = async (data: SubRecipeForm) => {
@@ -198,9 +259,27 @@ export default function NewSubRecipePage() {
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Ingredients</h2>
             
+            {/* Recipe Paste Section */}
+            <div className="mb-6">
+              <RecipePaste onParsed={handleParsedRecipe} />
+            </div>
+
+            {searchingIngredients && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <p className="text-blue-700">Searching USDA database for ingredients...</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-4 text-center text-gray-500 text-sm">
+              — OR —
+            </div>
+            
             {/* Add Ingredient Section */}
             <div className="mb-6 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-              <h3 className="font-semibold text-gray-900 mb-3">Add Ingredient from USDA</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">Add Ingredient Manually from USDA</h3>
               
               <div className="mb-4">
                 <IngredientSearch 
