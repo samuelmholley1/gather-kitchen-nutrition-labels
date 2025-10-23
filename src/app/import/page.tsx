@@ -96,9 +96,38 @@ export default function RecipeImporterPage() {
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Paste Your Recipe Here
           </label>
+          
+          {/* Live Validation Feedback */}
+          {recipeText.trim() && (
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                {recipeText.split('\n').filter(l => l.trim()).length > 0 && (
+                  <span className="text-green-700">✓ Recipe name detected</span>
+                )}
+                {recipeText.split('\n').filter(l => l.trim()).length > 1 && (
+                  <span className="text-green-700">
+                    • ✓ {recipeText.split('\n').filter(l => l.trim()).length - 1} ingredient{recipeText.split('\n').filter(l => l.trim()).length - 1 > 1 ? 's' : ''} found
+                  </span>
+                )}
+                {recipeText.match(/\([^)]+\)/g) && (
+                  <span className="text-blue-700">
+                    • 🔍 {recipeText.match(/\([^)]+\)/g)!.length} potential sub-recipe{recipeText.match(/\([^)]+\)/g)!.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
           <textarea
             value={recipeText}
             onChange={(e) => setRecipeText(e.target.value)}
+            onKeyDown={(e) => {
+              // Ctrl/Cmd + Enter to parse
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault()
+                handleParse()
+              }
+            }}
             placeholder="Paste your recipe here...
 
 Example:
@@ -110,8 +139,9 @@ Chicken Tacos
 1/2 cup cheese"
             className="w-full h-96 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-mono text-sm resize-none"
           />
-          <div className="mt-2 text-sm text-gray-500">
-            {recipeText.split('\n').filter(l => l.trim()).length} lines
+          <div className="mt-2 flex justify-between items-center text-sm text-gray-500">
+            <span>{recipeText.split('\n').filter(l => l.trim()).length} lines</span>
+            <span className="text-xs text-gray-400">💡 Tip: Press Ctrl/Cmd + Enter to parse</span>
           </div>
         </div>
 

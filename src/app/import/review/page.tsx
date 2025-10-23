@@ -165,12 +165,16 @@ export default function ReviewPage() {
       )
 
       // Success!
-      setSaveProgress('Success! Redirecting...')
-      alert(`✅ Recipe "${parseResult.finalDish.name}" created successfully!\n\n${subRecipes.length} sub-recipes created\n1 final dish created`)
+      setSaveProgress('✅ Success! Recipe created!')
       
-      // Clear session storage and redirect
+      // Clear session storage
       sessionStorage.removeItem('parsedRecipe')
-      router.push(`/final-dishes`)
+      sessionStorage.removeItem('originalRecipeText')
+      
+      // Show success for 1.5 seconds before redirect
+      setTimeout(() => {
+        router.push(`/final-dishes`)
+      }, 1500)
       
     } catch (error) {
       console.error('Save failed:', error)
@@ -214,27 +218,91 @@ export default function ReviewPage() {
             Review the parsed recipe and confirm USDA matches for each ingredient
           </p>
           
-          {/* Progress Counter */}
-          <div className="mt-4 flex items-center gap-4">
-            <div className={`px-4 py-2 rounded-lg font-medium ${
-              allIngredientsConfirmed() 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-amber-100 text-amber-800'
-            }`}>
-              {allIngredientsConfirmed() ? (
-                <span>✓ All ingredients confirmed!</span>
-              ) : (
-                <span>
-                  {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => i.confirmed).length} of {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].length} ingredients confirmed
-                </span>
+          {/* Progress Counter & Bar */}
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className={`px-4 py-2 rounded-lg font-medium ${
+                allIngredientsConfirmed() 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {allIngredientsConfirmed() ? (
+                  <span>✓ All ingredients confirmed!</span>
+                ) : (
+                  <span>
+                    {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => i.confirmed).length} of {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].length} ingredients confirmed
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                {subRecipes.length > 0 && `${subRecipes.length} sub-recipe${subRecipes.length > 1 ? 's' : ''} detected`}
+              </div>
+              
+              {/* Bulk Skip Button */}
+              {!allIngredientsConfirmed() && [...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].some(i => !i.confirmed) && (
+                <button
+                  onClick={() => {
+                    const unconfirmedCount = [...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => !i.confirmed).length
+                    if (confirm(`Skip all ${unconfirmedCount} remaining unconfirmed ingredients?\n\nThese ingredients will NOT contribute to nutrition calculations. Only do this if they're negligible or non-food items.`)) {
+                      // Skip all unconfirmed in final dish
+                      setFinalDishIngredients(finalDishIngredients.map(ing => 
+                        ing.confirmed ? ing : { ...ing, confirmed: true, usdaFood: null }
+                      ))
+                      // Skip all unconfirmed in sub-recipes
+                      setSubRecipes(subRecipes.map(sub => ({
+                        ...sub,
+                        ingredients: sub.ingredients.map(ing =>
+                          ing.confirmed ? ing : { ...ing, confirmed: true, usdaFood: null }
+                        )
+                      })))
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Skip All Remaining
+                </button>
               )}
             </div>
-            <div className="text-sm text-gray-600">
-              {subRecipes.length > 0 && `${subRecipes.length} sub-recipe${subRecipes.length > 1 ? 's' : ''} detected`}
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  allIngredientsConfirmed() ? 'bg-green-600' : 'bg-amber-500'
+                }`}
+                style={{ 
+                  width: `${([...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => i.confirmed).length / [...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].length) * 100}%` 
+                }}
+              ></div>
             </div>
           </div>
         </div>
 
+        {/* Save Preview Summary */}
+        {allIngredientsConfirmed() && (
+          <div className="bg-gradient-to-r from-emerald-50 to-blue-50 border-2 border-emerald-200 rounded-xl p-6 mb-6">
+            <h3 className="text-lg font-bold text-emerald-900 mb-3 flex items-center gap-2">
+              <span className="text-2xl">🎉</span>
+              Ready to Save!
+            </h3>
+            <div className="text-emerald-800 space-y-2">
+              <p className="font-medium">This will create:</p>
+              <ul className="ml-6 space-y-1">
+                {subRecipes.length > 0 && (
+                  <li>✓ {subRecipes.length} Sub-Recipe{subRecipes.length > 1 ? 's' : ''}: {subRecipes.map(s => s.name).join(', ')}</li>
+                )}
+                <li>✓ 1 Final Dish: {parseResult.finalDish.name}</li>
+                <li className="text-sm text-emerald-700 mt-2">
+                  📊 Total: {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => i.usdaFood).length} ingredients with nutrition data
+                  {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => !i.usdaFood).length > 0 && 
+                    `, ${[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => !i.usdaFood).length} skipped`
+                  }
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
+        
         {/* Errors/Warnings */}
         {parseResult.errors.length > 0 && (
           <div className={`border-2 rounded-xl p-6 mb-6 ${
@@ -290,11 +358,11 @@ export default function ReviewPage() {
                     onClick={() => setEditingIngredient({ type: 'final', ingredientIndex: idx })}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                       ing.confirmed
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
                     }`}
                   >
-                    {ing.confirmed ? 'Change' : 'Select USDA'}
+                    {ing.confirmed ? '✏️ Change' : 'Select USDA'}
                   </button>
                   {!ing.confirmed && (
                     <button
@@ -320,7 +388,7 @@ export default function ReviewPage() {
         {/* Sub-Recipes */}
         {subRecipes.map((sub, subIdx) => (
           <div key={subIdx} className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-blue-900 mb-1">
+            <h3 className="text-xl font-bold text-blue-900 mb-1 truncate" title={sub.name}>
               Sub-Recipe: {sub.name}
             </h3>
             <p className="text-sm text-blue-700 mb-4">
@@ -349,11 +417,11 @@ export default function ReviewPage() {
                       onClick={() => setEditingIngredient({ type: 'sub', subRecipeIndex: subIdx, ingredientIndex: ingIdx })}
                       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                         ing.confirmed
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+                          : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
                       }`}
                     >
-                      {ing.confirmed ? 'Change' : 'Select USDA'}
+                      {ing.confirmed ? '✏️ Change' : 'Select USDA'}
                     </button>
                     {!ing.confirmed && (
                       <button
