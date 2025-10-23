@@ -305,3 +305,55 @@ export async function testConnection(): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Search for foods with automatic fallback to query variants
+ * Tries multiple search queries in sequence until a match is found
+ * 
+ * @param ingredient - Original ingredient name
+ * @param searchVariants - Array of search query variants to try (in order)
+ * @returns First successful search result, or null if all variants fail
+ */
+export async function searchWithVariants(
+  ingredient: string,
+  searchVariants: string[]
+): Promise<{ food: USDAFood; variantUsed: string; attemptNumber: number } | null> {
+  if (!searchVariants || searchVariants.length === 0) {
+    console.warn(`[USDA] No search variants provided for "${ingredient}"`)
+    return null
+  }
+
+  for (let i = 0; i < searchVariants.length; i++) {
+    const variant = searchVariants[i]
+    
+    try {
+      console.log(`[USDA] Attempt ${i + 1}/${searchVariants.length} for "${ingredient}": trying "${variant}"`)
+      
+      const results = await searchFoods(variant, 1)
+      
+      if (results.foods && results.foods.length > 0) {
+        const firstResult = results.foods[0]
+        const details = await getFoodDetails(firstResult.fdcId)
+        const food = transformUSDAFood(details)
+        
+        if (i > 0) {
+          console.log(`[USDA] ✓ Match found on attempt ${i + 1} using variant: "${variant}"`)
+        }
+        
+        return {
+          food,
+          variantUsed: variant,
+          attemptNumber: i + 1
+        }
+      } else {
+        console.log(`[USDA] No results for variant "${variant}", trying next...`)
+      }
+    } catch (error) {
+      console.error(`[USDA] Error searching variant "${variant}":`, error)
+      // Continue to next variant
+    }
+  }
+  
+  console.warn(`[USDA] All ${searchVariants.length} variants failed for "${ingredient}"`)
+  return null
+}

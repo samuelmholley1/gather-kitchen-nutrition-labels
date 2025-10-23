@@ -50,72 +50,75 @@ export default function ReviewPage() {
       setHasAutoSearched(true) // Prevent re-running
       
       try {
-        // Search for final dish ingredients
+        // Search for final dish ingredients with variants
         const finalPromises = finalDishIngredients.map(async (ing, idx) => {
-          // Skip if search query is empty or invalid
-          if (!ing.searchQuery || ing.searchQuery.trim().length === 0) {
-            console.warn(`[USDA] Skipping empty query for "${ing.ingredient}"`)
+          // Skip if ingredient name is empty
+          if (!ing.ingredient || ing.ingredient.trim().length === 0) {
+            console.warn(`[USDA] Skipping empty ingredient`)
             return null
           }
           
           try {
-            const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
+            // Use variant search endpoint
+            const response = await fetch(`/api/usda/search-with-variants`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ingredient: ing.ingredient })
+            })
+            
             if (!response.ok) {
-              console.error(`USDA search failed for "${ing.ingredient}":`, response.status, response.statusText)
+              console.error(`[USDA] Variant search failed for "${ing.ingredient}":`, response.status)
               return null
             }
             
             const data = await response.json()
-            if (data.success && data.foods && data.foods.length > 0) {
-              return { idx, food: data.foods[0], type: 'final' as const }
+            if (data.success && data.food) {
+              if (data.attemptNumber > 1) {
+                console.log(`[USDA] ✓ "${ing.ingredient}" matched using variant "${data.variantUsed}" (attempt ${data.attemptNumber})`)
+              }
+              return { idx, food: data.food, type: 'final' as const }
             } else {
-              console.warn(`No USDA results for "${ing.ingredient}" (query: "${ing.searchQuery}")`)
+              console.warn(`[USDA] No match found for "${ing.ingredient}" after trying ${data.variantsTried?.length || 0} variants`)
             }
           } catch (error) {
-            console.error(`Failed to auto-search for "${ing.ingredient}":`, error)
+            console.error(`[USDA] Failed to search for "${ing.ingredient}":`, error)
           }
           return null
         })
         
-        // Search for sub-recipe ingredients
+        // Search for sub-recipe ingredients with variants
         const subPromises = subRecipes.flatMap((sub, subIdx) =>
           sub.ingredients.map(async (ing, ingIdx) => {
-            // Skip if search query is empty or invalid
-            if (!ing.searchQuery || ing.searchQuery.trim().length === 0) {
-              console.warn(`[USDA] Skipping empty query for "${ing.ingredient}"`)
+            // Skip if ingredient name is empty
+            if (!ing.ingredient || ing.ingredient.trim().length === 0) {
+              console.warn(`[USDA] Skipping empty ingredient`)
               return null
             }
             
             try {
-              const response = await fetch(`/api/usda/search?query=${encodeURIComponent(ing.searchQuery)}&pageSize=1`)
+              // Use variant search endpoint
+              const response = await fetch(`/api/usda/search-with-variants`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingredient: ing.ingredient })
+              })
+              
               if (!response.ok) {
-                console.error(`USDA search failed for "${ing.ingredient}":`, response.status, response.statusText)
+                console.error(`[USDA] Variant search failed for "${ing.ingredient}":`, response.status)
                 return null
               }
               
               const data = await response.json()
-              if (data.success && data.foods && data.foods.length > 0) {
-                return { subIdx, ingIdx, food: data.foods[0], type: 'sub' as const }
+              if (data.success && data.food) {
+                if (data.attemptNumber > 1) {
+                  console.log(`[USDA] ✓ "${ing.ingredient}" matched using variant "${data.variantUsed}" (attempt ${data.attemptNumber})`)
+                }
+                return { subIdx, ingIdx, food: data.food, type: 'sub' as const }
               } else {
-                console.warn(`[USDA] No results for "${ing.ingredient}"`)
-                console.warn(`  - Cleaned query: "${ing.searchQuery}"`)
-                console.warn(`  - Original: "${ing.ingredient}"`)
+                console.warn(`[USDA] No match found for "${ing.ingredient}" after trying ${data.variantsTried?.length || 0} variants`)
               }
             } catch (error) {
-              // Enhanced error logging for debugging
-              if (error instanceof Error) {
-                console.error(`[USDA] Search failed for "${ing.ingredient}":`, error.message)
-                console.error(`  - Cleaned query: "${ing.searchQuery}"`)
-                if (error.message.includes('500')) {
-                  console.error(`  - ⚠️ Server error - possible special character issue`)
-                } else if (error.message.includes('timeout')) {
-                  console.error(`  - ⚠️ Request timed out after 10 seconds`)
-                } else if (error.message.includes('400')) {
-                  console.error(`  - ⚠️ Bad request - query may be malformed`)
-                }
-              } else {
-                console.error(`[USDA] Unknown error for "${ing.ingredient}":`, error)
-              }
+              console.error(`[USDA] Failed to search for "${ing.ingredient}":`, error)
             }
             return null
           })

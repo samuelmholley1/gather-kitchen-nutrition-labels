@@ -403,3 +403,108 @@ export function cleanIngredientForUSDASearch(ingredient: string): string {
   
   return result
 }
+
+/**
+ * Generate multiple search query variants to try if initial search fails
+ * Returns an array of progressively simpler queries to maximize match chances
+ */
+export function generateSearchVariants(ingredient: string): string[] {
+  if (!ingredient || typeof ingredient !== 'string') {
+    return []
+  }
+
+  const variants: string[] = []
+  const original = ingredient.toLowerCase().trim()
+  
+  // 1. Fully cleaned version (what we normally use)
+  const fullyCleaned = cleanIngredientForUSDASearch(ingredient)
+  if (fullyCleaned && fullyCleaned.length > 0) {
+    variants.push(fullyCleaned)
+  }
+  
+  // 2. Minimally cleaned (just lowercase, remove symbols, trim)
+  const minimalCleaned = original
+    .replace(/[™®©]/g, '')
+    .replace(/["""''']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (minimalCleaned && minimalCleaned !== fullyCleaned) {
+    variants.push(minimalCleaned)
+  }
+  
+  // 3. Remove everything after common separators (get main ingredient)
+  const mainIngredient = original.split(/[,;]/)[0].trim()
+  const cleanedMain = cleanIngredientForUSDASearch(mainIngredient)
+  if (cleanedMain && cleanedMain.length > 0 && !variants.includes(cleanedMain)) {
+    variants.push(cleanedMain)
+  }
+  
+  // 4. Extract last 1-3 words (often the core noun)
+  const words = fullyCleaned.split(/\s+/)
+  if (words.length >= 2) {
+    // Last 2 words (e.g., "boneless skinless chicken breast" → "chicken breast")
+    const lastTwo = words.slice(-2).join(' ')
+    if (lastTwo && !variants.includes(lastTwo)) {
+      variants.push(lastTwo)
+    }
+  }
+  if (words.length >= 3) {
+    // Last 3 words
+    const lastThree = words.slice(-3).join(' ')
+    if (lastThree && !variants.includes(lastThree)) {
+      variants.push(lastThree)
+    }
+  }
+  
+  // 5. Just the last word (the main noun, usually)
+  if (words.length >= 2) {
+    const lastWord = words[words.length - 1]
+    if (lastWord && lastWord.length > 2 && !variants.includes(lastWord)) {
+      variants.push(lastWord)
+    }
+  }
+  
+  // 6. Try plural/singular variations of the main variants
+  const pluralSingularVariants: string[] = []
+  variants.slice(0, 3).forEach(variant => {
+    if (variant.endsWith('s') && variant.length > 3) {
+      // Try removing 's' for singular
+      const singular = variant.slice(0, -1)
+      if (!variants.includes(singular)) {
+        pluralSingularVariants.push(singular)
+      }
+    } else if (!variant.endsWith('s')) {
+      // Try adding 's' for plural
+      const plural = variant + 's'
+      if (!variants.includes(plural)) {
+        pluralSingularVariants.push(plural)
+      }
+    }
+  })
+  variants.push(...pluralSingularVariants)
+  
+  // 7. Common substitutions for better matches
+  const substitutions: Array<[RegExp, string]> = [
+    [/\bboneless\s+skinless\s+chicken\b/gi, 'chicken breast'],
+    [/\bground\s+beef\b/gi, 'beef ground'],
+    [/\bextra\s+virgin\s+olive\s+oil\b/gi, 'olive oil'],
+    [/\bheavy\s+cream\b/gi, 'cream'],
+    [/\bsour\s+cream\b/gi, 'cream sour'],
+    [/\ball\s+purpose\s+flour\b/gi, 'flour wheat'],
+    [/\bbrown\s+sugar\b/gi, 'sugar brown'],
+    [/\bwhite\s+sugar\b/gi, 'sugar'],
+  ]
+  
+  substitutions.forEach(([pattern, replacement]) => {
+    const substituted = fullyCleaned.replace(pattern, replacement)
+    if (substituted !== fullyCleaned && !variants.includes(substituted)) {
+      variants.push(substituted)
+    }
+  })
+  
+  // Remove duplicates and empty strings
+  const uniqueVariants = Array.from(new Set(variants)).filter(v => v && v.length > 0)
+  
+  // Limit to top 10 variants to avoid too many API calls
+  return uniqueVariants.slice(0, 10)
+}
