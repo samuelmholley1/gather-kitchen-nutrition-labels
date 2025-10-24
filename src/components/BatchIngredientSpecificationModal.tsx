@@ -27,7 +27,12 @@ export default function BatchIngredientSpecificationModal({
   onCancel
 }: BatchIngredientSpecificationModalProps) {
   const [selections, setSelections] = useState<Map<string, string>>(
-    new Map(ingredients.map(ing => [ing.id, ing.specificationOptions[0]]))
+    new Map(ingredients.map(ing => [
+      ing.id, 
+      ing.specificationOptions && ing.specificationOptions.length > 0 
+        ? ing.specificationOptions[0] 
+        : `medium ${ing.baseIngredient}`
+    ]))
   )
 
   const handleSelectionChange = (id: string, variety: string) => {

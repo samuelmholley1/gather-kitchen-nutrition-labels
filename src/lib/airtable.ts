@@ -40,6 +40,11 @@ export async function submitSignup(data: SignupData) {
       },
     ])
 
+    if (!record || record.length === 0) {
+      console.error('Airtable returned empty record array')
+      return { success: false, error: new Error('Failed to create record') }
+    }
+
     return { success: true, record: record[0] }
   } catch (error) {
     console.error('Error submitting to Airtable:', error)

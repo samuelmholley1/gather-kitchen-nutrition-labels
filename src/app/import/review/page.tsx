@@ -378,7 +378,7 @@ export default function ReviewPage() {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [finalDishIngredients, subRecipes, saving])
+  }, [finalDishIngredients, subRecipes, saving]) // Added missing dependencies
 
   const handleSelectUSDA = (food: USDAFood) => {
     if (!editingIngredient) return

@@ -324,11 +324,16 @@ export function transformUSDAFood(usdaFood: any): USDAFood {
 export async function quickSearch(query: string): Promise<USDAFood | null> {
   const results = await searchFoods(query, 1)
   
-  if (results.foods.length === 0) {
+  if (!results.foods || results.foods.length === 0) {
     return null
   }
   
   const firstResult = results.foods[0]
+  if (!firstResult || !firstResult.fdcId) {
+    console.error('[USDA] Invalid food result:', firstResult)
+    return null
+  }
+  
   const details = await getFoodDetails(firstResult.fdcId)
   
   return transformUSDAFood(details)
