@@ -33,20 +33,25 @@ function getApiKey(): string {
 // ============================================================================
 
 /**
- * Search for foods in the USDA database
+ * Search for foods in the USDA database with retry logic
  * 
  * @param query - Search term (e.g., "apple", "chicken breast")
  * @param pageSize - Number of results per page (default: 50, max: 200)
  * @param pageNumber - Page number for pagination (default: 1)
  * @param dataType - Filter by data type (optional)
+ * @param retryCount - Internal retry counter (do not pass manually)
  * @returns Search results with pagination info
  */
 export async function searchFoods(
   query: string,
   pageSize: number = 50,
   pageNumber: number = 1,
-  dataType?: 'Foundation' | 'SR Legacy' | 'Survey (FNDDS)' | 'Branded'
+  dataType?: 'Foundation' | 'SR Legacy' | 'Survey (FNDDS)' | 'Branded',
+  retryCount: number = 0
 ): Promise<USDASearchResponse> {
+  const MAX_RETRIES = 3
+  const RETRY_DELAY_MS = 1000
+  
   const params = new URLSearchParams({
     api_key: getApiKey(),
     query,
@@ -68,6 +73,32 @@ export async function searchFoods(
     const response = await fetch(url, { signal: controller.signal })
     clearTimeout(timeoutId)
     
+    // Handle rate limiting (429)
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After')
+      const delay = retryAfter ? parseInt(retryAfter) * 1000 : RETRY_DELAY_MS * Math.pow(2, retryCount)
+      
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`⚠️ USDA API rate limit. Retrying in ${delay}ms... (${retryCount + 1}/${MAX_RETRIES})`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return searchFoods(query, pageSize, pageNumber, dataType, retryCount + 1)
+      } else {
+        throw new Error('USDA API rate limit exceeded. Please try again later.')
+      }
+    }
+    
+    // Handle server errors (500+) with retry
+    if (response.status >= 500) {
+      if (retryCount < MAX_RETRIES) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, retryCount)
+        console.warn(`⚠️ USDA API server error (${response.status}). Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return searchFoods(query, pageSize, pageNumber, dataType, retryCount + 1)
+      } else {
+        throw new Error(`USDA API server error (${response.status}). Please try again later.`)
+      }
+    }
+    
     if (!response.ok) {
       const error = await response.text()
       throw new Error(`USDA API search failed: ${response.status} ${error}`)
@@ -76,9 +107,31 @@ export async function searchFoods(
     return await response.json()
   } catch (error) {
     clearTimeout(timeoutId)
+    
+    // Handle timeout with retry
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('USDA API search timed out after 10 seconds')
+      if (retryCount < MAX_RETRIES) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, retryCount)
+        console.warn(`⚠️ USDA API timeout. Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return searchFoods(query, pageSize, pageNumber, dataType, retryCount + 1)
+      } else {
+        throw new Error('USDA API timed out after multiple attempts. Please try again later.')
+      }
     }
+    
+    // Handle network errors with retry
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      if (retryCount < MAX_RETRIES) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, retryCount)
+        console.warn(`⚠️ Network error. Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return searchFoods(query, pageSize, pageNumber, dataType, retryCount + 1)
+      } else {
+        throw new Error('Network error connecting to USDA API. Please check your connection.')
+      }
+    }
+    
     throw error
   }
 }

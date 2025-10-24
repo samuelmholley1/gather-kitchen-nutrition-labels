@@ -71,6 +71,17 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
   if (validIngredients.length === 0) {
     throw new Error(`Sub-recipe "${subRecipe.name}" has no valid USDA-matched ingredients. Please match at least one ingredient or remove this sub-recipe.`)
   }
+
+  // Validate USDA data structure
+  for (const ing of validIngredients) {
+    if (!ing.usdaFood.fdcId || !ing.usdaFood.description) {
+      throw new Error(`Invalid USDA data for ingredient "${ing.ingredient}" in sub-recipe "${subRecipe.name}". Missing required fields.`)
+    }
+    if (!ing.usdaFood.foodNutrients || !Array.isArray(ing.usdaFood.foodNutrients)) {
+      console.warn(`Missing or invalid foodNutrients for "${ing.ingredient}". Nutrition calculation may be incomplete.`)
+      ing.usdaFood.foodNutrients = [] // Provide empty array to prevent crashes
+    }
+  }
   
   // Convert ingredients to the format expected by the API
   const ingredientsForCalc: Ingredient[] = validIngredients.map((ing, idx) => ({
@@ -163,6 +174,17 @@ export async function createFinalDish(
   finalDishIngredients: IngredientWithUSDA[],
   subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, totalWeight: number, quantityInFinalDish: number, unitInFinalDish: string }>
 ): Promise<string> {
+  // Validate at least one ingredient or sub-recipe
+  const hasValidIngredients = finalDishIngredients.some(ing => ing.usdaFood !== null)
+  const hasSubRecipes = subRecipesData.length > 0
+  
+  if (!hasValidIngredients && !hasSubRecipes) {
+    throw new Error(
+      `Cannot create final dish "${dishName}" with no ingredients. ` +
+      `Please match at least one ingredient to USDA data before saving.`
+    )
+  }
+
   // Check for duplicate dish name
   const isDuplicate = await checkDuplicateDish(dishName)
   if (isDuplicate) {
@@ -179,6 +201,12 @@ export async function createFinalDish(
   for (const ing of finalDishIngredients) {
     // Skip ingredients that were marked as "Skip" (null usdaFood)
     if (!ing.usdaFood) continue
+    
+    // Validate USDA data structure
+    if (!ing.usdaFood.fdcId || !ing.usdaFood.description) {
+      console.error(`Invalid USDA data for ingredient "${ing.ingredient}". Skipping.`)
+      continue
+    }
     
     const ingredientForCalc: Ingredient = {
       id: `temp-${Math.random()}`,

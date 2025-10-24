@@ -68,13 +68,32 @@ export async function POST(request: NextRequest) {
       return sum + (ing.quantity || 0)
     }, 0)
 
+    // Validate total weight
+    if (totalWeight <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Total weight is zero or negative. Cannot calculate nutrition. Please ensure all ingredients have valid quantities.'
+        },
+        { status: 400 }
+      )
+    }
+
+    if (servingSize <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Serving size must be greater than zero.'
+        },
+        { status: 400 }
+      )
+    }
+
     // Calculate nutrition profile per 100g
     const nutritionPer100g = calculateNutritionProfile(ingredients)
 
     // Scale to serving size
-    const servingsPerContainer = totalWeight > 0 && servingSize > 0
-      ? (totalWeight / servingSize)
-      : 1
+    const servingsPerContainer = (totalWeight / servingSize)
 
     // Scale nutrition to serving size
     const nutritionProfile = Object.keys(nutritionPer100g).reduce((acc, key) => {

@@ -538,6 +538,16 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
         continue // Skip this ingredient
       }
 
+      // Validate quantity is positive and reasonable
+      if (parsed.quantity < 0) {
+        errors.push(`❌ Error: Ingredient "${parsed.ingredient}" has negative quantity (${parsed.quantity}). Quantities must be positive.`)
+        continue
+      }
+
+      if (parsed.quantity > 100000) {
+        errors.push(`⚠️ Warning: Ingredient "${parsed.ingredient}" has very large quantity (${parsed.quantity} ${parsed.unit}). Please verify this is correct.`)
+      }
+
       // Check for vague or non-standard units
       const vagueUnits = ['some', 'a little', 'a bit', 'bunch', 'handful', 'splash']
       if (vagueUnits.includes(parsed.unit.toLowerCase())) {

@@ -83,7 +83,19 @@ export default function ReviewPage() {
             })
             
             if (!response.ok) {
-              console.error(`[USDA] Variant search failed for "${ing.ingredient}":`, response.status)
+              const errorData = await response.json().catch(() => ({}))
+              const errorMsg = errorData.error || `HTTP ${response.status}`
+              
+              // User-friendly error messages
+              if (response.status === 429 || errorMsg.includes('rate limit')) {
+                console.error(`[USDA] Rate limit hit for "${ing.ingredient}". Please wait a moment.`)
+              } else if (response.status >= 500 || errorMsg.includes('server error')) {
+                console.error(`[USDA] USDA API temporarily unavailable for "${ing.ingredient}". Will retry.`)
+              } else if (errorMsg.includes('Network') || errorMsg.includes('fetch')) {
+                console.error(`[USDA] Network error searching for "${ing.ingredient}". Check your connection.`)
+              } else {
+                console.error(`[USDA] Search failed for "${ing.ingredient}": ${errorMsg}`)
+              }
               return null
             }
             
@@ -317,17 +329,40 @@ export default function ReviewPage() {
             unitInFinalDish: subRecipes[i].unitInFinalDish
           })
         } catch (subError) {
+          // Rollback: Delete any sub-recipes that were already created
+          setSaveProgress('Rolling back - deleting created sub-recipes...')
+          for (const subRecipeId of createdSubRecipeIds) {
+            try {
+              await fetch(`/api/sub-recipes/${subRecipeId}`, { method: 'DELETE' })
+            } catch (deleteError) {
+              console.error(`Failed to delete sub-recipe ${subRecipeId}:`, deleteError)
+            }
+          }
           throw new Error(`Failed to create sub-recipe "${subRecipes[i].name}": ${subError instanceof Error ? subError.message : 'Unknown error'}`)
         }
       }
 
       // Step 2: Create final dish with sub-recipes
       setSaveProgress(`Creating final dish "${parseResult.finalDish.name}"...`)
-      const finalDishId = await createFinalDish(
-        parseResult.finalDish.name,
-        finalDishIngredients,
-        subRecipesData
-      )
+      let finalDishId: string
+      try {
+        finalDishId = await createFinalDish(
+          parseResult.finalDish.name,
+          finalDishIngredients,
+          subRecipesData
+        )
+      } catch (finalDishError) {
+        // Rollback: Delete all created sub-recipes if final dish creation fails
+        setSaveProgress('Final dish creation failed - rolling back sub-recipes...')
+        for (const subRecipeId of createdSubRecipeIds) {
+          try {
+            await fetch(`/api/sub-recipes/${subRecipeId}`, { method: 'DELETE' })
+          } catch (deleteError) {
+            console.error(`Failed to delete sub-recipe ${subRecipeId}:`, deleteError)
+          }
+        }
+        throw finalDishError
+      }
 
       // Success!
       setSaveProgress('✅ Success! Recipe created!')
