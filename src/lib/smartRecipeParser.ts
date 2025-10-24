@@ -173,6 +173,10 @@ function parseIngredientLine(line: string): {
 
 /**
  * Check if an ingredient line contains a sub-recipe (has parentheses with ingredients)
+ * 
+ * Distinguishes between:
+ * - Sub-recipes: "1 cup salsa (tomato, onion, cilantro)" - actual ingredient list
+ * - Descriptions: "chicken (boneless, skinless breast)" - just descriptive attributes
  */
 function detectSubRecipe(line: string): {
   hasSubRecipe: boolean
@@ -193,6 +197,61 @@ function detectSubRecipe(line: string): {
   const hasNestedParentheses = /\(|\)/.test(ingredientsText)
 
   const [, quantityStr, unit, name, ingredients] = match
+
+  // Split by commas to analyze the content
+  const items = ingredients.split(',').map(s => s.trim())
+  
+  // Check if items look like actual ingredients (vs just descriptive words)
+  // Real ingredients typically:
+  // 1. Have quantities/numbers: "1 tomato", "2 cups water"
+  // 2. Have units: "1 cup", "2 tablespoons"
+  // 3. Are food nouns: "tomato", "garlic", "basil"
+  //
+  // Descriptive attributes are typically:
+  // 1. Single adjectives: "boneless", "skinless", "fresh"
+  // 2. Body part nouns without quantities: "breast", "thigh"
+  // 3. Preparation methods: "diced", "chopped", "cooked"
+  
+  let ingredientLikeCount = 0
+  let descriptorLikeCount = 0
+  
+  for (const item of items) {
+    const words = item.split(/\s+/)
+    
+    // Check if it looks like an ingredient line
+    const hasNumber = /\d/.test(item)
+    const hasCommonUnit = /\b(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|kg|ml|liter)\b/i.test(item)
+    // Common food words (including plurals)
+    const hasCommonFood = /\b(tomatoes?|onions?|garlics?|peppers?|oils?|water|salt|sugars?|flours?|cheeses?|meats?|chickens?|beef|pork|fish|rice|beans?|carrots?|celer[yi]|basil|cilantro|parsley|eggs?|milk|creams?|butters?|sauces?|broths?|stocks?)\b/i.test(item)
+    
+    // Check if it looks like a descriptor
+    const commonDescriptors = /\b(boneless|skinless|fresh|raw|cooked|dried|frozen|canned|organic|chopped|diced|minced|sliced|shredded|grated|whole|ground|breast|thigh|leg|wing|fillet|loin|rib|back|neck|shoulder)\b/i
+    const matchesDescriptor = commonDescriptors.test(item)
+    // Single short word that's NOT a food word
+    const isShortAdjective = words.length === 1 && item.length < 12 && !hasCommonFood
+    
+    // Strong signals of an ingredient:
+    // 1. Has a number or unit (e.g., "1 tomato", "2 cups")
+    // 2. Contains a common food word without descriptors (e.g., "carrots", "garlic")
+    if (hasNumber || hasCommonUnit) {
+      ingredientLikeCount++
+    } else if (hasCommonFood && !matchesDescriptor) {
+      // Food word without descriptors is likely an ingredient
+      ingredientLikeCount++
+    } else if (matchesDescriptor || isShortAdjective) {
+      descriptorLikeCount++
+    }
+  }
+  
+  // If most items look like descriptors, it's NOT a sub-recipe
+  if (descriptorLikeCount > 0 && descriptorLikeCount >= ingredientLikeCount) {
+    return null // Treat as a regular ingredient with descriptive parentheses
+  }
+  
+  // If we have fewer than 2 items that look like ingredients, probably not a sub-recipe
+  if (ingredientLikeCount < 2 && items.length >= 2) {
+    return null // Likely just descriptive text
+  }
 
   // Parse quantity
   let quantity = 1
