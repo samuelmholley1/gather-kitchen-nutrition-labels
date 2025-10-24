@@ -203,6 +203,37 @@ export default function ReviewPage() {
   }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
   useEffect(() => {
+    // Check for interrupted save (browser crash during save)
+    try {
+      const saveInProgress = localStorage.getItem('recipe_save_in_progress')
+      if (saveInProgress) {
+        const { recipeName, timestamp, subRecipeCount } = JSON.parse(saveInProgress)
+        const minutesAgo = Math.floor((Date.now() - timestamp) / 60000)
+        
+        if (minutesAgo < 5) {
+          // Recent save attempt - warn user
+          const shouldContinue = confirm(
+            `⚠️ Incomplete Save Detected\n\n` +
+            `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
+            `This might be due to a browser crash or network error. ` +
+            `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
+            `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
+          )
+          
+          if (shouldContinue) {
+            localStorage.removeItem('recipe_save_in_progress')
+            router.push('/sub-recipes')
+            return
+          }
+        }
+        
+        // Old save attempt - clear it
+        localStorage.removeItem('recipe_save_in_progress')
+      }
+    } catch (e) {
+      console.warn('Could not check for interrupted save:', e)
+    }
+  
     // Load parsed recipe from sessionStorage
     const stored = sessionStorage.getItem('parsedRecipe')
     if (!stored) {
@@ -357,6 +388,17 @@ export default function ReviewPage() {
       return
     }
 
+    // Save progress to localStorage in case of browser crash during save
+    try {
+      localStorage.setItem('recipe_save_in_progress', JSON.stringify({
+        recipeName: parseResult.finalDish.name,
+        timestamp: Date.now(),
+        subRecipeCount: subRecipes.length
+      }))
+    } catch (e) {
+      console.warn('Could not save progress to localStorage:', e)
+    }
+
     setSaving(true)
     setSaveProgress('Preparing to save...')
     
@@ -420,9 +462,10 @@ export default function ReviewPage() {
       // Success!
       setSaveProgress('✅ Success! Recipe created!')
       
-      // Clear session storage
+      // Clear session storage and save progress marker
       sessionStorage.removeItem('parsedRecipe')
       sessionStorage.removeItem('originalRecipeText')
+      localStorage.removeItem('recipe_save_in_progress')
       
       // Show success for 1.5 seconds before redirect
       setTimeout(() => {
@@ -446,6 +489,12 @@ export default function ReviewPage() {
     } finally {
       setSaving(false)
       setSaveProgress('')
+      // Clear save progress marker even on error
+      try {
+        localStorage.removeItem('recipe_save_in_progress')
+      } catch (e) {
+        // Ignore localStorage errors
+      }
     }
   }
 

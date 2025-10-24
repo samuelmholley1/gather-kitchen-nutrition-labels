@@ -180,9 +180,32 @@ export function calculateNutritionProfile(
   
   const per100gFactor = 100 / totalWeight
   
-  // Scale all nutrients to per-100g
+  // Scale all nutrients to per-100g and validate
   for (const key of Object.keys(profile) as Array<keyof NutrientProfile>) {
-    profile[key] = profile[key] * per100gFactor
+    const scaledValue = profile[key] * per100gFactor
+    
+    // Validate: nutrition values should never be negative (USDA data errors)
+    if (scaledValue < 0) {
+      console.warn(`⚠️ USDA DATA ERROR: Negative value for ${key} (${scaledValue}). Setting to 0.`)
+      profile[key] = 0
+    } else {
+      profile[key] = scaledValue
+    }
+    
+    // Validate: extremely high values likely indicate data errors
+    const MAX_VALUES: Partial<Record<keyof NutrientProfile, number>> = {
+      calories: 9000,  // Pure fat is ~900 cal/100g, so 9000 is extreme
+      totalFat: 100,   // Can't exceed 100g per 100g
+      protein: 100,    // Can't exceed 100g per 100g
+      totalCarbohydrate: 100,  // Can't exceed 100g per 100g
+      sodium: 100000,  // 100g of pure salt = ~39g sodium, so 100g is extreme
+      cholesterol: 3000 // Even pure egg yolk is ~1200mg/100g
+    }
+    
+    const maxValue = MAX_VALUES[key]
+    if (maxValue && profile[key] > maxValue) {
+      console.warn(`⚠️ USDA DATA ERROR: Extremely high value for ${key} (${profile[key]}). This likely indicates a data error. Please verify ingredient data.`)
+    }
   }
   
   return profile

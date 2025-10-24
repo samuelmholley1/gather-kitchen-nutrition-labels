@@ -185,15 +185,45 @@ function parseIngredientLine(line: string): {
  * Merge descriptive parentheses into the ingredient name
  * "chicken (boneless, skinless breast)" → "boneless skinless chicken breast"
  * "tomatoes (fresh, diced)" → "fresh diced tomatoes"
+ * Handles multiple parentheses: "chicken (boneless) (organic)" → "boneless organic chicken"
  */
 function mergeDescriptiveParentheses(ingredient: string): string {
-  // Check if there are parentheses
-  const parenPattern = /^(.+?)\s*\(([^)]+)\)\s*$/
-  const match = ingredient.match(parenPattern)
+  // Handle multiple parentheses groups by processing them sequentially
+  let processed = ingredient
+  let iterations = 0
+  const MAX_ITERATIONS = 5 // Prevent infinite loops
   
-  if (!match) return ingredient
+  while (processed.includes('(') && processed.includes(')') && iterations < MAX_ITERATIONS) {
+    const parenPattern = /^(.+?)\s*\(([^)]+)\)\s*(.*)$/
+    const match = processed.match(parenPattern)
+    
+    if (!match) break
+    
+    const [, beforeParen, parenContent, afterParen] = match
+    
+    // If there's content after the parentheses, recursively merge it
+    if (afterParen.trim()) {
+      // Merge the first parentheses, then continue with the rest
+      const merged = mergeSingleParentheses(beforeParen, parenContent)
+      processed = `${merged} ${afterParen}`.trim()
+    } else {
+      // Last parentheses group - merge it
+      processed = mergeSingleParentheses(beforeParen, parenContent)
+      break
+    }
+    
+    iterations++
+  }
   
-  const [, baseName, parenContent] = match
+  return processed
+}
+
+/**
+ * Helper to merge a single parentheses group
+ */
+function mergeSingleParentheses(baseInput: string, parenInput: string): string {
+  const baseName = baseInput.trim()
+  const parenContent = parenInput.trim()
   
   // Clean up and split descriptors from parentheses
   const cleanBase = baseName.trim()
@@ -360,10 +390,90 @@ function detectSubRecipe(line: string): {
 }
 
 /**
+ * Sanitize recipe text - strip HTML, normalize whitespace, handle special characters
+ */
+function sanitizeRecipeText(text: string): string {
+  // Strip HTML tags (common when copying from websites)
+  let sanitized = text.replace(/<[^>]*>/g, '')
+  
+  // Decode common HTML entities
+  const entities: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&frac12;': '1/2',
+    '&frac14;': '1/4',
+    '&frac34;': '3/4',
+    '&#189;': '1/2',
+    '&#188;': '1/4',
+    '&#190;': '3/4'
+  }
+  
+  for (const [entity, replacement] of Object.entries(entities)) {
+    sanitized = sanitized.replace(new RegExp(entity, 'g'), replacement)
+  }
+  
+  // Convert Unicode fractions to regular fractions
+  const unicodeFractions: Record<string, string> = {
+    '½': '1/2',
+    '⅓': '1/3',
+    '⅔': '2/3',
+    '¼': '1/4',
+    '¾': '3/4',
+    '⅕': '1/5',
+    '⅖': '2/5',
+    '⅗': '3/5',
+    '⅘': '4/5',
+    '⅙': '1/6',
+    '⅚': '5/6',
+    '⅐': '1/7',
+    '⅛': '1/8',
+    '⅜': '3/8',
+    '⅝': '5/8',
+    '⅞': '7/8',
+    '⅑': '1/9',
+    '⅒': '1/10'
+  }
+  
+  for (const [unicode, fraction] of Object.entries(unicodeFractions)) {
+    sanitized = sanitized.replace(new RegExp(unicode, 'g'), fraction)
+  }
+  
+  // Remove emojis (can cause parsing issues) - using ES5-compatible pattern
+  sanitized = sanitized.replace(/[\uD800-\uDFFF]./g, '') // Remove surrogate pairs (emojis)
+  sanitized = sanitized.replace(/[\u2600-\u27BF]/g, '') // Remove dingbats and symbols
+  
+  // Normalize multiple spaces to single space
+  sanitized = sanitized.replace(/\s+/g, ' ')
+  
+  // Remove zero-width characters and other invisible Unicode
+  sanitized = sanitized.replace(/[\u200B-\u200D\uFEFF]/g, '')
+  
+  return sanitized.trim()
+}
+
+/**
  * Parse a complete recipe with auto-detection of sub-recipes
  */
 export function parseSmartRecipe(recipeText: string): SmartParseResult {
-  const lines = recipeText.split('\n').map(l => l.trim()).filter(l => l)
+  // Sanitize input first
+  const sanitized = sanitizeRecipeText(recipeText)
+  
+  // Check session storage size limit (most browsers: ~5-10MB)
+  const sizeInBytes = new Blob([sanitized]).size
+  const MAX_SIZE_MB = 5
+  if (sizeInBytes > MAX_SIZE_MB * 1024 * 1024) {
+    return {
+      finalDish: { name: '', ingredients: [] },
+      subRecipes: [],
+      errors: [`Recipe text is too large (${(sizeInBytes / 1024 / 1024).toFixed(2)}MB). Maximum size is ${MAX_SIZE_MB}MB. Please split into multiple recipes.`]
+    }
+  }
+  
+  const lines = sanitized.split('\n').map(l => l.trim()).filter(l => l)
   const errors: string[] = []
   const subRecipes: ParsedSubRecipe[] = []
   const finalDishIngredients: ParsedFinalDish['ingredients'] = []

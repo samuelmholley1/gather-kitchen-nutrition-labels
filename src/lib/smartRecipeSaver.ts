@@ -46,9 +46,17 @@ function getFallbackGrams(quantity: number, unit: string): number {
   if (normalizedUnit === 'medium') return quantity * 150
   if (normalizedUnit === 'large') return quantity * 200
   
-  // Very small amounts
-  if (normalizedUnit === 'pinch') return quantity * 0.5
-  if (normalizedUnit === 'dash') return quantity * 0.6
+  // Very small amounts (spices, seasonings)
+  if (normalizedUnit === 'pinch') return quantity * 0.5  // ~0.5g per pinch
+  if (normalizedUnit === 'dash') return quantity * 0.6   // ~0.6g per dash
+  if (normalizedUnit === 'smidgen') return quantity * 0.3 // ~0.3g
+  if (normalizedUnit === 'sprinkle') return quantity * 0.4 // ~0.4g
+  
+  // "To taste" is ambiguous - use very small amount
+  if (normalizedUnit.includes('to taste') || normalizedUnit === 'taste') {
+    console.warn(`⚠️ "to taste" unit detected. Using 1g estimate. For accurate nutrition, please specify exact amount.`)
+    return quantity * 1  // 1g default for "to taste"
+  }
   
   // Unknown unit - use conservative estimate with clear warning
   const warning = `⚠️ UNIT CONVERSION WARNING: Unknown unit "${unit}" - using 50g per unit as fallback estimate. Nutrition data may be inaccurate. Consider using standard units (g, kg, oz, lb, cup, tbsp, tsp).`
@@ -196,6 +204,47 @@ async function checkDuplicateDish(name: string): Promise<boolean> {
 }
 
 /**
+ * Detect circular sub-recipe references
+ * Example: Recipe A uses sub-recipe B, which uses sub-recipe C, which uses A again
+ */
+async function detectCircularReferences(
+  dishName: string,
+  subRecipeIds: string[],
+  visited: Set<string> = new Set()
+): Promise<string | null> {
+  // Check if we've already visited this dish (circular reference detected)
+  if (visited.has(dishName)) {
+    return dishName
+  }
+
+  visited.add(dishName)
+
+  // Check each sub-recipe
+  for (const subRecipeId of subRecipeIds) {
+    try {
+      const response = await fetch(`/api/sub-recipes/${subRecipeId}`)
+      if (!response.ok) continue
+
+      const { subRecipe } = await response.json()
+      
+      // Check if this sub-recipe uses other sub-recipes (recursive check)
+      if (subRecipe.SubRecipeLinks && subRecipe.SubRecipeLinks.length > 0) {
+        const circular = await detectCircularReferences(
+          subRecipe.Name,
+          subRecipe.SubRecipeLinks,
+          new Set(visited)
+        )
+        if (circular) return circular
+      }
+    } catch (error) {
+      console.warn(`Could not check sub-recipe ${subRecipeId} for circular references:`, error)
+    }
+  }
+
+  return null // No circular reference found
+}
+
+/**
  * Create a final dish using sub-recipes and ingredients
  * 
  * For now, this is simplified - the full implementation will come next
@@ -212,6 +261,21 @@ export async function createFinalDish(
       `Dish name is too long (${dishName.length} characters, maximum ${MAX_NAME_LENGTH}). ` +
       `Please shorten the name. Current name: "${dishName.substring(0, 50)}..."`
     )
+  }
+  
+  // Check for circular sub-recipe references
+  if (subRecipesData.length > 0) {
+    const circular = await detectCircularReferences(
+      dishName,
+      subRecipesData.map(sr => sr.id)
+    )
+    if (circular) {
+      throw new Error(
+        `Circular sub-recipe reference detected: "${circular}" references itself indirectly. ` +
+        `This would cause infinite recursion in nutrition calculations. ` +
+        `Please restructure your recipes to avoid circular dependencies.`
+      )
+    }
   }
   
   // Validate at least one ingredient or sub-recipe

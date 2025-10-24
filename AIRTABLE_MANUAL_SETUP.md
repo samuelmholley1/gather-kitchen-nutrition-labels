@@ -75,6 +75,8 @@ After importing, you need to configure special field types that CSV can't handle
    - Add these options (click each time):
      - Milk
      - Eggs
+
+     AND TH
      - Fish
      - Shellfish
      - Tree Nuts

@@ -51,3 +51,48 @@ export function sanitizeIngredientName(name: string): string {
     .trim()
     .slice(0, 255) // Max length for ingredient names
 }
+
+/**
+ * Validate no SQL injection attempts in user input
+ */
+export function validateNoSqlInjection(str: string): boolean {
+  const sqlKeywords = [
+    'DROP', 'DELETE', 'INSERT', 'UPDATE', 'SELECT', 'UNION',
+    'ALTER', 'CREATE', 'EXEC', 'EXECUTE', '--', ';--', 'xp_',
+    'sp_', 'CAST', 'CONVERT', 'DECLARE', 'SCRIPT', 'TRUNCATE'
+  ]
+  
+  const upperStr = str.toUpperCase()
+  return !sqlKeywords.some(keyword => upperStr.includes(keyword))
+}
+
+/**
+ * Comprehensive input validation for names
+ */
+export function validateInput(input: string, fieldName: string): { valid: boolean, error?: string } {
+  if (!input || input.trim().length === 0) {
+    return { valid: false, error: `${fieldName} cannot be empty` }
+  }
+  
+  const trimmed = input.trim()
+  
+  if (trimmed.length < 2) {
+    return { valid: false, error: `${fieldName} must be at least 2 characters` }
+  }
+  
+  if (trimmed.length > 255) {
+    return { valid: false, error: `${fieldName} must be less than 255 characters` }
+  }
+  
+  if (!validateNoSqlInjection(trimmed)) {
+    return { valid: false, error: `${fieldName} contains potentially dangerous SQL keywords` }
+  }
+  
+  // Check for excessive special characters (likely spam/attack)
+  const specialCharCount = (trimmed.match(/[^\w\s\-,.'"/()]/g) || []).length
+  if (specialCharCount > trimmed.length * 0.3) {
+    return { valid: false, error: `${fieldName} contains too many special characters` }
+  }
+  
+  return { valid: true }
+}
