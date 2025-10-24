@@ -446,8 +446,8 @@ function sanitizeRecipeText(text: string): string {
   sanitized = sanitized.replace(/[\uD800-\uDFFF]./g, '') // Remove surrogate pairs (emojis)
   sanitized = sanitized.replace(/[\u2600-\u27BF]/g, '') // Remove dingbats and symbols
   
-  // Normalize multiple spaces to single space
-  sanitized = sanitized.replace(/\s+/g, ' ')
+  // Normalize multiple spaces/tabs to single space (but preserve newlines!)
+  sanitized = sanitized.replace(/[ \t]+/g, ' ')
   
   // Remove zero-width characters and other invisible Unicode
   sanitized = sanitized.replace(/[\u200B-\u200D\uFEFF]/g, '')
@@ -488,7 +488,14 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
   }
 
   if (lines.length === 1) {
-    errors.push('Recipe must have at least one ingredient. Add ingredients on separate lines after the recipe name.')
+    // Check if the single line looks like it has multiple ingredients mashed together
+    const hasMultipleQuantities = (lines[0].match(/\d+\s*(g|gram|oz|cup|tbsp|tsp|lb|kg|ml)/gi) || []).length > 1
+    
+    if (hasMultipleQuantities) {
+      errors.push('⚠️ It looks like all ingredients are on ONE line. Please format your recipe with:\n• Recipe name on the FIRST line\n• Blank line\n• Each ingredient on a SEPARATE line\n\nExample:\nChicken Tacos\n\n2 cups chicken\n1 cup salsa\n8 tortillas')
+    } else {
+      errors.push('Recipe must have at least one ingredient. Add ingredients on separate lines after the recipe name.')
+    }
     return {
       finalDish: { name: lines[0], ingredients: [] },
       subRecipes: [],
