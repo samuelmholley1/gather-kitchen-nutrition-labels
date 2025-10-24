@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
 import IngredientSearch from '@/components/IngredientSearch'
+import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
 import { SmartParseResult } from '@/lib/smartRecipeParser'
 import { USDAFood } from '@/types/liturgist'
 import { cleanIngredientForUSDASearch } from '@/lib/smartRecipeParser'
@@ -17,6 +18,10 @@ interface IngredientWithUSDA {
   usdaFood: USDAFood | null
   searchQuery: string
   confirmed: boolean
+  needsSpecification?: boolean
+  specificationPrompt?: string
+  specificationOptions?: string[]
+  baseIngredient?: string
 }
 
 interface SubRecipeWithUSDA {
@@ -40,6 +45,17 @@ export default function ReviewPage() {
   const [saveProgress, setSaveProgress] = useState('')
   const [autoSearching, setAutoSearching] = useState(false)
   const [hasAutoSearched, setHasAutoSearched] = useState(false)
+  const [specificationModal, setSpecificationModal] = useState<{
+    ingredient: IngredientWithUSDA & {
+      needsSpecification?: boolean
+      specificationPrompt?: string
+      specificationOptions?: string[]
+      baseIngredient?: string
+    }
+    type: 'final' | 'sub'
+    subRecipeIndex?: number
+    ingredientIndex: number
+  } | null>(null)
 
   // Auto-search USDA for all ingredients on mount
   useEffect(() => {
@@ -194,6 +210,33 @@ export default function ReviewPage() {
     }))
     setSubRecipes(subsWithUSDA)
 
+    // Check for ingredients needing specification (final dish first, then sub-recipes)
+    const needsSpecFinal = finalIngredients.find((ing: any) => ing.needsSpecification)
+    if (needsSpecFinal) {
+      const index = finalIngredients.indexOf(needsSpecFinal)
+      setSpecificationModal({
+        ingredient: needsSpecFinal as any,
+        type: 'final',
+        ingredientIndex: index
+      })
+      return // Don't proceed with auto-search until specification is complete
+    }
+
+    // Check sub-recipe ingredients
+    for (let subIdx = 0; subIdx < subsWithUSDA.length; subIdx++) {
+      const needsSpecSub = subsWithUSDA[subIdx].ingredients.find((ing: any) => ing.needsSpecification)
+      if (needsSpecSub) {
+        const ingIdx = subsWithUSDA[subIdx].ingredients.indexOf(needsSpecSub)
+        setSpecificationModal({
+          ingredient: needsSpecSub as any,
+          type: 'sub',
+          subRecipeIndex: subIdx,
+          ingredientIndex: ingIdx
+        })
+        return // Don't proceed with auto-search until specification is complete
+      }
+    }
+
     // Warn before leaving page if there are unconfirmed ingredients
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       const allConfirmed = [...finalIngredients, ...subsWithUSDA.flatMap(s => s.ingredients)]
@@ -316,6 +359,60 @@ export default function ReviewPage() {
       setSaving(false)
       setSaveProgress('')
     }
+  }
+
+  // Handle ingredient specification
+  const handleSpecify = (variety: string) => {
+    if (!specificationModal) return
+
+    const { type, ingredientIndex, subRecipeIndex } = specificationModal
+    const updatedIngredient = variety || `medium ${specificationModal.ingredient.baseIngredient || specificationModal.ingredient.unit}`
+
+    if (type === 'final') {
+      const updated = [...finalDishIngredients]
+      updated[ingredientIndex] = {
+        ...updated[ingredientIndex],
+        ingredient: updatedIngredient,
+        searchQuery: cleanIngredientForUSDASearch(updatedIngredient),
+        needsSpecification: false
+      }
+      setFinalDishIngredients(updated)
+    } else {
+      const updated = [...subRecipes]
+      updated[subRecipeIndex!].ingredients[ingredientIndex] = {
+        ...updated[subRecipeIndex!].ingredients[ingredientIndex],
+        ingredient: updatedIngredient,
+        searchQuery: cleanIngredientForUSDASearch(updatedIngredient),
+        needsSpecification: false
+      }
+      setSubRecipes(updated)
+    }
+
+    // Check for more ingredients needing specification
+    const allIngredients = [
+      ...finalDishIngredients.map((ing, idx) => ({ ...ing, type: 'final' as const, ingredientIndex: idx })),
+      ...subRecipes.flatMap((sub, subIdx) => 
+        sub.ingredients.map((ing, ingIdx) => ({ ...ing, type: 'sub' as const, subRecipeIndex: subIdx, ingredientIndex: ingIdx }))
+      )
+    ]
+    const nextNeedsSpec = allIngredients.find((ing: any) => ing.needsSpecification && 
+      !(ing.type === type && ing.ingredientIndex === ingredientIndex && ing.subRecipeIndex === subRecipeIndex))
+    
+    if (nextNeedsSpec) {
+      setSpecificationModal(nextNeedsSpec as any)
+    } else {
+      setSpecificationModal(null)
+      // All specifications complete, allow auto-search to proceed
+    }
+  }
+
+  const handleSkipSpecification = () => {
+    handleSpecify('') // Empty string will use default "medium"
+  }
+
+  const handleCancelSpecification = () => {
+    setSpecificationModal(null)
+    router.push('/import') // Go back to import page
   }
 
   if (!parseResult) {
@@ -660,6 +757,16 @@ export default function ReviewPage() {
         </div>
         </main>
       </div>
+
+      {/* Ingredient Specification Modal */}
+      {specificationModal && (
+        <IngredientSpecificationModal
+          ingredient={specificationModal.ingredient}
+          onSpecify={handleSpecify}
+          onSkip={handleSkipSpecification}
+          onCancel={handleCancelSpecification}
+        />
+      )}
     </MobileRestrict>
   )
 }

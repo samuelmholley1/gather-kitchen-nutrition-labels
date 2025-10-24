@@ -14,6 +14,8 @@
  * - Sub-Recipe: "salsa verde" with its component ingredients
  */
 
+import { isIngredientUnit } from './ingredientTaxonomy'
+
 export interface ParsedSubRecipe {
   name: string
   ingredients: {
@@ -21,6 +23,10 @@ export interface ParsedSubRecipe {
     unit: string
     ingredient: string
     originalLine: string
+    needsSpecification?: boolean
+    specificationPrompt?: string
+    specificationOptions?: string[]
+    baseIngredient?: string
   }[]
   quantityInFinalDish: number
   unitInFinalDish: string
@@ -35,6 +41,10 @@ export interface ParsedFinalDish {
     originalLine: string
     isSubRecipe: boolean
     subRecipeData?: ParsedSubRecipe
+    needsSpecification?: boolean
+    specificationPrompt?: string
+    specificationOptions?: string[]
+    baseIngredient?: string
   }[]
 }
 
@@ -169,6 +179,79 @@ function parseIngredientLine(line: string): {
     unit: unit || 'item',
     ingredient: ingredientName
   }
+}
+
+/**
+ * Merge descriptive parentheses into the ingredient name
+ * "chicken (boneless, skinless breast)" → "boneless skinless chicken breast"
+ * "tomatoes (fresh, diced)" → "fresh diced tomatoes"
+ */
+function mergeDescriptiveParentheses(ingredient: string): string {
+  // Check if there are parentheses
+  const parenPattern = /^(.+?)\s*\(([^)]+)\)\s*$/
+  const match = ingredient.match(parenPattern)
+  
+  if (!match) return ingredient
+  
+  const [, baseName, parenContent] = match
+  
+  // Clean up and split descriptors from parentheses
+  const cleanBase = baseName.trim()
+  const parenDescriptors = parenContent.split(',').map(d => d.trim())
+  
+  // Also check if the base name has descriptors that should be moved
+  // Colors, sizes, etc. that modify the core ingredient
+  const baseWords = cleanBase.split(/\s+/)
+  
+  // Patterns for different descriptor types
+  const bodyPartPattern = /\b(breast|thigh|leg|wing|fillet|loin|rib|back|neck|shoulder|drumstick)s?\b/i
+  const colorPattern = /\b(red|green|yellow|orange|white|black|purple|brown|pink)$/i
+  const prepPattern = /\b(diced|chopped|sliced|minced|shredded|grated|crushed|fresh|dried|cooked|raw|roasted|grilled|boneless|skinless)$/i
+  
+  // Split base name into actual core ingredient vs descriptors
+  const coreIngredient: string[] = []
+  const baseDescriptors: string[] = []
+  
+  baseWords.forEach(word => {
+    if (colorPattern.test(word) || prepPattern.test(word)) {
+      baseDescriptors.push(word)
+    } else {
+      coreIngredient.push(word)
+    }
+  })
+  
+  // If we didn't identify any core ingredient, treat the whole base as core
+  const core = coreIngredient.length > 0 ? coreIngredient.join(' ') : cleanBase
+  
+  // Categorize all descriptors
+  const bodyPartDescriptors: string[] = []
+  const otherDescriptors: string[] = [...baseDescriptors]
+  
+  parenDescriptors.forEach(desc => {
+    const bodyPartMatch = desc.match(bodyPartPattern)
+    if (bodyPartMatch) {
+      // Split the descriptor into body part and other words
+      const words = desc.split(/\s+/)
+      words.forEach(word => {
+        if (bodyPartPattern.test(word)) {
+          bodyPartDescriptors.push(word)
+        } else {
+          otherDescriptors.push(word)
+        }
+      })
+    } else {
+      otherDescriptors.push(desc)
+    }
+  })
+  
+  // Format: [other descriptors] + [core ingredient] + [body part descriptors]
+  const parts = [
+    ...otherDescriptors,
+    core,
+    ...bodyPartDescriptors
+  ].filter(p => p)
+  
+  return parts.join(' ').replace(/\s+/g, ' ').trim()
 }
 
 /**
@@ -344,15 +427,50 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
         .map(ingredientLine => {
           const parsed = parseIngredientLine(ingredientLine)
           if (!parsed) {
-            errors.push(`Failed to parse sub-recipe ingredient: "${ingredientLine}"`)
+            errors.push(`❌ Error: Failed to parse sub-recipe ingredient in "${subRecipeMatch.subRecipeName}": "${ingredientLine}"`)
             return null
           }
-          return {
+          
+          // Check if this sub-recipe ingredient needs specification
+          const ingredientCheck = isIngredientUnit(parsed.unit)
+          const ingredientData: any = {
             ...parsed,
             originalLine: ingredientLine
           }
+
+          // If ingredient needs specification, add the metadata
+          // BUT only if variety/size is not already specified in the ingredient name
+          if (ingredientCheck.needsSpec) {
+            const hasVarietyInName = ingredientCheck.varieties?.some(variety => 
+              parsed.ingredient.toLowerCase().includes(variety.toLowerCase())
+            )
+            
+            if (!hasVarietyInName) {
+              ingredientData.needsSpecification = true
+              ingredientData.baseIngredient = ingredientCheck.baseIngredient
+              ingredientData.specificationPrompt = `What type/size of ${ingredientCheck.baseIngredient}?`
+              ingredientData.specificationOptions = ingredientCheck.varieties
+            }
+          }
+
+          return ingredientData
         })
         .filter(Boolean) as ParsedSubRecipe['ingredients']
+
+      // Validate that all sub-recipe ingredients have explicit quantities
+      const missingQuantities: string[] = []
+      subRecipeIngredients.forEach(ing => {
+        // Check if the original line had a number in it
+        const hasExplicitQuantity = /^\s*[\d\/\.]/.test(ing.originalLine)
+        if (!hasExplicitQuantity) {
+          missingQuantities.push(ing.ingredient)
+        }
+      })
+
+      if (missingQuantities.length > 0) {
+        errors.push(`❌ Error: Sub-recipe "${subRecipeMatch.subRecipeName}" has ingredients without quantities: ${missingQuantities.join(', ')}. Please add quantities for all sub-recipe ingredients (e.g., "1 cup", "2 tablespoons").`)
+        continue // Skip this sub-recipe
+      }
 
       const subRecipe: ParsedSubRecipe = {
         name: subRecipeMatch.subRecipeName,
@@ -379,23 +497,83 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
         subRecipeData: subRecipe
       })
     } else {
-      // Regular ingredient
+      // Regular ingredient (not a sub-recipe)
       const parsed = parseIngredientLine(line)
       if (!parsed) {
         errors.push(`Failed to parse ingredient: "${line}"`)
         continue
       }
 
-      // Warn if unit is 'item' (likely missing unit)
+      // If ingredient has parentheses, merge them into the ingredient name
+      // Handle three cases:
+      // 1. "4 tomatoes (fresh, diced)" → unit="tomatoes", ingredient="(fresh, diced)"
+      // 2. "1 red bell pepper (diced)" → unit="red", ingredient="bell pepper (diced)"
+      // 3. "1 cup chicken (boneless, skinless)" → unit="cup", ingredient="chicken (boneless, skinless)"
+      
+      // Check if unit is actually a descriptor/color (not a real unit)
+      const realUnits = /^(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|item|clove|pinch|dash|slice|piece)s?$/i
+      const isUnitActuallyDescriptor = !realUnits.test(parsed.unit)
+      
+      if (parsed.ingredient.startsWith('(') && parsed.ingredient.endsWith(')')) {
+        // Case 1: Ingredient is JUST parentheses - the base name was parsed as the unit
+        // "4 tomatoes (fresh, diced)" → unit="tomatoes", ingredient="(fresh, diced)"
+        const fullIngredient = `${parsed.unit} ${parsed.ingredient}`
+        parsed.ingredient = mergeDescriptiveParentheses(fullIngredient)
+        parsed.unit = 'item' // Reset unit since it was actually part of the ingredient name
+      } else if (isUnitActuallyDescriptor && parsed.ingredient.includes('(') && parsed.ingredient.includes(')')) {
+        // Case 2: Unit is actually a descriptor (like "red" in "1 red bell pepper (diced)")
+        // Merge unit into ingredient, then merge parentheses
+        const fullIngredient = `${parsed.unit} ${parsed.ingredient}`
+        parsed.ingredient = mergeDescriptiveParentheses(fullIngredient)
+        parsed.unit = 'item'
+      } else if (parsed.ingredient.includes('(') && parsed.ingredient.includes(')')) {
+        // Case 3: Ingredient has parentheses embedded, unit is real
+        // "1 cup chicken (boneless, skinless)" → ingredient contains both base and parentheses
+        parsed.ingredient = mergeDescriptiveParentheses(parsed.ingredient)
+      }
+
+      // Validate regular ingredient has quantity and unit
+      if (!parsed.quantity || parsed.quantity === 0 || isNaN(parsed.quantity)) {
+        errors.push(`❌ Error: Ingredient "${parsed.ingredient}" has no quantity. Please add a number (e.g., "2 cups", "4 items", "1 lb").`)
+        continue // Skip this ingredient
+      }
+
+      // Check for vague or non-standard units
+      const vagueUnits = ['some', 'a little', 'a bit', 'bunch', 'handful', 'splash']
+      if (vagueUnits.includes(parsed.unit.toLowerCase())) {
+        errors.push(`⚠️ Warning: Ingredient "${parsed.ingredient}" uses vague unit "${parsed.unit}". Consider using precise measurements like "cup", "tbsp", "oz" for better nutrition accuracy.`)
+      }
+      
+      // Warn if unit is 'item' (likely missing unit) and wasn't explicitly written
       if (parsed.unit === 'item' && !line.toLowerCase().includes('item')) {
         errors.push(`⚠️ Warning: "${parsed.ingredient}" has no unit specified. Defaulting to "item" which may affect nutrition calculations. Consider adding a unit (cups, grams, etc.)`)
       }
 
-      finalDishIngredients.push({
+      // Check if this ingredient needs specification (e.g., tomato size/variety)
+      const ingredientCheck = isIngredientUnit(parsed.unit)
+      
+      const ingredientData: any = {
         ...parsed,
         originalLine: line,
         isSubRecipe: false
-      })
+      }
+
+      // If ingredient needs specification, add the metadata
+      // BUT only if variety/size is not already specified in the ingredient name
+      if (ingredientCheck.needsSpec) {
+        const hasVarietyInName = ingredientCheck.varieties?.some(variety => 
+          parsed.ingredient.toLowerCase().includes(variety.toLowerCase())
+        )
+        
+        if (!hasVarietyInName) {
+          ingredientData.needsSpecification = true
+          ingredientData.baseIngredient = ingredientCheck.baseIngredient
+          ingredientData.specificationPrompt = `What type/size of ${ingredientCheck.baseIngredient}?`
+          ingredientData.specificationOptions = ingredientCheck.varieties
+        }
+      }
+
+      finalDishIngredients.push(ingredientData)
     }
   }
 

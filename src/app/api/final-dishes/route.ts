@@ -84,25 +84,32 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString()
 
-    const record = await table.create([
-      {
-        fields: {
-          Name: name,
-          Components: JSON.stringify(components),
-          TotalWeight: totalWeight || 0,
-          ServingSize: servingSize || 100,
-          ServingsPerContainer: servingsPerContainer || 1,
-          NutritionLabel: JSON.stringify(nutritionLabel || {}),
-          SubRecipeLinks: subRecipeLinks || [],
-          Allergens: allergens || [],
-          Category: category || '',
-          Notes: notes || '',
-          Status: status,
-          CreatedAt: now,
-          UpdatedAt: now,
-        }
-      }
-    ])
+    // Prepare fields with validation
+    const fields: any = {
+      Name: name,
+      Components: JSON.stringify(components),
+      TotalWeight: totalWeight || 0,
+      ServingSize: servingSize || 100,
+      ServingsPerContainer: servingsPerContainer || 1,
+      NutritionLabel: JSON.stringify(nutritionLabel || {}),
+      Category: category || '',
+      Notes: notes || '',
+      Status: status,
+      CreatedAt: now,
+      UpdatedAt: now,
+    }
+
+    // Only add arrays if they have values (some Airtable fields might not accept empty arrays)
+    if (subRecipeLinks && subRecipeLinks.length > 0) {
+      fields.SubRecipeLinks = subRecipeLinks
+    }
+    if (allergens && allergens.length > 0) {
+      fields.Allergens = allergens
+    }
+
+    console.log('Creating final dish with fields:', JSON.stringify(fields, null, 2))
+
+    const record = await table.create([{ fields }])
 
     return NextResponse.json({
       success: true,
@@ -126,10 +133,34 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Failed to create final dish:', error)
+    
+    // Log detailed error info
+    if (error instanceof Error) {
+      console.error('Error name:', error.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
+    
+    // Check if it's an Airtable error
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create final dish'
+    let detailedError = errorMessage
+    
+    // Extract more details from Airtable errors
+    if (errorMessage.includes('INVALID_REQUEST_BODY') || errorMessage.includes('INVALID_VALUE_FOR_COLUMN')) {
+      detailedError = `Airtable field error: ${errorMessage}. Please check that all fields match the Airtable schema.`
+    } else if (errorMessage.includes('AUTHENTICATION_REQUIRED')) {
+      detailedError = 'Airtable authentication failed. Check your API token.'
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Failed to create final dish' 
+        error: detailedError,
+        details: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        } : undefined
       },
       { status: 500 }
     )
