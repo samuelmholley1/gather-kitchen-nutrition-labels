@@ -6,6 +6,7 @@ import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
 import IngredientSearch from '@/components/IngredientSearch'
 import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
+import BatchIngredientSpecificationModal from '@/components/BatchIngredientSpecificationModal'
 import { SmartParseResult } from '@/lib/smartRecipeParser'
 import { USDAFood } from '@/types/liturgist'
 import { cleanIngredientForUSDASearch } from '@/lib/smartRecipeParser'
@@ -56,6 +57,19 @@ export default function ReviewPage() {
     subRecipeIndex?: number
     ingredientIndex: number
   } | null>(null)
+  
+  const [batchSpecificationModal, setBatchSpecificationModal] = useState<Array<{
+    id: string
+    quantity: number
+    baseIngredient: string
+    specificationPrompt: string
+    specificationOptions: string[]
+    type: 'final' | 'sub'
+    subRecipeIndex?: number
+    ingredientIndex: number
+  }>>([])
+  
+  const [useBatchModal, setUseBatchModal] = useState(true) // Toggle for batch vs sequential
 
   // Auto-search USDA for all ingredients on mount
   useEffect(() => {
@@ -222,31 +236,70 @@ export default function ReviewPage() {
     }))
     setSubRecipes(subsWithUSDA)
 
-    // Check for ingredients needing specification (final dish first, then sub-recipes)
-    const needsSpecFinal = finalIngredients.find((ing: any) => ing.needsSpecification)
-    if (needsSpecFinal) {
-      const index = finalIngredients.indexOf(needsSpecFinal)
-      setSpecificationModal({
-        ingredient: needsSpecFinal as any,
-        type: 'final',
-        ingredientIndex: index
-      })
-      return // Don't proceed with auto-search until specification is complete
-    }
-
-    // Check sub-recipe ingredients
-    for (let subIdx = 0; subIdx < subsWithUSDA.length; subIdx++) {
-      const needsSpecSub = subsWithUSDA[subIdx].ingredients.find((ing: any) => ing.needsSpecification)
-      if (needsSpecSub) {
-        const ingIdx = subsWithUSDA[subIdx].ingredients.indexOf(needsSpecSub)
-        setSpecificationModal({
-          ingredient: needsSpecSub as any,
-          type: 'sub',
-          subRecipeIndex: subIdx,
-          ingredientIndex: ingIdx
+    // Check for ingredients needing specification
+    const allNeedingSpec: Array<{
+      id: string
+      quantity: number
+      baseIngredient: string
+      specificationPrompt: string
+      specificationOptions: string[]
+      type: 'final' | 'sub'
+      subRecipeIndex?: number
+      ingredientIndex: number
+    }> = []
+    
+    // Collect from final dish
+    finalIngredients.forEach((ing: any, idx: number) => {
+      if (ing.needsSpecification && ing.baseIngredient) {
+        allNeedingSpec.push({
+          id: `final-${idx}`,
+          quantity: ing.quantity,
+          baseIngredient: ing.baseIngredient,
+          specificationPrompt: ing.specificationPrompt || 'Select variety:',
+          specificationOptions: ing.specificationOptions || [],
+          type: 'final',
+          ingredientIndex: idx
         })
-        return // Don't proceed with auto-search until specification is complete
       }
+    })
+    
+    // Collect from sub-recipes
+    subsWithUSDA.forEach((sub, subIdx) => {
+      sub.ingredients.forEach((ing: any, ingIdx: number) => {
+        if (ing.needsSpecification && ing.baseIngredient) {
+          allNeedingSpec.push({
+            id: `sub-${subIdx}-${ingIdx}`,
+            quantity: ing.quantity,
+            baseIngredient: ing.baseIngredient,
+            specificationPrompt: ing.specificationPrompt || 'Select variety:',
+            specificationOptions: ing.specificationOptions || [],
+            type: 'sub',
+            subRecipeIndex: subIdx,
+            ingredientIndex: ingIdx
+          })
+        }
+      })
+    })
+    
+    if (allNeedingSpec.length > 0) {
+      if (useBatchModal && allNeedingSpec.length > 1) {
+        // Use batch modal if 2+ ingredients need specification
+        setBatchSpecificationModal(allNeedingSpec)
+      } else {
+        // Use sequential modal for single ingredient
+        const first = allNeedingSpec[0]
+        const ingredient = first.type === 'final'
+          ? finalIngredients[first.ingredientIndex]
+          : subsWithUSDA[first.subRecipeIndex!].ingredients[first.ingredientIndex]
+        
+        setSpecificationModal({
+          ingredient: ingredient as any,
+          type: first.type,
+          subRecipeIndex: first.subRecipeIndex,
+          ingredientIndex: first.ingredientIndex
+        })
+      }
+      return // Don't proceed with auto-search until specification is complete
     }
 
     // Warn before leaving page if there are unconfirmed ingredients
@@ -447,6 +500,73 @@ export default function ReviewPage() {
 
   const handleCancelSpecification = () => {
     setSpecificationModal(null)
+    router.push('/import') // Go back to import page
+  }
+
+  // Handle batch specification
+  const handleBatchSpecify = (specifications: Map<string, string>) => {
+    // Apply all specifications
+    specifications.forEach((variety, id) => {
+      const parts = id.split('-')
+      if (parts[0] === 'final') {
+        const idx = parseInt(parts[1])
+        const updated = [...finalDishIngredients]
+        updated[idx] = {
+          ...updated[idx],
+          ingredient: variety,
+          searchQuery: cleanIngredientForUSDASearch(variety),
+          needsSpecification: false
+        }
+        setFinalDishIngredients(updated)
+      } else if (parts[0] === 'sub') {
+        const subIdx = parseInt(parts[1])
+        const ingIdx = parseInt(parts[2])
+        const updated = [...subRecipes]
+        updated[subIdx].ingredients[ingIdx] = {
+          ...updated[subIdx].ingredients[ingIdx],
+          ingredient: variety,
+          searchQuery: cleanIngredientForUSDASearch(variety),
+          needsSpecification: false
+        }
+        setSubRecipes(updated)
+      }
+    })
+    
+    setBatchSpecificationModal([])
+    setHasAutoSearched(false) // Trigger auto-search with new specifications
+  }
+
+  const handleBatchSkipAll = () => {
+    // Use "medium" as default for all
+    batchSpecificationModal.forEach(spec => {
+      const defaultVariety = `medium ${spec.baseIngredient}`
+      if (spec.type === 'final') {
+        const updated = [...finalDishIngredients]
+        updated[spec.ingredientIndex] = {
+          ...updated[spec.ingredientIndex],
+          ingredient: defaultVariety,
+          searchQuery: cleanIngredientForUSDASearch(defaultVariety),
+          needsSpecification: false
+        }
+        setFinalDishIngredients(updated)
+      } else {
+        const updated = [...subRecipes]
+        updated[spec.subRecipeIndex!].ingredients[spec.ingredientIndex] = {
+          ...updated[spec.subRecipeIndex!].ingredients[spec.ingredientIndex],
+          ingredient: defaultVariety,
+          searchQuery: cleanIngredientForUSDASearch(defaultVariety),
+          needsSpecification: false
+        }
+        setSubRecipes(updated)
+      }
+    })
+    
+    setBatchSpecificationModal([])
+    setHasAutoSearched(false) // Trigger auto-search with defaults
+  }
+
+  const handleBatchCancel = () => {
+    setBatchSpecificationModal([])
     router.push('/import') // Go back to import page
   }
 
@@ -793,7 +913,17 @@ export default function ReviewPage() {
         </main>
       </div>
 
-      {/* Ingredient Specification Modal */}
+      {/* Batch Ingredient Specification Modal */}
+      {batchSpecificationModal.length > 0 && (
+        <BatchIngredientSpecificationModal
+          ingredients={batchSpecificationModal}
+          onConfirm={handleBatchSpecify}
+          onSkipAll={handleBatchSkipAll}
+          onCancel={handleBatchCancel}
+        />
+      )}
+
+      {/* Single Ingredient Specification Modal */}
       {specificationModal && (
         <IngredientSpecificationModal
           ingredient={specificationModal.ingredient}

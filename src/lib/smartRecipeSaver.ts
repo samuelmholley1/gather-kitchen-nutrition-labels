@@ -14,9 +14,20 @@ function getFallbackGrams(quantity: number, unit: string): number {
   const normalizedUnit = unit.toLowerCase().trim()
   
   // Volume-based units (assume water-like density)
-  if (normalizedUnit.includes('cup')) return quantity * 236.588
-  if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) return quantity * 14.7868
-  if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) return quantity * 4.92892
+  // NOTE: Volume-to-weight conversions are estimates based on water density (1g/ml)
+  // Actual weight varies by ingredient (e.g., flour is ~120g/cup, sugar ~200g/cup)
+  if (normalizedUnit.includes('cup')) {
+    console.info(`📊 Volume conversion: "${unit}" → assuming water density. Actual weight varies by ingredient.`)
+    return quantity * 236.588
+  }
+  if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) {
+    console.info(`📊 Volume conversion: "${unit}" → assuming water density. Actual weight varies by ingredient.`)
+    return quantity * 14.7868
+  }
+  if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) {
+    console.info(`📊 Volume conversion: "${unit}" → assuming water density. Actual weight varies by ingredient.`)
+    return quantity * 4.92892
+  }
   if (normalizedUnit.includes('ml') || normalizedUnit.includes('milliliter')) return quantity * 1
   if (normalizedUnit.includes('liter') || normalizedUnit === 'l') return quantity * 1000
   if (normalizedUnit.includes('fl oz') || normalizedUnit.includes('fluid ounce')) return quantity * 29.5735
@@ -39,8 +50,9 @@ function getFallbackGrams(quantity: number, unit: string): number {
   if (normalizedUnit === 'pinch') return quantity * 0.5
   if (normalizedUnit === 'dash') return quantity * 0.6
   
-  // Unknown unit - use conservative estimate
-  console.warn(`Unknown unit "${unit}" - using 50g per unit as fallback`)
+  // Unknown unit - use conservative estimate with clear warning
+  const warning = `⚠️ UNIT CONVERSION WARNING: Unknown unit "${unit}" - using 50g per unit as fallback estimate. Nutrition data may be inaccurate. Consider using standard units (g, kg, oz, lb, cup, tbsp, tsp).`
+  console.warn(warning)
   return quantity * 50
 }
 
@@ -65,11 +77,30 @@ export interface SubRecipeWithUSDA {
  * Create a sub-recipe in the database
  */
 export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ id: string, nutritionProfile: NutrientProfile, totalWeight: number }> {
+  // Validate sub-recipe name length
+  const MAX_NAME_LENGTH = 255
+  if (subRecipe.name.length > MAX_NAME_LENGTH) {
+    throw new Error(
+      `Sub-recipe name is too long (${subRecipe.name.length} characters, maximum ${MAX_NAME_LENGTH}). ` +
+      `Please shorten the name. Current name: "${subRecipe.name.substring(0, 50)}..."`
+    )
+  }
+  
   // Filter out skipped ingredients (null usdaFood)
   const validIngredients = subRecipe.ingredients.filter(ing => ing.usdaFood !== null)
   
   if (validIngredients.length === 0) {
     throw new Error(`Sub-recipe "${subRecipe.name}" has no valid USDA-matched ingredients. Please match at least one ingredient or remove this sub-recipe.`)
+  }
+  
+  // Warn about very long ingredient names
+  for (const ing of validIngredients) {
+    if (ing.ingredient.length > MAX_NAME_LENGTH) {
+      console.warn(
+        `⚠️ TRUNCATION WARNING: Ingredient "${ing.ingredient.substring(0, 50)}..." in sub-recipe "${subRecipe.name}" ` +
+        `is ${ing.ingredient.length} characters (max ${MAX_NAME_LENGTH}). It will be truncated.`
+      )
+    }
   }
 
   // Validate USDA data structure
@@ -174,6 +205,15 @@ export async function createFinalDish(
   finalDishIngredients: IngredientWithUSDA[],
   subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, totalWeight: number, quantityInFinalDish: number, unitInFinalDish: string }>
 ): Promise<string> {
+  // Validate dish name length (Airtable field limit is typically 255 chars)
+  const MAX_NAME_LENGTH = 255
+  if (dishName.length > MAX_NAME_LENGTH) {
+    throw new Error(
+      `Dish name is too long (${dishName.length} characters, maximum ${MAX_NAME_LENGTH}). ` +
+      `Please shorten the name. Current name: "${dishName.substring(0, 50)}..."`
+    )
+  }
+  
   // Validate at least one ingredient or sub-recipe
   const hasValidIngredients = finalDishIngredients.some(ing => ing.usdaFood !== null)
   const hasSubRecipes = subRecipesData.length > 0
@@ -183,6 +223,16 @@ export async function createFinalDish(
       `Cannot create final dish "${dishName}" with no ingredients. ` +
       `Please match at least one ingredient to USDA data before saving.`
     )
+  }
+  
+  // Warn about very long ingredient names that might get truncated
+  for (const ing of finalDishIngredients) {
+    if (ing.ingredient.length > MAX_NAME_LENGTH) {
+      console.warn(
+        `⚠️ TRUNCATION WARNING: Ingredient name "${ing.ingredient.substring(0, 50)}..." ` +
+        `is ${ing.ingredient.length} characters (max ${MAX_NAME_LENGTH}). It will be truncated.`
+      )
+    }
   }
 
   // Check for duplicate dish name
@@ -282,7 +332,7 @@ export async function createFinalDish(
     createdAt: new Date().toISOString()
   }
 
-  // Save to API
+  // Save to API with duplicate error handling
   const response = await fetch('/api/final-dishes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -290,7 +340,17 @@ export async function createFinalDish(
   })
 
   if (!response.ok) {
-    const error = await response.json()
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    
+    // Check for Airtable duplicate record error
+    if (response.status === 422 || (error.error && error.error.includes('duplicate'))) {
+      throw new Error(
+        `A final dish named "${dishName}" already exists. ` +
+        `This might be a timing issue if created moments ago. ` +
+        `Please use a different name or delete the existing dish first.`
+      )
+    }
+    
     throw new Error(`Failed to create final dish "${dishName}": ${error.error}`)
   }
 
