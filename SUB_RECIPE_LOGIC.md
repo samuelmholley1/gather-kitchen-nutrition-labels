@@ -6,9 +6,32 @@ The smart parser automatically detects **sub-recipes** (recipes within recipes) 
 
 ## The Key Pattern
 
-**Sub-recipes are detected ONLY when:**
-1. The entire line follows this pattern: `[quantity] [unit] [name] (ingredient list)`
-2. The content inside parentheses contains **multiple ingredients separated by commas**
+**Sub-recipes are detected when:**
+1. The line follows this pattern: `[quantity] [unit] [name] (ingredient list)`
+2. The content inside parentheses is analyzed for ingredient signals vs descriptor signals
+
+### Intelligent Content Analysis (NEW!)
+
+The parser now **intelligently analyzes** what's inside the parentheses to distinguish between:
+- **Ingredient lists** → Create sub-recipe
+- **Descriptive attributes** → Treat as regular ingredient
+
+**Ingredient Signals (suggests sub-recipe):**
+- Contains numbers/quantities: `1 tomato`, `2 cups`
+- Contains measurement units: `cup`, `tbsp`, `oz`
+- Contains common food nouns: `tomatoes`, `onions`, `garlic`, `basil`, `carrots`, `celery`
+- Supports both singular and plural: `tomato/tomatoes`, `carrot/carrots`
+
+**Descriptor Signals (suggests NOT sub-recipe):**
+- Cooking descriptors: `boneless`, `skinless`, `diced`, `chopped`, `fresh`, `organic`
+- Body part nouns: `breast`, `thigh`, `wing`, `leg`
+- Preparation states: `cooked`, `raw`, `dried`, `frozen`
+- Single short adjectives without food context
+
+**Decision Logic:**
+1. If descriptors outnumber ingredients → Regular ingredient (not sub-recipe)
+2. If fewer than 2 ingredient-like items → Regular ingredient (not sub-recipe)
+3. Otherwise → Sub-recipe
 
 ## Detection Regex
 
@@ -50,14 +73,32 @@ Marinade (soy sauce, ginger, sesame oil)
 ```
 1 red bell pepper (peddled)
 ```
-**Why:** Only ONE word in parentheses, no commas
+**Why:** Only ONE word in parentheses (descriptor)
 **Result:** Regular ingredient, parentheses content ignored/removed by USDA search
+
+```
+chicken (boneless, skinless breast)
+```
+**Why:** All items are descriptors (boneless, skinless, breast), no ingredient signals
+**Result:** Regular ingredient - "chicken" with descriptive attributes
+
+```
+1 pound chicken (boneless, skinless, breast)
+```
+**Why:** 3 descriptor words, 0 ingredient signals
+**Result:** Regular ingredient
 
 ```
 boneless skinless chicken breast (about 6 oz)
 ```
 **Why:** Single phrase in parentheses, no comma-separated list
 **Result:** Regular ingredient with note
+
+```
+4 tomatoes (fresh, organic, diced)
+```
+**Why:** All items are descriptors (fresh=state, organic=quality, diced=prep)
+**Result:** Regular ingredient
 
 ```
 olive oil (for frying)
@@ -146,13 +187,16 @@ sauce (tomatoes (crushed), garlic)
 
 ## Why This Design?
 
-### Comma as the Key Indicator
-The presence of commas inside parentheses is the clearest signal that this is an **ingredient list** rather than just a note:
+### Intelligent Content Analysis
+The presence of commas is no longer the sole indicator. The parser now **analyzes each comma-separated item** to determine if it's:
 
-- ✅ `(tomato, garlic, basil)` - Clearly an ingredient list
-- ❌ `(diced)` - Just a preparation note
-- ❌ `(about 6 oz)` - Just a measurement note
-- ❌ `(for garnish)` - Just an instruction note
+- ✅ **Ingredient-like**: `tomato`, `1 cup water`, `garlic`, `carrots`
+- ❌ **Descriptor-like**: `boneless`, `skinless`, `breast`, `fresh`, `diced`
+
+This prevents false positives like:
+- `chicken (boneless, skinless breast)` - All descriptors → Regular ingredient ✅
+- `tomatoes (fresh, organic, diced)` - All descriptors → Regular ingredient ✅
+- `salsa (tomato, onion, cilantro)` - All food nouns → Sub-recipe ✅
 
 ### Pattern Matching
 The regex ensures the ENTIRE line follows the expected format. This prevents false positives like:
@@ -179,15 +223,25 @@ Pie crust (flour, butter, water, salt)
 
 **The app knows it's a sub-recipe when:**
 1. ✅ Line matches the pattern: `[qty] [unit] [name] (ingredients)`
-2. ✅ Parentheses contain **comma-separated list** of ingredients
+2. ✅ Parentheses content is analyzed and contains **ingredient-like items**
+   - Has numbers/units: `1 tomato`, `2 cups basil`
+   - Has food nouns without descriptors: `carrots`, `onions`, `garlic`
+3. ✅ Descriptor count doesn't exceed ingredient count
 
 **Otherwise, parentheses are treated as:**
 - Notes/descriptions that get removed during USDA search
 - Regular text that doesn't create a sub-recipe
 
-**Single-word parentheses like `(peddled)` are:**
-- Ignored by the sub-recipe detector (no comma = not a list)
+**Descriptive parentheses like `(boneless, skinless breast)` are:**
+- Analyzed and recognized as descriptors (not ingredients)
+- NOT created as sub-recipes ✅
 - Removed during USDA search cleaning
 - Just descriptive text that doesn't affect the nutrition calculation
 
-This design ensures that **only actual sub-recipes with multiple ingredients** create separate entries in the database, while simple notes and descriptions are handled gracefully without creating unnecessary complexity.
+**Real food names like `(carrots, celery, onions)` are:**
+- Analyzed and recognized as food ingredients
+- Created as sub-recipes ✅
+- Each ingredient gets USDA matching
+- Proper nutrition calculation with scaling
+
+This design ensures that **only actual sub-recipes with multiple ingredients** create separate entries in the database, while descriptive attributes like "boneless, skinless breast" are handled gracefully as regular ingredients without creating unnecessary complexity.
