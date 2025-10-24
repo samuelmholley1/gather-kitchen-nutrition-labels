@@ -27,6 +27,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Gather Kitchen'
   },
+  other: {
+    'mobile-web-app-capable': 'yes' // Replaces deprecated apple-mobile-web-app-capable
+  },
   formatDetection: {
     telephone: false,
   },
