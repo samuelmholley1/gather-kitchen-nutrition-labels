@@ -85,40 +85,37 @@ export default function NutritionLabel({
     setIsExporting(true)
 
     try {
-      // Dynamically import html2canvas (only when needed)
-      const html2canvas = (await import('html2canvas')).default
+      // Use html-to-image for better border/line rendering
+      const { toPng, toJpeg } = await import('html-to-image')
+      
+      const dataUrl = format === 'jpeg' 
+        ? await toJpeg(labelRef.current, {
+            quality: 0.98,
+            pixelRatio: 3,
+            backgroundColor: '#ffffff',
+          })
+        : await toPng(labelRef.current, {
+            quality: 0.98,
+            pixelRatio: 3,
+            backgroundColor: '#ffffff',
+          })
 
-      const canvas = await html2canvas(labelRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 3, // Higher scale for better line rendering
-        logging: false,
-        useCORS: true,
-        allowTaint: false,
-        imageTimeout: 0,
-        // Better rendering for borders/lines
-        foreignObjectRendering: false,
-        removeContainer: true,
-      })
+      // Convert data URL to blob
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
 
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            // Download
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `nutrition-label-${dishName.toLowerCase().replace(/\s+/g, '-')}.${format}`
-            a.click()
-            URL.revokeObjectURL(url)
+      // Download
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nutrition-label-${dishName.toLowerCase().replace(/\s+/g, '-')}.${format}`
+      a.click()
+      URL.revokeObjectURL(url)
 
-            // Callback
-            if (onExport) onExport(blob)
-          }
-          setIsExporting(false)
-        },
-        format === 'jpeg' ? 'image/jpeg' : 'image/png',
-        0.98 // Higher quality
-      )
+      // Callback
+      if (onExport) onExport(blob)
+
+      setIsExporting(false)
     } catch (error) {
       console.error('Export failed:', error)
       setIsExporting(false)
@@ -132,33 +129,29 @@ export default function NutritionLabel({
     setIsExporting(true)
 
     try {
-      const html2canvas = (await import('html2canvas')).default
+      const { toPng } = await import('html-to-image')
 
-      const canvas = await html2canvas(labelRef.current, {
+      const dataUrl = await toPng(labelRef.current, {
+        quality: 0.98,
+        pixelRatio: 3,
         backgroundColor: '#ffffff',
-        scale: 3, // Higher scale for better line rendering
-        logging: false,
-        useCORS: true,
-        allowTaint: false,
-        imageTimeout: 0,
-        foreignObjectRendering: false,
-        removeContainer: true,
       })
 
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob }),
-            ])
-            alert('Nutrition label copied to clipboard!')
-          } catch (err) {
-            console.error('Clipboard write failed:', err)
-            alert('Failed to copy to clipboard. Try exporting as image instead.')
-          }
-        }
-        setIsExporting(false)
-      })
+      // Convert data URL to blob
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob }),
+        ])
+        alert('Nutrition label copied to clipboard!')
+      } catch (err) {
+        console.error('Clipboard write failed:', err)
+        alert('Failed to copy to clipboard. Try exporting as image instead.')
+      }
+
+      setIsExporting(false)
     } catch (error) {
       console.error('Copy failed:', error)
       setIsExporting(false)
