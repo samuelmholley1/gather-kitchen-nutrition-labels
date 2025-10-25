@@ -498,20 +498,17 @@ export async function createFinalDish(
     nutritionLabel: nutritionProfile, // REAL nutrition data, not placeholder!
     status: 'Active', // Must match Airtable Single Select option (capitalized)
     notes: 'Created from smart recipe importer',
-    allergens: [], // Send empty array (Airtable might require this field)
     createdAt: new Date().toISOString()
   }
   
   // NOTE: Category removed - might be Single Select field like Status was
+  // NOTE: Allergens removed - if it's a linked record field, empty array causes 500 error
   // Let Airtable use default value or leave blank
   
   // Only add subRecipeLinks if we have sub-recipes
   if (subRecipeIds.length > 0) {
     finalDishPayload.subRecipeLinks = subRecipeIds
   }
-  
-  // Don't send empty allergens array (Airtable might reject it if it's a linked record field)
-  // finalDishPayload.allergens = [] // REMOVED - only add if we actually have allergens
 
   // Save to API with retry logic and duplicate error handling
   const response = await retryFetch('/api/final-dishes', {
