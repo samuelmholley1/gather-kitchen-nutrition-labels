@@ -110,6 +110,11 @@ export async function POST(request: NextRequest) {
     console.log('Creating final dish with fields:', JSON.stringify(fields, null, 2))
 
     const record = await table.create([{ fields }])
+    
+    if (!record || record.length === 0) {
+      console.error('Airtable returned empty record array')
+      throw new Error('Airtable failed to create record - no response data')
+    }
 
     return NextResponse.json({
       success: true,
@@ -134,12 +139,15 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to create final dish:', error)
     
-    // Log detailed error info
+    // Log detailed error info for debugging
     if (error instanceof Error) {
       console.error('Error name:', error.name)
       console.error('Error message:', error.message)
       console.error('Error stack:', error.stack)
     }
+    
+    // Log the full error object to see Airtable-specific details
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
     
     // Check if it's an Airtable error
     const errorMessage = error instanceof Error ? error.message : 'Failed to create final dish'
@@ -150,12 +158,17 @@ export async function POST(request: NextRequest) {
       detailedError = `Airtable field error: ${errorMessage}. Please check that all fields match the Airtable schema.`
     } else if (errorMessage.includes('AUTHENTICATION_REQUIRED')) {
       detailedError = 'Airtable authentication failed. Check your API token.'
+    } else if (errorMessage.includes('INVALID_PERMISSIONS')) {
+      detailedError = 'Airtable permission error. Check that your API token has write access to the FinalDishes table.'
+    } else if (errorMessage.includes('UNKNOWN_FIELD_NAME')) {
+      detailedError = `Airtable field name error: ${errorMessage}. One or more field names don't exist in your Airtable base.`
     }
     
     return NextResponse.json(
       { 
         success: false, 
         error: detailedError,
+        originalError: errorMessage,
         details: error instanceof Error ? {
           name: error.name,
           message: error.message,
