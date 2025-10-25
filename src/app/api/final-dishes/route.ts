@@ -136,8 +136,36 @@ export async function POST(request: NextRequest) {
       console.error('Airtable error message:', airtableError?.message)
       console.error('Airtable error statusCode:', airtableError?.statusCode)
       
-      // Throw with more details
+      // Extract helpful error message
       const errorMsg = airtableError?.message || airtableError?.error || 'Unknown Airtable error'
+      
+      // Detect specific error types and provide actionable guidance
+      if (errorMsg.includes('UNKNOWN_FIELD_NAME') || errorMsg.includes('Unknown field')) {
+        const fieldMatch = errorMsg.match(/field name[s]?:?\s*['"]?(\w+)['"]?/i)
+        const fieldName = fieldMatch ? fieldMatch[1] : 'unknown'
+        throw new Error(
+          `Airtable field "${fieldName}" doesn't exist in FinalDishes table. ` +
+          `Please check Airtable and ensure the field name matches exactly (case-sensitive). ` +
+          `Expected fields: Name, Components, TotalWeight, ServingSize, ServingsPerContainer, ` +
+          `NutritionLabel, Category, Notes, Status, CreatedAt, UpdatedAt, SubRecipeLinks, Allergens`
+        )
+      }
+      
+      if (errorMsg.includes('INVALID_VALUE_FOR_COLUMN') || errorMsg.includes('invalid value')) {
+        throw new Error(
+          `Airtable field type mismatch: ${errorMsg}. ` +
+          `Check that Status/Category fields accept text values, or are Single Select with correct options.`
+        )
+      }
+      
+      if (errorMsg.includes('invalid linked record') || errorMsg.includes('INVALID_RECORD_ID')) {
+        throw new Error(
+          `SubRecipeLinks field error: One or more sub-recipe IDs are invalid. ` +
+          `Ensure SubRecipeLinks is configured as "Link to another record" → SubRecipes table.`
+        )
+      }
+      
+      // Generic Airtable error
       throw new Error(`Airtable API Error: ${errorMsg}`)
     }
     
