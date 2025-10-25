@@ -393,21 +393,27 @@ export async function createFinalDish(
   console.log('- IDs are strings?', subRecipeIds.every(id => typeof id === 'string'))
   console.log('- IDs format:', subRecipeIds.map(id => `${id} (${typeof id})`))
   
-  // Create final dish payload
-  const finalDishPayload = {
+  // Create final dish payload (only include arrays if they have values)
+  const finalDishPayload: any = {
     name: dishName,
     components,
     totalWeight,
     servingSize: 100,
     servingsPerContainer: Math.max(1, Math.round(totalWeight / 100)),
     nutritionLabel: { calories: 0 }, // Simplified - will calculate properly later
-    subRecipeLinks: subRecipeIds, // Array of Airtable record IDs for linked records
-    allergens: [],
     category: 'Main Dish',
     status: 'active',
     notes: 'Created from smart recipe importer',
     createdAt: new Date().toISOString()
   }
+  
+  // Only add subRecipeLinks if we have sub-recipes
+  if (subRecipeIds.length > 0) {
+    finalDishPayload.subRecipeLinks = subRecipeIds
+  }
+  
+  // Don't send empty allergens array (Airtable might reject it if it's a linked record field)
+  // finalDishPayload.allergens = [] // REMOVED - only add if we actually have allergens
 
   // Save to API with duplicate error handling
   const response = await fetch('/api/final-dishes', {
