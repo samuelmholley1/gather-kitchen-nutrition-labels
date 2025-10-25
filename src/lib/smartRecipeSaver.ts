@@ -332,8 +332,11 @@ export async function createFinalDish(
     
     components.push({
       type: 'ingredient',
-      ...ingredientForCalc,
-      nutrients: ing.usdaFood.foodNutrients || []
+      fdcId: ingredientForCalc.fdcId,
+      name: ingredientForCalc.name,
+      quantity: ingredientForCalc.quantity,
+      unit: ingredientForCalc.unit
+      // REMOVED: nutrients array (too large for Airtable, not needed for display)
     })
   }
 

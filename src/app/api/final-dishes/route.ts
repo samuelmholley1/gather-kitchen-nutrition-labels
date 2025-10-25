@@ -99,6 +99,23 @@ export async function POST(request: NextRequest) {
       UpdatedAt: now,
     }
 
+    // Log Components size for debugging
+    const componentsJson = JSON.stringify(components)
+    const sizeInKB = (new Blob([componentsJson]).size / 1024).toFixed(2)
+    console.log(`Components JSON size: ${sizeInKB} KB`)
+    
+    if (componentsJson.length > 100000) {
+      console.warn(`⚠️ Components JSON is ${componentsJson.length} chars (Airtable limit: 100,000)`)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Recipe data is too large (${sizeInKB} KB). Airtable Long Text fields have a 100,000 character limit. Try reducing the number of ingredients or simplifying the recipe.`,
+          originalError: 'FIELD_TOO_LARGE'
+        },
+        { status: 400 }
+      )
+    }
+
     // Only add arrays if they have values (some Airtable fields might not accept empty arrays)
     if (subRecipeLinks && subRecipeLinks.length > 0) {
       fields.SubRecipeLinks = subRecipeLinks
