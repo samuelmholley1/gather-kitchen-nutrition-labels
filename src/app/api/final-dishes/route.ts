@@ -109,7 +109,20 @@ export async function POST(request: NextRequest) {
 
     console.log('Creating final dish with fields:', JSON.stringify(fields, null, 2))
 
-    const record = await table.create([{ fields }])
+    let record
+    try {
+      record = await table.create([{ fields }])
+    } catch (airtableError: any) {
+      // Log the raw Airtable error
+      console.error('Raw Airtable error:', airtableError)
+      console.error('Airtable error type:', airtableError?.error)
+      console.error('Airtable error message:', airtableError?.message)
+      console.error('Airtable error statusCode:', airtableError?.statusCode)
+      
+      // Throw with more details
+      const errorMsg = airtableError?.message || airtableError?.error || 'Unknown Airtable error'
+      throw new Error(`Airtable API Error: ${errorMsg}`)
+    }
     
     if (!record || record.length === 0) {
       console.error('Airtable returned empty record array')
