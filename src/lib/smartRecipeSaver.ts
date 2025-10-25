@@ -387,6 +387,12 @@ export async function createFinalDish(
   // Extract sub-recipe IDs for linked record field
   const subRecipeIds = subRecipesData.map(sr => sr.id)
   
+  console.log('📊 Final Dish Debug Info:')
+  console.log('- Sub-recipes data:', subRecipesData)
+  console.log('- Extracted IDs:', subRecipeIds)
+  console.log('- IDs are strings?', subRecipeIds.every(id => typeof id === 'string'))
+  console.log('- IDs format:', subRecipeIds.map(id => `${id} (${typeof id})`))
+  
   // Create final dish payload
   const finalDishPayload = {
     name: dishName,

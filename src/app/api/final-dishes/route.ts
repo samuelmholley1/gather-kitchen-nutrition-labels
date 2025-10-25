@@ -118,6 +118,8 @@ export async function POST(request: NextRequest) {
 
     // Only add arrays if they have values (some Airtable fields might not accept empty arrays)
     if (subRecipeLinks && subRecipeLinks.length > 0) {
+      console.log('SubRecipeLinks being sent:', subRecipeLinks)
+      console.log('SubRecipeLinks type check:', Array.isArray(subRecipeLinks), subRecipeLinks.map((id: any) => typeof id))
       fields.SubRecipeLinks = subRecipeLinks
     }
     if (allergens && allergens.length > 0) {
