@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString()
 
-    // Prepare fields with validation
+    // Prepare fields with validation - MINIMAL SET for debugging
     const fields: any = {
       Name: name,
       Components: JSON.stringify(components),
@@ -92,11 +92,21 @@ export async function POST(request: NextRequest) {
       ServingSize: servingSize || 100,
       ServingsPerContainer: servingsPerContainer || 1,
       NutritionLabel: JSON.stringify(nutritionLabel || {}),
-      Category: category || '',
-      Notes: notes || '',
-      Status: status,
       CreatedAt: now,
       UpdatedAt: now,
+    }
+    
+    // Conditionally add text fields (might be Single Select or linked records)
+    if (category) {
+      console.log('Adding Category:', category, typeof category)
+      fields.Category = category
+    }
+    if (status) {
+      console.log('Adding Status:', status, typeof status)
+      fields.Status = status
+    }
+    if (notes) {
+      fields.Notes = notes
     }
 
     // Log Components size for debugging
