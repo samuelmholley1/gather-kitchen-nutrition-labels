@@ -626,15 +626,13 @@ export default function ReviewPage() {
         console.warn('Could not mark save as completed:', e)
       }
       
-      // Clear session storage
+      // Redirect to final dishes page FIRST (before clearing session storage)
+      // This prevents React from re-rendering with missing data
+      router.push(`/final-dishes`)
+      
+      // Clear session storage AFTER navigation to prevent re-render issues
       sessionStorage.removeItem('parsedRecipe')
       sessionStorage.removeItem('originalRecipeText')
-      
-      // Small delay to ensure storage is written before navigation
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Redirect to final dishes page
-      router.push(`/final-dishes`)
       
     } catch (error) {
       console.error('Save failed:', error)
