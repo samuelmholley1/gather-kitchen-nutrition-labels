@@ -90,8 +90,14 @@ export default function NutritionLabel({
 
       const canvas = await html2canvas(labelRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2, // High DPI
+        scale: 3, // Higher scale for better line rendering
         logging: false,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 0,
+        // Better rendering for borders/lines
+        foreignObjectRendering: false,
+        removeContainer: true,
       })
 
       canvas.toBlob(
@@ -111,7 +117,7 @@ export default function NutritionLabel({
           setIsExporting(false)
         },
         format === 'jpeg' ? 'image/jpeg' : 'image/png',
-        0.95
+        0.98 // Higher quality
       )
     } catch (error) {
       console.error('Export failed:', error)
@@ -130,8 +136,13 @@ export default function NutritionLabel({
 
       const canvas = await html2canvas(labelRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2,
+        scale: 3, // Higher scale for better line rendering
         logging: false,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 0,
+        foreignObjectRendering: false,
+        removeContainer: true,
       })
 
       canvas.toBlob(async (blob) => {
