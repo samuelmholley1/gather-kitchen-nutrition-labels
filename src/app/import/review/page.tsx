@@ -43,6 +43,8 @@ export default function ReviewPage() {
     ingredientIndex: number
   } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [servingsPerContainer, setServingsPerContainer] = useState<number | 'other'>(1)
+  const [otherServingsValue, setOtherServingsValue] = useState('')
   const [saveProgress, setSaveProgress] = useState('')
   const [autoSearching, setAutoSearching] = useState(false)
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 })
@@ -224,24 +226,67 @@ export default function ReviewPage() {
       if (saveInProgress) {
         const { recipeName, timestamp, subRecipeCount } = JSON.parse(saveInProgress)
         const minutesAgo = Math.floor((Date.now() - timestamp) / 60000)
-        
+
         if (minutesAgo < 5) {
-          // Recent save attempt - warn user
-          const shouldContinue = confirm(
-            `⚠️ Incomplete Save Detected\n\n` +
-            `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
-            `This might be due to a browser crash or network error. ` +
-            `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
-            `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
-          )
-          
-          if (shouldContinue) {
-            localStorage.removeItem('recipe_save_in_progress')
-            router.push('/sub-recipes')
-            return
+          // Recent save attempt - verify whether the final dish already exists to avoid false alarms
+          try {
+            const listResp = await fetch('/api/final-dishes')
+            if (listResp.ok) {
+              const { finalDishes } = await listResp.json()
+              const exists = finalDishes.some((d: any) => d.name && d.name.toLowerCase().trim() === recipeName.toLowerCase().trim())
+              if (exists) {
+                // Final dish already exists - clear marker and skip prompt
+                localStorage.removeItem('recipe_save_in_progress')
+              } else {
+                const shouldContinue = confirm(
+                  `⚠️ Incomplete Save Detected\n\n` +
+                  `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
+                  `This might be due to a browser crash or network error. ` +
+                  `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
+                  `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
+                )
+
+                if (shouldContinue) {
+                  localStorage.removeItem('recipe_save_in_progress')
+                  router.push('/sub-recipes')
+                  return
+                }
+              }
+            } else {
+              // Could not check server - fallback to prompt
+              const shouldContinue = confirm(
+                `⚠️ Incomplete Save Detected\n\n` +
+                `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
+                `This might be due to a browser crash or network error. ` +
+                `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
+                `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
+              )
+
+              if (shouldContinue) {
+                localStorage.removeItem('recipe_save_in_progress')
+                router.push('/sub-recipes')
+                return
+              }
+            }
+          } catch (checkErr) {
+            console.warn('Could not verify existing final dish before showing incomplete-save prompt:', checkErr)
+            // If verification fails, fall back to showing the prompt
+            const shouldContinue = confirm(
+              `⚠️ Incomplete Save Detected\n\n` +
+              `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
+              `This might be due to a browser crash or network error. ` +
+              `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
+              `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
+            )
+
+            if (shouldContinue) {
+              localStorage.removeItem('recipe_save_in_progress')
+              router.push('/sub-recipes')
+              return
+            }
           }
         }
-        
+
         // Old save attempt - clear it
         localStorage.removeItem('recipe_save_in_progress')
       }
@@ -511,10 +556,22 @@ export default function ReviewPage() {
       setSaveProgress(`Creating final dish "${parseResult.finalDish.name}"...`)
       let finalDishId: string
       try {
+        // Determine final servings-per-container override to send to saver
+        let finalServingsOverride: number | undefined = undefined
+        if (servingsPerContainer === 'other') {
+          const parsed = parseFloat(otherServingsValue || '')
+          if (!isNaN(parsed) && isFinite(parsed)) {
+            finalServingsOverride = Math.max(1, parseFloat(parsed.toFixed(1)))
+          }
+        } else if (typeof servingsPerContainer === 'number') {
+          finalServingsOverride = Math.max(1, parseFloat(servingsPerContainer.toFixed ? servingsPerContainer.toFixed(1) : `${servingsPerContainer}`))
+        }
+
         finalDishId = await createFinalDish(
           parseResult.finalDish.name,
           finalDishIngredients,
-          subRecipesData
+          subRecipesData,
+          finalServingsOverride
         )
       } catch (finalDishError) {
         // Rollback: Delete all created sub-recipes if final dish creation fails
@@ -821,6 +878,48 @@ export default function ReviewPage() {
                   }
                 </li>
               </ul>
+            </div>
+            {/* Servings per container selector */}
+            <div className="mt-4 bg-white border border-emerald-100 p-4 rounded-md">
+              <label className="block text-sm font-medium text-emerald-900 mb-2">Servings per container</label>
+              <div className="flex items-center gap-3 flex-wrap">
+                {([1, 1.5, 2, 2.5] as number[]).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => { setServingsPerContainer(opt); setOtherServingsValue('') }}
+                    className={`px-3 py-1.5 rounded-md border ${servingsPerContainer === opt ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200'}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setServingsPerContainer('other')}
+                  className={`px-3 py-1.5 rounded-md border ${servingsPerContainer === 'other' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200'}`}
+                >
+                  Other
+                </button>
+
+                {servingsPerContainer === 'other' && (
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={otherServingsValue}
+                    onChange={(e) => {
+                      // Allow numbers with at most one decimal place
+                      const v = e.target.value
+                      if (v === '' || /^\d+(\.\d?)?$/.test(v)) {
+                        setOtherServingsValue(v)
+                      }
+                    }}
+                    placeholder="e.g. 3.5"
+                    className="ml-2 px-3 py-1.5 border rounded-md w-24"
+                  />
+                )}
+                <div className="text-xs text-gray-500 ml-auto">Default: 1</div>
+              </div>
             </div>
           </div>
         )}

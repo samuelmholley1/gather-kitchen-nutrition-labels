@@ -1,252 +1,211 @@
-import Link from "next/link";
-import Header from "@/components/Header";
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from "next/link"
+import Header from "@/components/Header"
+import MobileRestrict from '@/components/MobileRestrict'
+import { parseSmartRecipe } from '@/lib/smartRecipeParser'
+import { validateRecipeTextLength } from '@/lib/security'
 
 export default function Home() {
+  const router = useRouter()
+  const [recipeText, setRecipeText] = useState('')
+  const [parsing, setParsing] = useState(false)
+  
+  // On mount, restore recipe text if returning from review page
+  useEffect(() => {
+    const stored = sessionStorage.getItem('originalRecipeText')
+    if (stored) {
+      setRecipeText(stored)
+    }
+  }, [])
+
+  const handleParse = () => {
+    if (!recipeText.trim()) {
+      alert('Please paste a recipe first')
+      return
+    }
+
+    // Validate recipe length
+    const validation = validateRecipeTextLength(recipeText)
+    if (!validation.valid) {
+      alert(validation.error)
+      return
+    }
+
+    setParsing(true)
+    // Small delay for UX (shows we're processing)
+    setTimeout(() => {
+      const result = parseSmartRecipe(recipeText)
+      // Store BOTH result AND original text in sessionStorage
+      sessionStorage.setItem('parsedRecipe', JSON.stringify(result))
+      sessionStorage.setItem('originalRecipeText', recipeText)
+      router.push('/import/review')
+    }, 300)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
-      <Header />
-      <main>
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 py-20">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="mb-8">
-            <span className="inline-block px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-semibold mb-4">
-              FDA-Compliant • USDA-Powered • Free Forever
-            </span>
-          </div>
-          
-          <h1 className="text-6xl font-bold text-gray-900 mb-6">
-            Professional Nutrition Labels
-            <br />
-            <span className="text-emerald-600">Made Simple</span>
+    <MobileRestrict>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            🚀 Smart Recipe Importer
           </h1>
-          
-          <p className="text-xl text-gray-700 mb-12 max-w-3xl mx-auto">
-            Calculate accurate nutrition facts for your recipes using USDA data. 
-            Generate FDA-compliant labels in seconds. Perfect for food service, 
-            meal prep, and commercial kitchens.
+          <p className="text-gray-600 text-lg">
+            Paste your complete recipe below. The app will automatically detect sub-recipes 
+            (ingredients with components in parentheses) and create them for you.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/import"
-              className="px-8 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-lg font-semibold shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-            >
-              🚀 Smart Recipe Importer
-            </Link>
-            
-            <Link
-              href="/sub-recipes/new"
-              className="px-8 py-4 bg-white text-emerald-600 border-2 border-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors text-lg font-semibold"
-            >
-              Manual Recipe Builder
-            </Link>
-          </div>
         </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="container mx-auto px-4 py-16 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Everything You Need for Perfect Nutrition Labels
+        {/* Instructions Card */}
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+          <h2 className="text-xl font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <span className="text-2xl">💡</span>
+            How to Format Your Recipe
           </h2>
+          <div className="space-y-3 text-blue-900">
+            <div>
+              <strong>1. Recipe Name:</strong> First line is your dish name
+            </div>
+            <div>
+              <strong>2. Ingredients:</strong> One per line with quantity and unit
+            </div>
+            <div>
+              <strong>3. Sub-Recipes:</strong> Use parentheses to define components
+            </div>
+          </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-8 hover:shadow-lg transition-shadow">
-              <div className="text-5xl mb-4">🔬</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                USDA Database
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                Search 400,000+ foods with complete nutrition data. Foundation foods, 
-                SR Legacy, and branded products all in one place.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-8 hover:shadow-lg transition-shadow">
-              <div className="text-5xl mb-4">⚖️</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Smart Unit Conversion
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                4-tier conversion system: custom ratios, USDA portions, 
-                standard conversions, with cooking yield adjustments.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-8 hover:shadow-lg transition-shadow">
-              <div className="text-5xl mb-4">📊</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                FDA Compliant
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                Automatic rounding per 21 CFR 101.9. Professional labels 
-                ready for packaging, menus, and regulatory compliance.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-8 hover:shadow-lg transition-shadow">
-              <div className="text-5xl mb-4">🍽️</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Sub-Recipes
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                Build component recipes (sauces, doughs, bases) once. 
-                Reuse them in multiple final dishes automatically.
-              </p>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl p-8 hover:shadow-lg transition-shadow">
-              <div className="text-5xl mb-4">✏️</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Editable Labels
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                Click any nutrient value to override. Perfect for proprietary 
-                ingredients or manual adjustments.
-              </p>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-8 hover:shadow-lg transition-shadow">
-              <div className="text-5xl mb-4">📥</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Export Anywhere
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                Download as PNG/JPEG, copy to clipboard, or print. 
-                Perfect for packaging, menus, websites, and social media.
-              </p>
+          <div className="mt-4 bg-white rounded-lg p-4 font-mono text-sm">
+            <div className="text-gray-500 mb-2">Example:</div>
+            <div className="text-gray-900">
+              Chicken Tacos<br/>
+              <br/>
+              2 cups shredded chicken<br/>
+              1 cup salsa verde (1/2 cup tomatillos, 1/4 cup onions, 2 tbsp cilantro, 1 jalapeño)<br/>
+              8 corn tortillas<br/>
+              1/2 cup cheese
             </div>
           </div>
         </div>
-      </section>
 
-      {/* How It Works */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Three Simple Steps
-          </h2>
+        {/* Paste Area */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Paste Your Recipe Here
+          </label>
           
-          <div className="space-y-8">
-            {/* Step 1 */}
-            <div className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xl font-bold">
-                1
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Search USDA Ingredients
-                </h3>
-                <p className="text-gray-700">
-                  Type any ingredient name (chicken, flour, tomatoes) and select from 
-                  400,000+ foods with complete nutrition data.
-                </p>
+          {/* Live Validation Feedback */}
+          {recipeText.trim() && (
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                {recipeText.split('\n').filter(l => l.trim()).length > 0 && (
+                  <span className="text-green-700">✓ Recipe name detected</span>
+                )}
+                {recipeText.split('\n').filter(l => l.trim()).length > 1 && (
+                  <span className="text-green-700">
+                    • ✓ {recipeText.split('\n').filter(l => l.trim()).length - 1} ingredient{recipeText.split('\n').filter(l => l.trim()).length - 1 > 1 ? 's' : ''} found
+                  </span>
+                )}
+                {recipeText.match(/\([^)]+\)/g) && (
+                  <span className="text-blue-700">
+                    • 🔍 {recipeText.match(/\([^)]+\)/g)!.length} potential sub-recipe{recipeText.match(/\([^)]+\)/g)!.length > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
             </div>
+          )}
+          
+          <textarea
+            value={recipeText}
+            onChange={(e) => setRecipeText(e.target.value)}
+            onKeyDown={(e) => {
+              // Ctrl/Cmd + Enter to parse
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault()
+                handleParse()
+              }
+            }}
+            placeholder="Paste your recipe here...
 
-            {/* Step 2 */}
-            <div className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xl font-bold">
-                2
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Build Your Recipe
-                </h3>
-                <p className="text-gray-700">
-                  Add ingredients with quantities. Create sub-recipes for components 
-                  you use often. Set serving sizes and cooking methods.
-                </p>
-              </div>
-            </div>
+Example:
+Chicken Tacos
 
-            {/* Step 3 */}
-            <div className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xl font-bold">
-                3
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Generate FDA-Compliant Label
-                </h3>
-                <p className="text-gray-700">
-                  Get an instant nutrition label with automatic FDA rounding. 
-                  Edit any value, then export as image or print.
-                </p>
-              </div>
-            </div>
+2 cups shredded chicken
+1 cup salsa verde (1/2 cup tomatillos, 1/4 cup onions, 2 tbsp cilantro, 1 jalapeño)
+8 corn tortillas
+1/2 cup cheese"
+            className="w-full h-96 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-mono text-sm resize-none"
+          />
+          <div className="mt-2 flex justify-between items-center text-sm text-gray-500">
+            <span>{recipeText.split('\n').filter(l => l.trim()).length} lines</span>
+            <span className="text-xs text-gray-400">💡 Tip: Press Ctrl/Cmd + Enter to parse</span>
           </div>
         </div>
-      </section>
 
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto bg-gradient-to-r from-emerald-600 to-blue-600 rounded-2xl p-12 text-center text-white shadow-2xl">
-          <h2 className="text-4xl font-bold mb-4">
-            Ready to Create Professional Nutrition Labels?
-          </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Free forever. No credit card required. FDA-compliant labels in minutes.
-          </p>
+        {/* Action Buttons */}
+        <div className="flex gap-4">
+          <button
+            onClick={handleParse}
+            disabled={parsing || !recipeText.trim()}
+            className="flex-1 px-8 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-lg font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {parsing ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Parsing Recipe...
+              </>
+            ) : (
+              <>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Parse Recipe
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => {
+              if (confirm('Are you sure you want to clear the recipe text?')) {
+                setRecipeText('')
+              }
+            }}
+            disabled={!recipeText}
+            className="px-6 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Clear
+          </button>
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-8 flex justify-center gap-4 text-sm">
           <Link
             href="/sub-recipes/new"
-            className="inline-block px-10 py-5 bg-white text-emerald-600 rounded-lg hover:bg-gray-100 transition-colors text-xl font-bold shadow-lg"
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
           >
-            Get Started Now →
+            ➕ Add Recipe Manually
+          </Link>
+          <span className="text-gray-400">|</span>
+          <Link
+            href="/sub-recipes"
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
+          >
+            Sub-Recipes
+          </Link>
+          <span className="text-gray-400">|</span>
+          <Link
+            href="/final-dishes"
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
+          >
+            Final Dishes
           </Link>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="container mx-auto px-4 py-12 border-t border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h4 className="font-bold text-gray-900 mb-3">Gather Kitchen</h4>
-              <p className="text-gray-600 text-sm">
-                Professional nutrition label calculator powered by USDA FoodData Central.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-bold text-gray-900 mb-3">Quick Links</h4>
-              <div className="space-y-2 text-sm">
-                <Link href="/sub-recipes" className="block text-gray-600 hover:text-emerald-600">
-                  Sub-Recipes
-                </Link>
-                <Link href="/final-dishes" className="block text-gray-600 hover:text-emerald-600">
-                  Final Dishes
-                </Link>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-bold text-gray-900 mb-3">Resources</h4>
-              <div className="space-y-2 text-sm">
-                <a href="https://fdc.nal.usda.gov/" target="_blank" rel="noopener noreferrer" className="block text-gray-600 hover:text-emerald-600">
-                  USDA FoodData Central
-                </a>
-                <a href="https://www.fda.gov/food/nutrition-facts-label" target="_blank" rel="noopener noreferrer" className="block text-gray-600 hover:text-emerald-600">
-                  FDA Nutrition Labels
-                </a>
-              </div>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-200 pt-8 text-center text-gray-600 text-sm">
-            <p>© {new Date().getFullYear()} Gather Kitchen Nutrition Labels. Built with USDA FoodData Central API.</p>
-          </div>
-        </div>
-      </footer>
-      </main>
-    </div>
-  );
+        </main>
+      </div>
+    </MobileRestrict>
+  )
 }

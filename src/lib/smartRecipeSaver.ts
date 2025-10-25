@@ -267,7 +267,9 @@ async function detectCircularReferences(
 export async function createFinalDish(
   dishName: string,
   finalDishIngredients: IngredientWithUSDA[],
-  subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, totalWeight: number, quantityInFinalDish: number, unitInFinalDish: string }>
+  subRecipesData: Array<{ id: string, name: string, nutritionProfile: NutrientProfile, totalWeight: number, quantityInFinalDish: number, unitInFinalDish: string }>,
+  // Optional override from UI: choose servings per container (1 decimal precision)
+  overrideServingsPerContainer?: number
 ): Promise<string> {
   // Validate dish name length (Airtable field limit is typically 255 chars)
   const MAX_NAME_LENGTH = 255
@@ -494,7 +496,15 @@ export async function createFinalDish(
     components,
     totalWeight,
     servingSize: 100,
-    servingsPerContainer: Math.max(1, Math.round(totalWeight / 100)),
+    // Use UI-provided value when available (rounded to 1 decimal), otherwise auto-calc
+    servingsPerContainer: (() => {
+      if (overrideServingsPerContainer !== undefined && !isNaN(overrideServingsPerContainer) && isFinite(overrideServingsPerContainer)) {
+        // Ensure at least 1 and one decimal precision
+        const sanitized = Math.max(1, parseFloat(overrideServingsPerContainer.toFixed(1)))
+        return sanitized
+      }
+      return Math.max(1, Math.round(totalWeight / 100))
+    })(),
     nutritionLabel: nutritionProfile, // REAL nutrition data, not placeholder!
     status: 'Draft', // Airtable field exists (was just empty)
     notes: 'Created from smart recipe importer',
