@@ -93,11 +93,15 @@ export default function NutritionLabel({
             quality: 0.98,
             pixelRatio: 3,
             backgroundColor: '#ffffff',
+            cacheBust: true,
+            skipAutoScale: true,
           })
         : await toPng(labelRef.current, {
             quality: 0.98,
             pixelRatio: 3,
             backgroundColor: '#ffffff',
+            cacheBust: true,
+            skipAutoScale: true,
           })
 
       // Convert data URL to blob
@@ -135,6 +139,8 @@ export default function NutritionLabel({
         quality: 0.98,
         pixelRatio: 3,
         backgroundColor: '#ffffff',
+        cacheBust: true,
+        skipAutoScale: true,
       })
 
       // Convert data URL to blob
@@ -228,7 +234,7 @@ export default function NutritionLabel({
       {/* FDA Nutrition Label */}
       <div
         ref={labelRef}
-        className="bg-white border-2 border-black p-1"
+        className="bg-white border-2 border-black p-1 pb-2"
         style={{
           width: '288px', // FDA standard width (2.4 inches at 120 DPI)
           fontFamily: 'Helvetica, Arial, sans-serif',
