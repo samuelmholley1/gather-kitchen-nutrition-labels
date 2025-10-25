@@ -234,7 +234,7 @@ export default function NutritionLabel({
       {/* FDA Nutrition Label */}
       <div
         ref={labelRef}
-        className="bg-white border-2 border-black p-1 pb-2"
+        className="bg-white border-2 border-black p-2"
         style={{
           width: '288px', // FDA standard width (2.4 inches at 120 DPI)
           fontFamily: 'Helvetica, Arial, sans-serif',
@@ -243,18 +243,15 @@ export default function NutritionLabel({
         {/* Title */}
         <div className="pb-1">
           <div className="text-4xl font-black leading-none">Nutrition Facts</div>
-          <div className="text-xs mt-1">{servingsPerContainer} servings per container</div>
         </div>
-        <hr style={{ border: 'none', borderTop: '8px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '1px solid black', margin: 0 }} />
 
-        {/* Serving Size */}
-        <div className="py-1 flex justify-between items-end">
-          <div>
-            <div className="text-xs font-bold">Serving size</div>
-          </div>
-          <div className="text-xs font-bold">{servingSize}</div>
+        {/* Servings info - no dividing line between these two */}
+        <div className="pt-1">
+          <div className="text-xs">{servingsPerContainer} servings per container</div>
+          <div className="text-xs font-bold">Serving size {servingSize}</div>
         </div>
-        <hr style={{ border: 'none', borderTop: '8px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '10px solid black', margin: '4px 0 0 0' }} />
 
         {/* Amount Per Serving */}
         <div className="py-1">
@@ -271,7 +268,7 @@ export default function NutritionLabel({
             </div>
           </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '4px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '5px solid black', margin: 0 }} />
 
         {/* % Daily Value Header */}
         <div className="border-b border-black py-1 text-right">
@@ -411,7 +408,7 @@ export default function NutritionLabel({
             />
           </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '8px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '5px solid black', margin: 0 }} />
 
         {/* Micronutrients */}
         <div className="py-2 space-y-1">
@@ -456,10 +453,10 @@ export default function NutritionLabel({
             <div>{calculateDailyValuePercent(nutrients.potassium, FDA_DAILY_VALUES.potassium)}</div>
           </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '4px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '3px solid black', margin: 0 }} />
 
         {/* Footer */}
-        <div className="py-1 text-xs leading-tight">
+        <div className="py-2 text-xs leading-tight">
           * The % Daily Value (DV) tells you how much a nutrient in a serving of food contributes
           to a daily diet. 2,000 calories a day is used for general nutrition advice.
         </div>

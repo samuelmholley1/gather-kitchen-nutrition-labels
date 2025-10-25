@@ -45,6 +45,7 @@ export default function ReviewPage() {
   const [saving, setSaving] = useState(false)
   const [servingsPerContainer, setServingsPerContainer] = useState<number | 'other'>(1)
   const [otherServingsValue, setOtherServingsValue] = useState('')
+  const [dishCategory, setDishCategory] = useState<string>('')
   const [saveProgress, setSaveProgress] = useState('')
   const [autoSearching, setAutoSearching] = useState(false)
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 })
@@ -220,20 +221,24 @@ export default function ReviewPage() {
     autoSearchUSDA()
   }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
-  // Auto-select serving size based on estimated total weight
+  // Auto-select serving size based on estimated total calories
   useEffect(() => {
     // Only auto-select once when ingredients are first confirmed
     if (!allIngredientsConfirmed() || servingsPerContainer !== 1) return
     
-    // Calculate estimated total weight from confirmed ingredients
-    let totalGrams = 0
+    // Calculate estimated total calories from confirmed ingredients
+    let totalCalories = 0
     
-    // Add final dish ingredients (rough estimate: quantity * 100g)
+    // Add final dish ingredients
     finalDishIngredients.forEach(ing => {
       if (ing.usdaFood && ing.confirmed) {
-        // Use first portion if available, otherwise default to 100g
-        const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
-        totalGrams += (ing.quantity * portionGrams)
+        const caloriesNutrient = ing.usdaFood.foodNutrients?.find(n => n.nutrientId === 1008)
+        if (caloriesNutrient) {
+          const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+          const caloriesPer100g = (caloriesNutrient.value / 100) * 100
+          const totalGramsForIngredient = ing.quantity * portionGrams
+          totalCalories += (caloriesPer100g / 100) * totalGramsForIngredient
+        }
       }
     })
     
@@ -241,35 +246,77 @@ export default function ReviewPage() {
     subRecipes.forEach(sub => {
       sub.ingredients.forEach(ing => {
         if (ing.usdaFood && ing.confirmed) {
-          const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
-          totalGrams += (ing.quantity * portionGrams)
+          const caloriesNutrient = ing.usdaFood.foodNutrients?.find(n => n.nutrientId === 1008)
+          if (caloriesNutrient) {
+            const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+            const caloriesPer100g = (caloriesNutrient.value / 100) * 100
+            const totalGramsForIngredient = ing.quantity * portionGrams
+            totalCalories += (caloriesPer100g / 100) * totalGramsForIngredient
+          }
         }
       })
     })
     
-    // Auto-select serving size based on total weight
-    // Heuristic: 100-200g = 1 serving, 200-350g = 1.5, 350-500g = 2, 500-650g = 2.5, else other
-    if (totalGrams > 0) {
-      if (totalGrams <= 200) {
+    // Auto-select serving size based on total calories
+    // Under 600 cal = 1 serving, 600-1200 cal = 2 servings, over 1200 = calculate
+    if (totalCalories > 0) {
+      if (totalCalories < 600) {
         setServingsPerContainer(1)
-      } else if (totalGrams <= 350) {
-        setServingsPerContainer(1.5)
-      } else if (totalGrams <= 500) {
+      } else if (totalCalories <= 1200) {
         setServingsPerContainer(2)
-      } else if (totalGrams <= 650) {
-        setServingsPerContainer(2.5)
       } else {
-        // For larger recipes, calculate sensible default
-        const estimatedServings = Math.round((totalGrams / 200) * 2) / 2 // Round to nearest 0.5
+        // For very large recipes, calculate sensible default
+        const estimatedServings = Math.round((totalCalories / 400) * 2) / 2 // ~400 cal per serving, round to 0.5
         if ([1, 1.5, 2, 2.5].includes(estimatedServings)) {
           setServingsPerContainer(estimatedServings)
         } else {
           setServingsPerContainer('other')
-          setOtherServingsValue(estimatedServings.toString())
+          setOtherServingsValue(estimatedServings.toFixed(1))
         }
       }
     }
   }, [finalDishIngredients, subRecipes])
+
+  // Auto-select dish category based on recipe name and ingredients
+  useEffect(() => {
+    if (!parseResult || dishCategory) return // Only run once, don't override user selection
+    
+    const dishName = parseResult.finalDish.name.toLowerCase()
+    const allIngredients = [
+      ...finalDishIngredients.map(i => i.ingredient.toLowerCase()),
+      ...subRecipes.flatMap(s => s.ingredients.map(i => i.ingredient.toLowerCase()))
+    ].join(' ')
+    
+    // Category detection heuristics
+    if (dishName.includes('pasta') || dishName.includes('spaghetti') || dishName.includes('lasagna') || 
+        dishName.includes('penne') || dishName.includes('fettuccine') || allIngredients.includes('pasta')) {
+      setDishCategory('Pasta')
+    } else if (dishName.includes('pizza') || dishName.includes('flatbread')) {
+      setDishCategory('Pizza')
+    } else if (dishName.includes('salad')) {
+      setDishCategory('Salad')
+    } else if (dishName.includes('soup') || dishName.includes('stew') || dishName.includes('chili')) {
+      setDishCategory('Soup')
+    } else if (dishName.includes('sandwich') || dishName.includes('burger') || dishName.includes('wrap')) {
+      setDishCategory('Sandwich')
+    } else if (dishName.includes('chicken') || dishName.includes('beef') || dishName.includes('pork') || 
+               dishName.includes('lamb') || dishName.includes('turkey') || dishName.includes('steak')) {
+      setDishCategory('Meat Dish')
+    } else if (dishName.includes('fish') || dishName.includes('salmon') || dishName.includes('tuna') || 
+               dishName.includes('shrimp') || dishName.includes('seafood')) {
+      setDishCategory('Seafood')
+    } else if (dishName.includes('curry') || dishName.includes('stir fry') || dishName.includes('rice bowl')) {
+      setDishCategory('Rice Dish')
+    } else if (dishName.includes('taco') || dishName.includes('burrito') || dishName.includes('quesadilla') || 
+               dishName.includes('enchilada')) {
+      setDishCategory('Mexican')
+    } else if (dishName.includes('cake') || dishName.includes('cookie') || dishName.includes('brownie') || 
+               dishName.includes('pie') || dishName.includes('dessert')) {
+      setDishCategory('Dessert')
+    } else {
+      setDishCategory('Other')
+    }
+  }, [parseResult, dishCategory, finalDishIngredients, subRecipes])
 
   useEffect(() => {
     // Don't redirect if we're in the process of navigating away after save
@@ -983,6 +1030,33 @@ export default function ReviewPage() {
                 )}
                 <div className="text-xs text-gray-500 ml-auto">Default: 1</div>
               </div>
+            </div>
+
+            {/* Category selector */}
+            <div className="mt-4 bg-white border border-emerald-100 p-4 rounded-md">
+              <label className="block text-sm font-medium text-emerald-900 mb-2">Dish Category</label>
+              <select
+                value={dishCategory}
+                onChange={(e) => setDishCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-emerald-200 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="">Select category...</option>
+                <option value="Pasta">Pasta</option>
+                <option value="Pizza">Pizza</option>
+                <option value="Salad">Salad</option>
+                <option value="Soup">Soup</option>
+                <option value="Sandwich">Sandwich</option>
+                <option value="Meat Dish">Meat Dish</option>
+                <option value="Seafood">Seafood</option>
+                <option value="Rice Dish">Rice Dish</option>
+                <option value="Mexican">Mexican</option>
+                <option value="Dessert">Dessert</option>
+                <option value="Breakfast">Breakfast</option>
+                <option value="Appetizer">Appetizer</option>
+                <option value="Side Dish">Side Dish</option>
+                <option value="Vegetarian">Vegetarian</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
           </div>
         )}
