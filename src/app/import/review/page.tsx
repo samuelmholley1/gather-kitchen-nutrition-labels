@@ -220,6 +220,57 @@ export default function ReviewPage() {
     autoSearchUSDA()
   }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
+  // Auto-select serving size based on estimated total weight
+  useEffect(() => {
+    // Only auto-select once when ingredients are first confirmed
+    if (!allIngredientsConfirmed() || servingsPerContainer !== 1) return
+    
+    // Calculate estimated total weight from confirmed ingredients
+    let totalGrams = 0
+    
+    // Add final dish ingredients (rough estimate: quantity * 100g)
+    finalDishIngredients.forEach(ing => {
+      if (ing.usdaFood && ing.confirmed) {
+        // Use first portion if available, otherwise default to 100g
+        const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+        totalGrams += (ing.quantity * portionGrams)
+      }
+    })
+    
+    // Add sub-recipe ingredients
+    subRecipes.forEach(sub => {
+      sub.ingredients.forEach(ing => {
+        if (ing.usdaFood && ing.confirmed) {
+          const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+          totalGrams += (ing.quantity * portionGrams)
+        }
+      })
+    })
+    
+    // Auto-select serving size based on total weight
+    // Heuristic: 100-200g = 1 serving, 200-350g = 1.5, 350-500g = 2, 500-650g = 2.5, else other
+    if (totalGrams > 0) {
+      if (totalGrams <= 200) {
+        setServingsPerContainer(1)
+      } else if (totalGrams <= 350) {
+        setServingsPerContainer(1.5)
+      } else if (totalGrams <= 500) {
+        setServingsPerContainer(2)
+      } else if (totalGrams <= 650) {
+        setServingsPerContainer(2.5)
+      } else {
+        // For larger recipes, calculate sensible default
+        const estimatedServings = Math.round((totalGrams / 200) * 2) / 2 // Round to nearest 0.5
+        if ([1, 1.5, 2, 2.5].includes(estimatedServings)) {
+          setServingsPerContainer(estimatedServings)
+        } else {
+          setServingsPerContainer('other')
+          setOtherServingsValue(estimatedServings.toString())
+        }
+      }
+    }
+  }, [finalDishIngredients, subRecipes])
+
   useEffect(() => {
     // Don't redirect if we're in the process of navigating away after save
     if (isNavigatingAway.current) return
@@ -1172,6 +1223,24 @@ export default function ReviewPage() {
         </div>
         </main>
       </div>
+
+      {/* Full-Screen Saving Overlay */}
+      {saving && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-200 border-t-emerald-600"></div>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Saving Recipe...</h3>
+              {saveProgress && (
+                <p className="text-emerald-700 font-medium">{saveProgress}</p>
+              )}
+              <p className="text-gray-500 text-sm mt-4">Please wait while we save your nutrition data</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Batch Ingredient Specification Modal */}
       {batchSpecificationModal.length > 0 && (
