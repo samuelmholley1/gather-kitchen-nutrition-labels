@@ -220,7 +220,27 @@ export default function ReviewPage() {
   }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
   useEffect(() => {
-    // Check for interrupted save (browser crash during save)
+    useEffect(() => {
+    // Load parsed recipe from sessionStorage FIRST
+    const stored = sessionStorage.getItem('parsedRecipe')
+    if (!stored) {
+      router.push('/')
+      return
+    }
+
+    try {
+      const parsed: ParseResult = JSON.parse(stored)
+      setParseResult(parsed)
+      setFinalDishIngredients(parsed.finalDish.ingredients)
+      setSubRecipes(parsed.subRecipes)
+    } catch (err) {
+      console.error('Failed to parse stored recipe:', err)
+      router.push('/')
+      return
+    }
+
+    // ONLY check for interrupted save AFTER we've loaded the current recipe
+    // This prevents false positives when user is actively working on a recipe
     const checkInterruptedSave = async () => {
       try {
         const saveInProgress = localStorage.getItem('recipe_save_in_progress')
@@ -232,6 +252,16 @@ export default function ReviewPage() {
         if (status === 'completed') {
           localStorage.removeItem('recipe_save_in_progress')
           return
+        }
+        
+        // If this is for the CURRENT recipe we're working on, skip the check
+        // (User might have refreshed the page while on review)
+        if (stored) {
+          const currentRecipe: ParseResult = JSON.parse(stored)
+          if (currentRecipe.finalDish.name.toLowerCase().trim() === recipeName.toLowerCase().trim()) {
+            // This is the current recipe - don't show popup, user is still working on it
+            return
+          }
         }
         
         const minutesAgo = Math.floor((Date.now() - timestamp) / 60000)
@@ -277,6 +307,7 @@ export default function ReviewPage() {
     }
 
     checkInterruptedSave()
+  }, [])
   
     // Load parsed recipe from sessionStorage
     const stored = sessionStorage.getItem('parsedRecipe')
