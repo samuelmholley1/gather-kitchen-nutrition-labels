@@ -221,23 +221,40 @@ export default function ReviewPage() {
 
   useEffect(() => {
     // Check for interrupted save (browser crash during save)
-    try {
-      const saveInProgress = localStorage.getItem('recipe_save_in_progress')
-      if (saveInProgress) {
-        const { recipeName, timestamp, subRecipeCount } = JSON.parse(saveInProgress)
-        const minutesAgo = Math.floor((Date.now() - timestamp) / 60000)
+    const checkInterruptedSave = async () => {
+      try {
+        const saveInProgress = localStorage.getItem('recipe_save_in_progress')
+        if (saveInProgress) {
+          const { recipeName, timestamp, subRecipeCount } = JSON.parse(saveInProgress)
+          const minutesAgo = Math.floor((Date.now() - timestamp) / 60000)
 
-        if (minutesAgo < 5) {
-          // Recent save attempt - verify whether the final dish already exists to avoid false alarms
-          try {
-            const listResp = await fetch('/api/final-dishes')
-            if (listResp.ok) {
-              const { finalDishes } = await listResp.json()
-              const exists = finalDishes.some((d: any) => d.name && d.name.toLowerCase().trim() === recipeName.toLowerCase().trim())
-              if (exists) {
-                // Final dish already exists - clear marker and skip prompt
-                localStorage.removeItem('recipe_save_in_progress')
+          if (minutesAgo < 5) {
+            // Recent save attempt - verify whether the final dish already exists to avoid false alarms
+            try {
+              const listResp = await fetch('/api/final-dishes')
+              if (listResp.ok) {
+                const { finalDishes } = await listResp.json()
+                const exists = finalDishes.some((d: any) => d.name && d.name.toLowerCase().trim() === recipeName.toLowerCase().trim())
+                if (exists) {
+                  // Final dish already exists - clear marker and skip prompt
+                  localStorage.removeItem('recipe_save_in_progress')
+                } else {
+                  const shouldContinue = confirm(
+                    `⚠️ Incomplete Save Detected\n\n` +
+                    `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
+                    `This might be due to a browser crash or network error. ` +
+                    `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
+                    `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
+                  )
+
+                  if (shouldContinue) {
+                    localStorage.removeItem('recipe_save_in_progress')
+                    router.push('/sub-recipes')
+                    return
+                  }
+                }
               } else {
+                // Could not check server - fallback to prompt
                 const shouldContinue = confirm(
                   `⚠️ Incomplete Save Detected\n\n` +
                   `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
@@ -252,8 +269,9 @@ export default function ReviewPage() {
                   return
                 }
               }
-            } else {
-              // Could not check server - fallback to prompt
+            } catch (checkErr) {
+              console.warn('Could not verify existing final dish before showing incomplete-save prompt:', checkErr)
+              // If verification fails, fall back to showing the prompt
               const shouldContinue = confirm(
                 `⚠️ Incomplete Save Detected\n\n` +
                 `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
@@ -268,31 +286,17 @@ export default function ReviewPage() {
                 return
               }
             }
-          } catch (checkErr) {
-            console.warn('Could not verify existing final dish before showing incomplete-save prompt:', checkErr)
-            // If verification fails, fall back to showing the prompt
-            const shouldContinue = confirm(
-              `⚠️ Incomplete Save Detected\n\n` +
-              `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
-              `This might be due to a browser crash or network error. ` +
-              `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
-              `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
-            )
-
-            if (shouldContinue) {
-              localStorage.removeItem('recipe_save_in_progress')
-              router.push('/sub-recipes')
-              return
-            }
           }
-        }
 
-        // Old save attempt - clear it
-        localStorage.removeItem('recipe_save_in_progress')
+          // Old save attempt - clear it
+          localStorage.removeItem('recipe_save_in_progress')
+        }
+      } catch (e) {
+        console.warn('Could not check for interrupted save:', e)
       }
-    } catch (e) {
-      console.warn('Could not check for interrupted save:', e)
     }
+
+    checkInterruptedSave()
   
     // Load parsed recipe from sessionStorage
     const stored = sessionStorage.getItem('parsedRecipe')
