@@ -1,6 +1,13 @@
 import Airtable from 'airtable'
+import { requireValidEnvironment } from './validateEnv'
 
-// Initialize Airtable with PAT token (gracefully handle missing env vars for build)
+// Validate environment variables before initializing Airtable
+if (typeof window === 'undefined') {
+  // Only validate on server-side (API routes, not client)
+  requireValidEnvironment()
+}
+
+// Initialize Airtable with PAT token
 const airtable = new Airtable({
   apiKey: process.env.AIRTABLE_PAT_TOKEN || 'placeholder_for_build',
 })

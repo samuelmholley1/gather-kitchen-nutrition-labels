@@ -16,8 +16,14 @@ import type {
   FoodPortion,
 } from '@/types/nutrition'
 import { initializeNutrientProfile } from '@/types/nutrition'
+import { requireValidEnvironment } from './validateEnv'
 
 const USDA_API_BASE = 'https://api.nal.usda.gov/fdc/v1'
+
+// Validate environment on server-side
+if (typeof window === 'undefined') {
+  requireValidEnvironment()
+}
 
 // Helper to get API key (throws at runtime, not build time)
 function getApiKey(): string {
