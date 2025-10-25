@@ -519,13 +519,26 @@ export default function ReviewPage() {
       } catch (finalDishError) {
         // Rollback: Delete all created sub-recipes if final dish creation fails
         setSaveProgress('Final dish creation failed - rolling back sub-recipes...')
+        
+        let rollbackFailures = 0
         for (const subRecipeId of createdSubRecipeIds) {
           try {
-            await fetch(`/api/sub-recipes/${subRecipeId}`, { method: 'DELETE' })
+            const deleteResponse = await fetch(`/api/sub-recipes/${subRecipeId}`, { method: 'DELETE' })
+            if (!deleteResponse.ok) {
+              console.error(`Failed to delete sub-recipe ${subRecipeId}: HTTP ${deleteResponse.status}`)
+              rollbackFailures++
+            }
           } catch (deleteError) {
             console.error(`Failed to delete sub-recipe ${subRecipeId}:`, deleteError)
+            rollbackFailures++
           }
         }
+        
+        // Warn user if rollback had issues
+        if (rollbackFailures > 0) {
+          console.warn(`⚠️ Rollback incomplete: Failed to delete ${rollbackFailures} of ${createdSubRecipeIds.length} sub-recipes`)
+        }
+        
         throw finalDishError
       }
 

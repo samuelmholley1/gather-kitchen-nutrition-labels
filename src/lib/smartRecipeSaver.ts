@@ -86,12 +86,16 @@ export interface SubRecipeWithUSDA {
  * Create a sub-recipe in the database
  */
 export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ id: string, nutritionProfile: NutrientProfile, totalWeight: number }> {
-  // Validate sub-recipe name length
+  // Validate sub-recipe name length (byte length for emojis)
   const MAX_NAME_LENGTH = 255
-  if (subRecipe.name.length > MAX_NAME_LENGTH) {
+  const nameBytes = new TextEncoder().encode(subRecipe.name).length
+  if (nameBytes > MAX_NAME_LENGTH) {
+    const excess = nameBytes - MAX_NAME_LENGTH
     throw new Error(
-      `Sub-recipe name is too long (${subRecipe.name.length} characters, maximum ${MAX_NAME_LENGTH}). ` +
-      `Please shorten the name. Current name: "${subRecipe.name.substring(0, 50)}..."`
+      `Sub-recipe name is too long (${nameBytes} bytes, maximum ${MAX_NAME_LENGTH}). ` +
+      `Please shorten by approximately ${Math.ceil(excess / 2)} characters. ` +
+      `Note: Emojis and special characters use multiple bytes. ` +
+      `Current name: "${subRecipe.name.substring(0, 50)}..."`
     )
   }
   
@@ -117,6 +121,15 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
     if (!ing.usdaFood.fdcId || !ing.usdaFood.description) {
       throw new Error(`Invalid USDA data for ingredient "${ing.ingredient}" in sub-recipe "${subRecipe.name}". Missing required fields.`)
     }
+    
+    // CRITICAL: Validate fdcId is a valid positive integer
+    if (!Number.isInteger(ing.usdaFood.fdcId) || ing.usdaFood.fdcId <= 0) {
+      throw new Error(
+        `Invalid USDA Food ID for ingredient "${ing.ingredient}" in sub-recipe "${subRecipe.name}": ${ing.usdaFood.fdcId}. ` +
+        `Food IDs must be positive integers. Please re-search this ingredient.`
+      )
+    }
+    
     if (!ing.usdaFood.foodNutrients || !Array.isArray(ing.usdaFood.foodNutrients)) {
       console.warn(`Missing or invalid foodNutrients for "${ing.ingredient}". Nutrition calculation may be incomplete.`)
       ing.usdaFood.foodNutrients = [] // Provide empty array to prevent crashes
@@ -257,10 +270,16 @@ export async function createFinalDish(
 ): Promise<string> {
   // Validate dish name length (Airtable field limit is typically 255 chars)
   const MAX_NAME_LENGTH = 255
-  if (dishName.length > MAX_NAME_LENGTH) {
+  
+  // CRITICAL: Check BYTE length, not character length (emojis = 4 bytes each!)
+  const nameBytes = new TextEncoder().encode(dishName).length
+  if (nameBytes > MAX_NAME_LENGTH) {
+    const excess = nameBytes - MAX_NAME_LENGTH
     throw new Error(
-      `Dish name is too long (${dishName.length} characters, maximum ${MAX_NAME_LENGTH}). ` +
-      `Please shorten the name. Current name: "${dishName.substring(0, 50)}..."`
+      `Dish name is too long (${nameBytes} bytes, maximum ${MAX_NAME_LENGTH}). ` +
+      `Please shorten by approximately ${Math.ceil(excess / 2)} characters. ` +
+      `Note: Emojis and special characters use multiple bytes. ` +
+      `Current name: "${dishName.substring(0, 50)}..."`
     )
   }
   
@@ -363,6 +382,14 @@ export async function createFinalDish(
     })
   }
 
+  // CRITICAL: Validate we have at least one ingredient for nutrition calculation
+  if (ingredientsForNutrition.length === 0 && subRecipesData.length === 0) {
+    throw new Error(
+      `Cannot create final dish "${dishName}" with no ingredients or sub-recipes. ` +
+      `Please match at least one ingredient to USDA data before saving.`
+    )
+  }
+
   // Add sub-recipes with intelligent volume-to-weight conversion and scaling
   for (const subRecipe of subRecipesData) {
     // Convert the requested quantity+unit to grams
@@ -420,6 +447,16 @@ export async function createFinalDish(
   // CRITICAL: Calculate ACTUAL nutrition (not placeholder!)
   console.log('📊 Calculating nutrition for final dish...')
   const nutritionProfile = calculateNutritionProfile(ingredientsForNutrition)
+  
+  // CRITICAL: Validate nutrition values are valid numbers (not NaN or Infinity)
+  if (!isFinite(nutritionProfile.calories) || isNaN(nutritionProfile.calories)) {
+    throw new Error(
+      `Invalid nutrition calculation: calories = ${nutritionProfile.calories}. ` +
+      `This usually indicates a problem with ingredient data or unit conversions. ` +
+      `Please verify all ingredient quantities and units are valid.`
+    )
+  }
+  
   console.log('✅ Nutrition calculated:', { 
     calories: Math.round(nutritionProfile.calories), 
     protein: nutritionProfile.protein?.toFixed(1),
@@ -488,12 +525,13 @@ export async function createFinalDish(
     console.error('[Final Dish Save] Full error response:', error)
     console.error('[Final Dish Save] Status:', response.status)
     
-    // Check for Airtable duplicate record error
-    if (response.status === 422 || (error.error && error.error.includes('duplicate'))) {
+    // Check for Airtable duplicate record error (handles race condition)
+    if (response.status === 422 || (error.error && error.error.toLowerCase().includes('duplicate'))) {
       throw new Error(
         `A final dish named "${dishName}" already exists. ` +
-        `This might be a timing issue if created moments ago. ` +
-        `Please use a different name or delete the existing dish first.`
+        `It may have just been created by you or another user. ` +
+        `Please choose a different name or check your existing dishes. ` +
+        `If you just created this, try refreshing the page.`
       )
     }
     
