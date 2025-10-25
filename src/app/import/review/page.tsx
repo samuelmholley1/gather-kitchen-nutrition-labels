@@ -287,34 +287,16 @@ export default function ReviewPage() {
       ...subRecipes.flatMap(s => s.ingredients.map(i => i.ingredient.toLowerCase()))
     ].join(' ')
     
-    // Category detection heuristics
-    if (dishName.includes('pasta') || dishName.includes('spaghetti') || dishName.includes('lasagna') || 
-        dishName.includes('penne') || dishName.includes('fettuccine') || allIngredients.includes('pasta')) {
-      setDishCategory('Pasta')
-    } else if (dishName.includes('pizza') || dishName.includes('flatbread')) {
-      setDishCategory('Pizza')
-    } else if (dishName.includes('salad')) {
-      setDishCategory('Salad')
-    } else if (dishName.includes('soup') || dishName.includes('stew') || dishName.includes('chili')) {
-      setDishCategory('Soup')
-    } else if (dishName.includes('sandwich') || dishName.includes('burger') || dishName.includes('wrap')) {
-      setDishCategory('Sandwich')
-    } else if (dishName.includes('chicken') || dishName.includes('beef') || dishName.includes('pork') || 
-               dishName.includes('lamb') || dishName.includes('turkey') || dishName.includes('steak')) {
-      setDishCategory('Meat Dish')
-    } else if (dishName.includes('fish') || dishName.includes('salmon') || dishName.includes('tuna') || 
-               dishName.includes('shrimp') || dishName.includes('seafood')) {
-      setDishCategory('Seafood')
-    } else if (dishName.includes('curry') || dishName.includes('stir fry') || dishName.includes('rice bowl')) {
-      setDishCategory('Rice Dish')
-    } else if (dishName.includes('taco') || dishName.includes('burrito') || dishName.includes('quesadilla') || 
-               dishName.includes('enchilada')) {
-      setDishCategory('Mexican')
-    } else if (dishName.includes('cake') || dishName.includes('cookie') || dishName.includes('brownie') || 
-               dishName.includes('pie') || dishName.includes('dessert')) {
-      setDishCategory('Dessert')
+    // Category detection based on Gather Kitchen's 3 collections
+    if (dishName.includes('burrito') || dishName.includes('breakfast') || dishName.includes('egg')) {
+      setDishCategory('Breakfast Offerings')
+    } else if (dishName.includes('pasta') || dishName.includes('zoodle') || dishName.includes('primavera') || 
+               dishName.includes('vegetarian') || dishName.includes('marinara') ||
+               allIngredients.includes('pasta') || allIngredients.includes('zoodles')) {
+      setDishCategory('The Garden Collection')
     } else {
-      setDishCategory('Other')
+      // Everything else goes to Staples (meat, seafood, main dishes)
+      setDishCategory('The Staples Collection')
     }
   }, [parseResult, dishCategory, finalDishIngredients, subRecipes])
 
@@ -1041,21 +1023,9 @@ export default function ReviewPage() {
                 className="w-full px-3 py-2 border border-emerald-200 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               >
                 <option value="">Select category...</option>
-                <option value="Pasta">Pasta</option>
-                <option value="Pizza">Pizza</option>
-                <option value="Salad">Salad</option>
-                <option value="Soup">Soup</option>
-                <option value="Sandwich">Sandwich</option>
-                <option value="Meat Dish">Meat Dish</option>
-                <option value="Seafood">Seafood</option>
-                <option value="Rice Dish">Rice Dish</option>
-                <option value="Mexican">Mexican</option>
-                <option value="Dessert">Dessert</option>
-                <option value="Breakfast">Breakfast</option>
-                <option value="Appetizer">Appetizer</option>
-                <option value="Side Dish">Side Dish</option>
-                <option value="Vegetarian">Vegetarian</option>
-                <option value="Other">Other</option>
+                <option value="Breakfast Offerings">Breakfast Offerings</option>
+                <option value="The Staples Collection">The Staples Collection</option>
+                <option value="The Garden Collection">The Garden Collection</option>
               </select>
             </div>
           </div>
