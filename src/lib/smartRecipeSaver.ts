@@ -6,6 +6,7 @@
 import { Ingredient, NutrientProfile } from '@/types/liturgist'
 import { calculateNutritionProfile, convertToGrams } from './calculator'
 import { transformNutrients } from './usda'
+import { retryFetch } from './retry'
 
 /**
  * Better fallback for unknown units
@@ -179,8 +180,8 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
     updatedAt: new Date().toISOString()
   }
 
-  // Save to API
-  const response = await fetch('/api/sub-recipes', {
+  // Save to API with retry logic for transient failures
+  const response = await retryFetch('/api/sub-recipes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(subRecipePayload)
@@ -497,6 +498,7 @@ export async function createFinalDish(
     nutritionLabel: nutritionProfile, // REAL nutrition data, not placeholder!
     status: 'Active', // Must match Airtable Single Select option (capitalized)
     notes: 'Created from smart recipe importer',
+    allergens: [], // Send empty array (Airtable might require this field)
     createdAt: new Date().toISOString()
   }
   
@@ -511,11 +513,17 @@ export async function createFinalDish(
   // Don't send empty allergens array (Airtable might reject it if it's a linked record field)
   // finalDishPayload.allergens = [] // REMOVED - only add if we actually have allergens
 
-  // Save to API with duplicate error handling
-  const response = await fetch('/api/final-dishes', {
+  // Save to API with retry logic and duplicate error handling
+  const response = await retryFetch('/api/final-dishes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(finalDishPayload)
+  }, {
+    // Don't retry on 4xx errors (client errors like duplicates)
+    shouldRetry: (error) => {
+      if (error.status >= 400 && error.status < 500) return false
+      return true // Retry on network errors, 5xx, etc.
+    }
   })
 
   if (!response.ok) {

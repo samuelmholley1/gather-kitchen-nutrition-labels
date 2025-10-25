@@ -521,22 +521,40 @@ export default function ReviewPage() {
         setSaveProgress('Final dish creation failed - rolling back sub-recipes...')
         
         let rollbackFailures = 0
+        const failedIds: string[] = []
         for (const subRecipeId of createdSubRecipeIds) {
           try {
             const deleteResponse = await fetch(`/api/sub-recipes/${subRecipeId}`, { method: 'DELETE' })
             if (!deleteResponse.ok) {
               console.error(`Failed to delete sub-recipe ${subRecipeId}: HTTP ${deleteResponse.status}`)
               rollbackFailures++
+              failedIds.push(subRecipeId)
             }
           } catch (deleteError) {
             console.error(`Failed to delete sub-recipe ${subRecipeId}:`, deleteError)
             rollbackFailures++
+            failedIds.push(subRecipeId)
           }
         }
         
-        // Warn user if rollback had issues
+        // Warn user if rollback had issues - make it very visible!
         if (rollbackFailures > 0) {
-          console.warn(`⚠️ Rollback incomplete: Failed to delete ${rollbackFailures} of ${createdSubRecipeIds.length} sub-recipes`)
+          const warningMessage = 
+            `⚠️ ROLLBACK INCOMPLETE: Failed to delete ${rollbackFailures} of ${createdSubRecipeIds.length} sub-recipes. ` +
+            `These orphaned records may remain in your database. ` +
+            `IDs: ${failedIds.join(', ')}. ` +
+            `You may need to manually delete them from Airtable.`
+          
+          console.error(warningMessage)
+          
+          // Show alert to user (they need to know about this!)
+          alert(
+            `Warning: Cleanup Incomplete\n\n` +
+            `We tried to clean up ${createdSubRecipeIds.length} sub-recipes after the save failed, ` +
+            `but ${rollbackFailures} deletions failed. These orphaned records may remain in your database.\n\n` +
+            `You may need to manually delete them from Airtable later.\n\n` +
+            `Failed IDs: ${failedIds.join(', ')}`
+          )
         }
         
         throw finalDishError

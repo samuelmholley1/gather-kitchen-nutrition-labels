@@ -82,7 +82,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const now = new Date().toISOString()
+    // Use date-only format for better Airtable compatibility (some date fields don't accept full ISO with time)
+    const now = new Date().toISOString().split('T')[0] // "2025-10-25" format
 
     // Prepare fields matching exact Airtable schema
     const fields: any = {
