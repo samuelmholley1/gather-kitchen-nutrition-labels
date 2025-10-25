@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       nutritionLabel,
       subRecipeLinks,
       allergens,
-      category,
+      // category, // REMOVED - might be Single Select without "Main Dish" option
       notes,
       status = 'Draft'
     } = body
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       ServingSize: servingSize || 100,
       ServingsPerContainer: servingsPerContainer || 1,
       NutritionLabel: JSON.stringify(nutritionLabel || {}),
-      Category: category || '',
+      // Category: REMOVED - might be Single Select without matching option (like Status was)
       Notes: notes || '',
       Status: status || 'Draft', // Must match Airtable Single Select: Draft, Active, or Archived
       CreatedAt: now,
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         nutritionLabel,
         subRecipeLinks,
         allergens,
-        category,
+        // category: removed
         notes,
         status,
         createdAt: now,

@@ -5,6 +5,7 @@
 
 import { Ingredient, NutrientProfile } from '@/types/liturgist'
 import { calculateNutritionProfile, convertToGrams } from './calculator'
+import { transformNutrients } from './usda'
 
 /**
  * Better fallback for unknown units
@@ -308,8 +309,11 @@ export async function createFinalDish(
     )
   }
   
-  // Build components array - simplified version
+  // Build components array for Airtable storage (minimal data)
   const components: any[] = []
+  
+  // Build ingredients array for nutrition calculation (includes nutrientProfile)
+  const ingredientsForNutrition: Ingredient[] = []
 
   // Add raw ingredients (skip those without USDA match)
   for (const ing of finalDishIngredients) {
@@ -322,21 +326,40 @@ export async function createFinalDish(
       continue
     }
     
-    const ingredientForCalc: Ingredient = {
+    // CRITICAL: Validate fdcId is a valid positive integer
+    if (!Number.isInteger(ing.usdaFood.fdcId) || ing.usdaFood.fdcId <= 0) {
+      throw new Error(
+        `Invalid USDA Food ID for ingredient "${ing.ingredient}": ${ing.usdaFood.fdcId}. ` +
+        `Food IDs must be positive integers. Please re-search this ingredient.`
+      )
+    }
+    
+    // CRITICAL: Validate foodNutrients exists for nutrition calculation
+    if (!ing.usdaFood.foodNutrients || !Array.isArray(ing.usdaFood.foodNutrients)) {
+      console.warn(`Missing nutrition data for "${ing.ingredient}". Setting to empty for calculation.`)
+      ing.usdaFood.foodNutrients = []
+    }
+    
+    // Build ingredient for nutrition calculation (includes nutrientProfile)
+    const ingredientForCalc: any = {
       id: `temp-${Math.random()}`,
       fdcId: ing.usdaFood.fdcId,
       name: ing.usdaFood.description,
       quantity: ing.quantity,
-      unit: ing.unit
+      unit: ing.unit,
+      nutrientProfile: transformNutrients(ing.usdaFood.foodNutrients) // Transform raw USDA data
     }
     
+    ingredientsForNutrition.push(ingredientForCalc)
+    
+    // Build component for Airtable (minimal data to save space)
     components.push({
       type: 'ingredient',
       fdcId: ingredientForCalc.fdcId,
       name: ingredientForCalc.name,
       quantity: ingredientForCalc.quantity,
       unit: ingredientForCalc.unit
-      // REMOVED: nutrients array (too large for Airtable, not needed for display)
+      // NO nutrients array - too large for Airtable, already calculated separately
     })
   }
 
@@ -384,6 +407,40 @@ export async function createFinalDish(
     }
   }
 
+  // CRITICAL: Validate totalWeight before saving
+  if (totalWeight <= 0 || !isFinite(totalWeight) || isNaN(totalWeight)) {
+    throw new Error(
+      `Invalid total weight: ${totalWeight}g. ` +
+      `Cannot save recipe with zero or invalid weight. ` +
+      `This usually means ingredient quantities couldn't be converted to grams. ` +
+      `Please verify all ingredients have valid quantities and units (g, oz, cup, tbsp, tsp, etc.).`
+    )
+  }
+  
+  // CRITICAL: Calculate ACTUAL nutrition (not placeholder!)
+  console.log('📊 Calculating nutrition for final dish...')
+  const nutritionProfile = calculateNutritionProfile(ingredientsForNutrition)
+  console.log('✅ Nutrition calculated:', { 
+    calories: Math.round(nutritionProfile.calories), 
+    protein: nutritionProfile.protein?.toFixed(1),
+    fat: nutritionProfile.totalFat?.toFixed(1),
+    carbs: nutritionProfile.totalCarbohydrate?.toFixed(1)
+  })
+  
+  // CRITICAL: Validate Components JSON size before sending
+  const componentsJson = JSON.stringify(components)
+  const sizeKB = (componentsJson.length / 1024).toFixed(2)
+  console.log(`Components JSON size: ${sizeKB} KB`)
+  
+  if (componentsJson.length > 95000) {
+    throw new Error(
+      `Recipe data is too large (${sizeKB} KB). ` +
+      `Airtable Long Text fields have a 100,000 character limit. ` +
+      `Try splitting this recipe into sub-recipes or using fewer ingredients. ` +
+      `Current: ${components.length} components.`
+    )
+  }
+
   // Extract sub-recipe IDs for linked record field
   const subRecipeIds = subRecipesData.map(sr => sr.id)
   
@@ -400,12 +457,14 @@ export async function createFinalDish(
     totalWeight,
     servingSize: 100,
     servingsPerContainer: Math.max(1, Math.round(totalWeight / 100)),
-    nutritionLabel: { calories: 0 }, // Simplified - will calculate properly later
-    category: 'Main Dish',
+    nutritionLabel: nutritionProfile, // REAL nutrition data, not placeholder!
     status: 'Active', // Must match Airtable Single Select option (capitalized)
     notes: 'Created from smart recipe importer',
     createdAt: new Date().toISOString()
   }
+  
+  // NOTE: Category removed - might be Single Select field like Status was
+  // Let Airtable use default value or leave blank
   
   // Only add subRecipeLinks if we have sub-recipes
   if (subRecipeIds.length > 0) {
