@@ -406,6 +406,10 @@ export async function createFinalDish(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
     
+    // Log full error response for debugging
+    console.error('[Final Dish Save] Full error response:', error)
+    console.error('[Final Dish Save] Status:', response.status)
+    
     // Check for Airtable duplicate record error
     if (response.status === 422 || (error.error && error.error.includes('duplicate'))) {
       throw new Error(
@@ -415,7 +419,11 @@ export async function createFinalDish(
       )
     }
     
-    throw new Error(`Failed to create final dish "${dishName}": ${error.error}`)
+    // Include all error details in the thrown error
+    const errorMessage = error.originalError || error.error || 'Unknown error'
+    const detailsStr = error.details ? `\n\nDetails: ${JSON.stringify(error.details, null, 2)}` : ''
+    
+    throw new Error(`Failed to create final dish "${dishName}": ${errorMessage}${detailsStr}`)
   }
 
   const result = await response.json()
