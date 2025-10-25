@@ -301,7 +301,7 @@ export default function ReviewPage() {
     // Load parsed recipe from sessionStorage
     const stored = sessionStorage.getItem('parsedRecipe')
     if (!stored) {
-      router.push('/import')
+      router.push('/')
       return
     }
 

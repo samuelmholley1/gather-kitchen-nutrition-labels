@@ -13,10 +13,7 @@ export default function Header() {
             </a>
           </div>
           <nav className="hidden md:flex space-x-6">
-            <a href="/" className="hover:text-emerald-200 transition-colors">
-              Home
-            </a>
-            <a href="/import" className="hover:text-emerald-200 transition-colors font-semibold">
+            <a href="/" className="hover:text-emerald-200 transition-colors font-semibold">
               🚀 Smart Import
             </a>
             <a href="/sub-recipes/new" className="hover:text-emerald-200 transition-colors">
