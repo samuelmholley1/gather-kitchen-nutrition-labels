@@ -117,12 +117,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only add arrays if they have values (some Airtable fields might not accept empty arrays)
-    if (subRecipeLinks && subRecipeLinks.length > 0) {
-      console.log('SubRecipeLinks being sent:', subRecipeLinks)
-      console.log('SubRecipeLinks type check:', Array.isArray(subRecipeLinks), subRecipeLinks.map((id: any) => typeof id))
-      fields.SubRecipeLinks = subRecipeLinks
+    // Add SubRecipeLinks - always send as array (empty or with IDs)
+    // Some Airtable linked record fields require an array even if empty
+    fields.SubRecipeLinks = subRecipeLinks || []
+    console.log('SubRecipeLinks being sent:', fields.SubRecipeLinks)
+    if (fields.SubRecipeLinks.length > 0) {
+      console.log('SubRecipeLinks type check:', Array.isArray(fields.SubRecipeLinks), fields.SubRecipeLinks.map((id: any) => typeof id))
     }
+    
+    // Only add Allergens if we have values (might be optional)
     if (allergens && allergens.length > 0) {
       fields.Allergens = allergens
     }
@@ -154,10 +157,19 @@ export async function POST(request: NextRequest) {
         )
       }
       
-      if (errorMsg.includes('INVALID_VALUE_FOR_COLUMN') || errorMsg.includes('invalid value')) {
+      if (errorMsg.includes('INVALID_VALUE_FOR_COLUMN') || errorMsg.includes('invalid value') || errorMsg.includes('not an array of record IDs')) {
+        // Try to identify which field is causing the issue
+        console.error('Field type mismatch. Sent fields:', Object.keys(fields))
+        console.error('Field types:', Object.entries(fields).map(([k, v]) => `${k}: ${typeof v} ${Array.isArray(v) ? '(array)' : ''}`))
+        
         throw new Error(
           `Airtable field type mismatch: ${errorMsg}. ` +
-          `Check that Status/Category fields accept text values, or are Single Select with correct options.`
+          `This usually means a field is configured as "Link to another record" but we're sending the wrong format. ` +
+          `Check these fields in Airtable: ` +
+          `Status (should be Single Select or Text, not Linked Record), ` +
+          `SubRecipeLinks (should be "Link to another record" and accept empty arrays), ` +
+          `Allergens (should be "Link to another record" OR Multiple Select). ` +
+          `Sent fields: ${Object.keys(fields).join(', ')}`
         )
       }
       
