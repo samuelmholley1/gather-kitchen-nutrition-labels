@@ -384,6 +384,9 @@ export async function createFinalDish(
     }
   }
 
+  // Extract sub-recipe IDs for linked record field
+  const subRecipeIds = subRecipesData.map(sr => sr.id)
+  
   // Create final dish payload
   const finalDishPayload = {
     name: dishName,
@@ -392,6 +395,7 @@ export async function createFinalDish(
     servingSize: 100,
     servingsPerContainer: Math.max(1, Math.round(totalWeight / 100)),
     nutritionLabel: { calories: 0 }, // Simplified - will calculate properly later
+    subRecipeLinks: subRecipeIds, // Array of Airtable record IDs for linked records
     allergens: [],
     category: 'Main Dish',
     status: 'active',
