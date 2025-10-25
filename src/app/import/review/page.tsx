@@ -220,7 +220,6 @@ export default function ReviewPage() {
   }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
   useEffect(() => {
-    useEffect(() => {
     // Load parsed recipe from sessionStorage FIRST
     const stored = sessionStorage.getItem('parsedRecipe')
     if (!stored) {
@@ -228,19 +227,34 @@ export default function ReviewPage() {
       return
     }
 
-    try {
-      const parsed: ParseResult = JSON.parse(stored)
-      setParseResult(parsed)
-      setFinalDishIngredients(parsed.finalDish.ingredients)
-      setSubRecipes(parsed.subRecipes)
-    } catch (err) {
-      console.error('Failed to parse stored recipe:', err)
-      router.push('/')
-      return
-    }
+    const result: SmartParseResult = JSON.parse(stored)
+    setParseResult(result)
+
+    // Initialize final dish ingredients with USDA search queries
+    const finalIngredients = result.finalDish.ingredients
+      .filter(ing => !ing.isSubRecipe)
+      .map(ing => ({
+        ...ing,
+        usdaFood: null,
+        searchQuery: cleanIngredientForUSDASearch(ing.ingredient),
+        confirmed: false
+      }))
+    setFinalDishIngredients(finalIngredients)
+
+    // Initialize sub-recipes with USDA search queries
+    const subsWithUSDA = result.subRecipes.map(sub => ({
+      ...sub,
+      ingredients: sub.ingredients.map(ing => ({
+        ...ing,
+        usdaFood: null,
+        searchQuery: cleanIngredientForUSDASearch(ing.ingredient),
+        confirmed: false
+      }))
+    }))
+    setSubRecipes(subsWithUSDA)
 
     // ONLY check for interrupted save AFTER we've loaded the current recipe
-    // This prevents false positives when user is actively working on a recipe
+    // Check if there's a save marker for a DIFFERENT recipe
     const checkInterruptedSave = async () => {
       try {
         const saveInProgress = localStorage.getItem('recipe_save_in_progress')
@@ -256,12 +270,9 @@ export default function ReviewPage() {
         
         // If this is for the CURRENT recipe we're working on, skip the check
         // (User might have refreshed the page while on review)
-        if (stored) {
-          const currentRecipe: ParseResult = JSON.parse(stored)
-          if (currentRecipe.finalDish.name.toLowerCase().trim() === recipeName.toLowerCase().trim()) {
-            // This is the current recipe - don't show popup, user is still working on it
-            return
-          }
+        if (result.finalDish.name.toLowerCase().trim() === recipeName.toLowerCase().trim()) {
+          // This is the current recipe - don't show popup, user is still working on it
+          return
         }
         
         const minutesAgo = Math.floor((Date.now() - timestamp) / 60000)
@@ -306,41 +317,8 @@ export default function ReviewPage() {
       }
     }
 
-    checkInterruptedSave()
-  }, [])
-  
-    // Load parsed recipe from sessionStorage
-    const stored = sessionStorage.getItem('parsedRecipe')
-    if (!stored) {
-      router.push('/')
-      return
-    }
-
-    const result: SmartParseResult = JSON.parse(stored)
-    setParseResult(result)
-
-    // Initialize final dish ingredients with USDA search queries
-    const finalIngredients = result.finalDish.ingredients
-      .filter(ing => !ing.isSubRecipe)
-      .map(ing => ({
-        ...ing,
-        usdaFood: null,
-        searchQuery: cleanIngredientForUSDASearch(ing.ingredient),
-        confirmed: false
-      }))
-    setFinalDishIngredients(finalIngredients)
-
-    // Initialize sub-recipes with USDA search queries
-    const subsWithUSDA = result.subRecipes.map(sub => ({
-      ...sub,
-      ingredients: sub.ingredients.map(ing => ({
-        ...ing,
-        usdaFood: null,
-        searchQuery: cleanIngredientForUSDASearch(ing.ingredient),
-        confirmed: false
-      }))
-    }))
-    setSubRecipes(subsWithUSDA)
+    // Run the check after a short delay to ensure state is set
+    setTimeout(() => checkInterruptedSave(), 100)
 
     // Check for ingredients needing specification
     const allNeedingSpec: Array<{
