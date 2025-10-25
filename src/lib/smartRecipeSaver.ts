@@ -488,22 +488,18 @@ export async function createFinalDish(
   console.log('- IDs are strings?', subRecipeIds.every(id => typeof id === 'string'))
   console.log('- IDs format:', subRecipeIds.map(id => `${id} (${typeof id})`))
   
-  // Create final dish payload matching ACTUAL Airtable schema
+  // Create final dish payload
   const finalDishPayload: any = {
     name: dishName,
     components,
     totalWeight,
     servingSize: 100,
+    servingsPerContainer: Math.max(1, Math.round(totalWeight / 100)),
     nutritionLabel: nutritionProfile, // REAL nutrition data, not placeholder!
+    status: 'Draft', // Airtable field exists (was just empty)
     notes: 'Created from smart recipe importer',
     createdAt: new Date().toISOString()
   }
-  
-  // Fields NOT sent (don't exist in Airtable):
-  // - status: Field doesn't exist in Airtable
-  // - servingsPerContainer: Field doesn't exist (can be calculated client-side)
-  // - category: Exists but we don't have a value
-  // - allergens: Optional linked record field, only send if we have values
   
   // Only add subRecipeLinks if we have sub-recipes
   if (subRecipeIds.length > 0) {

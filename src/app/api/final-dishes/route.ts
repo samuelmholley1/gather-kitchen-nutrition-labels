@@ -85,21 +85,21 @@ export async function POST(request: NextRequest) {
     // Use date-only format for better Airtable compatibility (some date fields don't accept full ISO with time)
     const now = new Date().toISOString().split('T')[0] // "2025-10-25" format
 
-    // Prepare fields matching ACTUAL Airtable schema (only send fields that exist!)
+    // Prepare fields matching Airtable schema
     const fields: any = {
       Name: name,
       Components: JSON.stringify(components),
       TotalWeight: totalWeight || 0,
       ServingSize: servingSize || 100,
+      ServingsPerContainer: servingsPerContainer || 1,
       NutritionLabel: JSON.stringify(nutritionLabel || {}),
       Notes: notes || '',
+      Status: status || 'Draft',
       CreatedAt: now,
       UpdatedAt: now,
     }
     
-    // Category exists in Airtable but we don't have a value to send
-    // Status doesn't exist in Airtable - REMOVED
-    // ServingsPerContainer doesn't exist in Airtable - REMOVED (can be calculated from TotalWeight/ServingSize)
+    // Category exists but we don't have a value to send
 
     // Log Components size for debugging
     const componentsJson = JSON.stringify(components)
