@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString()
 
-    // Prepare fields with validation - ABSOLUTE MINIMUM for testing
+    // Prepare fields matching exact Airtable schema
     const fields: any = {
       Name: name,
       Components: JSON.stringify(components),
@@ -92,25 +92,12 @@ export async function POST(request: NextRequest) {
       ServingSize: servingSize || 100,
       ServingsPerContainer: servingsPerContainer || 1,
       NutritionLabel: JSON.stringify(nutritionLabel || {}),
+      Category: category || '',
+      Notes: notes || '',
+      Status: status || 'Draft', // Must match Airtable Single Select: Draft, Active, or Archived
       CreatedAt: now,
       UpdatedAt: now,
     }
-    
-    // SKIP Category, Status, Notes - one of these is likely a linked record field
-    console.log('⚠️ TESTING: Sending ONLY essential fields (no Category/Status/Notes)')
-    
-    // Conditionally add linked record fields only if they're arrays
-    // if (category) {
-    //   console.log('Adding Category:', category, typeof category)
-    //   fields.Category = category
-    // }
-    // if (status) {
-    //   console.log('Adding Status:', status, typeof status)
-    //   fields.Status = status
-    // }
-    // if (notes) {
-    //   fields.Notes = notes
-    // }
 
     // Log Components size for debugging
     const componentsJson = JSON.stringify(components)

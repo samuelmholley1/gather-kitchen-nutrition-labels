@@ -402,7 +402,7 @@ export async function createFinalDish(
     servingsPerContainer: Math.max(1, Math.round(totalWeight / 100)),
     nutritionLabel: { calories: 0 }, // Simplified - will calculate properly later
     category: 'Main Dish',
-    status: 'active',
+    status: 'Active', // Must match Airtable Single Select option (capitalized)
     notes: 'Created from smart recipe importer',
     createdAt: new Date().toISOString()
   }
