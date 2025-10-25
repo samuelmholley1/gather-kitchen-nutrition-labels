@@ -17,7 +17,10 @@ export default function Header() {
               Home
             </a>
             <a href="/import" className="hover:text-emerald-200 transition-colors font-semibold">
-              🚀 Import Recipe
+              🚀 Smart Import
+            </a>
+            <a href="/sub-recipes/new" className="hover:text-emerald-200 transition-colors">
+              Manual Import
             </a>
             <a href="/sub-recipes" className="hover:text-emerald-200 transition-colors">
               Sub-Recipes
