@@ -117,12 +117,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Add SubRecipeLinks - always send as array (empty or with IDs)
-    // Some Airtable linked record fields require an array even if empty
+    // SubRecipeLinks is now "Link to another record" in Airtable (fixed!)
+    // Always send as array (empty or with IDs)
     fields.SubRecipeLinks = subRecipeLinks || []
     console.log('SubRecipeLinks being sent:', fields.SubRecipeLinks)
     if (fields.SubRecipeLinks.length > 0) {
-      console.log('SubRecipeLinks type check:', Array.isArray(fields.SubRecipeLinks), fields.SubRecipeLinks.map((id: any) => typeof id))
+      console.log('SubRecipeLinks IDs:', fields.SubRecipeLinks.map((id: any) => `${id} (${typeof id})`))
     }
     
     // Only add Allergens if we have values (might be optional)
