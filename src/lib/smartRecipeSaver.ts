@@ -4,6 +4,7 @@
  */
 
 import { Ingredient, NutrientProfile } from '@/types/liturgist'
+import { initializeNutrientProfile } from '@/types/nutrition'
 import { calculateNutritionProfile, convertToGrams } from './calculator'
 import { transformNutrients } from './usda'
 import { retryFetch } from './retry'
@@ -449,22 +450,73 @@ export async function createFinalDish(
   
   // CRITICAL: Calculate ACTUAL nutrition (not placeholder!)
   console.log('📊 Calculating nutrition for final dish...')
-  const nutritionProfile = calculateNutritionProfile(ingredientsForNutrition)
+  const nutritionPer100g = calculateNutritionProfile(ingredientsForNutrition)
   
   // CRITICAL: Validate nutrition values are valid numbers (not NaN or Infinity)
-  if (!isFinite(nutritionProfile.calories) || isNaN(nutritionProfile.calories)) {
+  if (!isFinite(nutritionPer100g.calories) || isNaN(nutritionPer100g.calories)) {
     throw new Error(
-      `Invalid nutrition calculation: calories = ${nutritionProfile.calories}. ` +
+      `Invalid nutrition calculation: calories = ${nutritionPer100g.calories}. ` +
       `This usually indicates a problem with ingredient data or unit conversions. ` +
       `Please verify all ingredient quantities and units are valid.`
     )
   }
   
+  // Calculate servings and per-serving nutrition
+  const finalServingsCount = (() => {
+    if (overrideServingsPerContainer !== undefined && !isNaN(overrideServingsPerContainer) && isFinite(overrideServingsPerContainer)) {
+      return Math.max(1, parseFloat(overrideServingsPerContainer.toFixed(1)))
+    }
+    return Math.max(1, Math.round(totalWeight / 100))
+  })()
+  
+  // Calculate grams per serving
+  const gramsPerServing = totalWeight / finalServingsCount
+  
+  // Scale nutrition from per-100g to per-serving
+  const scaleFactor = gramsPerServing / 100
+  
+  // Explicitly create NutrientProfile object
+  const nutritionProfile = initializeNutrientProfile()
+  nutritionProfile.calories = nutritionPer100g.calories * scaleFactor
+  nutritionProfile.totalFat = nutritionPer100g.totalFat * scaleFactor
+  nutritionProfile.saturatedFat = nutritionPer100g.saturatedFat * scaleFactor
+  nutritionProfile.transFat = nutritionPer100g.transFat * scaleFactor
+  nutritionProfile.cholesterol = nutritionPer100g.cholesterol * scaleFactor
+  nutritionProfile.sodium = nutritionPer100g.sodium * scaleFactor
+  nutritionProfile.totalCarbohydrate = nutritionPer100g.totalCarbohydrate * scaleFactor
+  nutritionProfile.dietaryFiber = nutritionPer100g.dietaryFiber * scaleFactor
+  nutritionProfile.totalSugars = nutritionPer100g.totalSugars * scaleFactor
+  nutritionProfile.addedSugars = nutritionPer100g.addedSugars * scaleFactor
+  nutritionProfile.protein = nutritionPer100g.protein * scaleFactor
+  nutritionProfile.vitaminD = nutritionPer100g.vitaminD * scaleFactor
+  nutritionProfile.vitaminA = nutritionPer100g.vitaminA * scaleFactor
+  nutritionProfile.vitaminC = nutritionPer100g.vitaminC * scaleFactor
+  nutritionProfile.vitaminE = nutritionPer100g.vitaminE * scaleFactor
+  nutritionProfile.vitaminK = nutritionPer100g.vitaminK * scaleFactor
+  nutritionProfile.thiamin = nutritionPer100g.thiamin * scaleFactor
+  nutritionProfile.riboflavin = nutritionPer100g.riboflavin * scaleFactor
+  nutritionProfile.niacin = nutritionPer100g.niacin * scaleFactor
+  nutritionProfile.vitaminB6 = nutritionPer100g.vitaminB6 * scaleFactor
+  nutritionProfile.folate = nutritionPer100g.folate * scaleFactor
+  nutritionProfile.vitaminB12 = nutritionPer100g.vitaminB12 * scaleFactor
+  nutritionProfile.calcium = nutritionPer100g.calcium * scaleFactor
+  nutritionProfile.iron = nutritionPer100g.iron * scaleFactor
+  nutritionProfile.magnesium = nutritionPer100g.magnesium * scaleFactor
+  nutritionProfile.phosphorus = nutritionPer100g.phosphorus * scaleFactor
+  nutritionProfile.potassium = nutritionPer100g.potassium * scaleFactor
+  nutritionProfile.zinc = nutritionPer100g.zinc * scaleFactor
+  nutritionProfile.copper = nutritionPer100g.copper * scaleFactor
+  nutritionProfile.manganese = nutritionPer100g.manganese * scaleFactor
+  nutritionProfile.selenium = nutritionPer100g.selenium * scaleFactor
+  
   console.log('✅ Nutrition calculated:', { 
-    calories: Math.round(nutritionProfile.calories), 
-    protein: nutritionProfile.protein?.toFixed(1),
-    fat: nutritionProfile.totalFat?.toFixed(1),
-    carbs: nutritionProfile.totalCarbohydrate?.toFixed(1)
+    totalWeight: totalWeight.toFixed(1) + 'g',
+    servings: finalServingsCount,
+    gramsPerServing: gramsPerServing.toFixed(1) + 'g',
+    caloriesPerServing: Math.round(nutritionProfile.calories), 
+    protein: nutritionProfile.protein?.toFixed(1) + 'g',
+    fat: nutritionProfile.totalFat?.toFixed(1) + 'g',
+    carbs: nutritionProfile.totalCarbohydrate?.toFixed(1) + 'g'
   })
   
   // CRITICAL: Validate Components JSON size before sending
@@ -495,17 +547,9 @@ export async function createFinalDish(
     name: dishName,
     components,
     totalWeight,
-    servingSize: 100,
-    // Use UI-provided value when available (rounded to 1 decimal), otherwise auto-calc
-    servingsPerContainer: (() => {
-      if (overrideServingsPerContainer !== undefined && !isNaN(overrideServingsPerContainer) && isFinite(overrideServingsPerContainer)) {
-        // Ensure at least 1 and one decimal precision
-        const sanitized = Math.max(1, parseFloat(overrideServingsPerContainer.toFixed(1)))
-        return sanitized
-      }
-      return Math.max(1, Math.round(totalWeight / 100))
-    })(),
-    nutritionLabel: nutritionProfile, // REAL nutrition data, not placeholder!
+    servingSize: Math.round(gramsPerServing), // Actual grams per serving
+    servingsPerContainer: finalServingsCount,
+    nutritionLabel: nutritionProfile, // Per-serving nutrition data
     status: 'Draft', // Airtable field exists (was just empty)
     notes: 'Created from smart recipe importer',
     createdAt: new Date().toISOString()

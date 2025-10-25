@@ -622,14 +622,17 @@ export default function ReviewPage() {
       }
 
       // Success!
-      setSaveProgress('✅ Redirecting to your recipe...')
+      setSaveProgress('✅ Recipe saved successfully!')
       
-      // Clear session storage and save progress marker
+      // Clear session storage and save progress marker BEFORE redirect
       sessionStorage.removeItem('parsedRecipe')
       sessionStorage.removeItem('originalRecipeText')
       localStorage.removeItem('recipe_save_in_progress')
       
-      // Instant redirect for speed (no unnecessary delay)
+      // Small delay to ensure storage is cleared before navigation
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Redirect to final dishes page
       router.push(`/final-dishes`)
       
     } catch (error) {
