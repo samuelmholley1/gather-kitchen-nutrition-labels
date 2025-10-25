@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
@@ -49,6 +49,7 @@ export default function ReviewPage() {
   const [autoSearching, setAutoSearching] = useState(false)
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 })
   const [hasAutoSearched, setHasAutoSearched] = useState(false)
+  const isNavigatingAway = useRef(false)
   const [specificationModal, setSpecificationModal] = useState<{
     ingredient: IngredientWithUSDA & {
       needsSpecification?: boolean
@@ -220,6 +221,9 @@ export default function ReviewPage() {
   }, [parseResult, finalDishIngredients.length, hasAutoSearched])
 
   useEffect(() => {
+    // Don't redirect if we're in the process of navigating away after save
+    if (isNavigatingAway.current) return
+    
     // Load parsed recipe from sessionStorage FIRST
     const stored = sessionStorage.getItem('parsedRecipe')
     if (!stored) {
@@ -626,13 +630,15 @@ export default function ReviewPage() {
         console.warn('Could not mark save as completed:', e)
       }
       
-      // Redirect to final dishes page FIRST (before clearing session storage)
-      // This prevents React from re-rendering with missing data
-      router.push(`/final-dishes`)
+      // Set flag to prevent useEffect from redirecting to / when we clear sessionStorage
+      isNavigatingAway.current = true
       
-      // Clear session storage AFTER navigation to prevent re-render issues
+      // Clear session storage FIRST (so useEffect doesn't run again)
       sessionStorage.removeItem('parsedRecipe')
       sessionStorage.removeItem('originalRecipeText')
+      
+      // Then redirect to final dishes page
+      router.push(`/final-dishes`)
       
     } catch (error) {
       console.error('Save failed:', error)
