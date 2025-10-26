@@ -51,6 +51,7 @@ export default function ReviewPage() {
   const [autoSearching, setAutoSearching] = useState(false)
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 })
   const [hasAutoSearched, setHasAutoSearched] = useState(false)
+  const [hasAutoSelectedServings, setHasAutoSelectedServings] = useState(false)
   const isNavigatingAway = useRef(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [specificationModal, setSpecificationModal] = useState<{
@@ -225,8 +226,8 @@ export default function ReviewPage() {
 
   // Auto-select serving size based on estimated total calories
   useEffect(() => {
-    // Only auto-select once when ingredients are first confirmed
-    if (!allIngredientsConfirmed() || servingsPerContainer !== 1) return
+    // Only auto-select once when all ingredients are confirmed for the first time
+    if (!allIngredientsConfirmed() || hasAutoSelectedServings) return
     
     // Calculate estimated total calories from confirmed ingredients
     let totalCalories = 0
@@ -276,8 +277,9 @@ export default function ReviewPage() {
           setOtherServingsValue(estimatedServings.toFixed(1))
         }
       }
+      setHasAutoSelectedServings(true) // Mark that we've auto-selected
     }
-  }, [finalDishIngredients, subRecipes])
+  }, [finalDishIngredients, subRecipes, hasAutoSelectedServings])
 
   // Auto-select dish category based on recipe name and ingredients
   useEffect(() => {
