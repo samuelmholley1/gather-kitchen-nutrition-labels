@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compiler: {
+    // Temporarily keep console logs in production for debugging
     // Remove console logs in production for performance and cleaner browser console
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error'], // Keep console.error for debugging critical issues
-    } : false,
+    // removeConsole: process.env.NODE_ENV === 'production' ? {
+    //   exclude: ['error'], // Keep console.error for debugging critical issues
+    // } : false,
   },
   images: {
     domains: [],

@@ -234,13 +234,23 @@ export default function ReviewPage() {
     console.log('  - finalDishIngredients count:', finalDishIngredients.length)
     console.log('  - confirmed ingredients:', finalDishIngredients.filter(i => i.confirmed).length)
     
-    // Only auto-select once when all ingredients are confirmed for the first time
-    if (!allIngredientsConfirmed() || hasAutoSelectedServings) {
-      console.log('⚠️ Skipping auto-select: conditions not met')
+    // Only auto-select once, and only after auto-search has completed
+    // Don't require ALL ingredients to be confirmed - just calculate with what we have
+    if (hasAutoSelectedServings || !hasAutoSearched) {
+      console.log('⚠️ Skipping auto-select: already selected or auto-search not done yet')
       return
     }
     
-    console.log('✓ Starting calorie calculation for auto-select...')
+    // Only proceed if we have at least SOME confirmed ingredients
+    const confirmedCount = finalDishIngredients.filter(i => i.confirmed).length + 
+                          subRecipes.reduce((sum, sub) => sum + sub.ingredients.filter(i => i.confirmed).length, 0)
+    
+    if (confirmedCount === 0) {
+      console.log('⚠️ Skipping auto-select: no confirmed ingredients yet')
+      return
+    }
+    
+    console.log(`✓ Starting calorie calculation with ${confirmedCount} confirmed ingredients...`)
     
     // Calculate estimated total calories from confirmed ingredients
     let totalCalories = 0
@@ -294,7 +304,7 @@ export default function ReviewPage() {
       setServingsPerContainer(1)
     }
     setHasAutoSelectedServings(true) // Mark that we've auto-selected
-  }, [finalDishIngredients, subRecipes, hasAutoSelectedServings])
+  }, [finalDishIngredients, subRecipes, hasAutoSelectedServings, hasAutoSearched])
 
   // Auto-select dish category based on recipe name and ingredients
   useEffect(() => {
