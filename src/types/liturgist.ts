@@ -50,6 +50,12 @@ export interface USDAFood {
   foodCategory?: string
   foodNutrients?: USDANutrient[]
   foodPortions?: USDAFoodPortion[]
+  dataQualityWarnings?: Array<{
+    type: string
+    message: string
+    originalValue?: number
+    correctedValue?: number
+  }>
 }
 
 export interface NutrientProfile {

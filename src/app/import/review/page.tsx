@@ -1319,9 +1319,26 @@ export default function ReviewPage() {
                       🔍 Searching USDA ({searchProgress.current}/{searchProgress.total})...
                     </div>
                   ) : ing.usdaFood ? (
-                    <div className="text-sm text-green-700 mt-1 font-medium">
-                      ✓ USDA Match Selected: {ing.usdaFood.description}
-                    </div>
+                    <>
+                      <div className="text-sm text-green-700 mt-1 font-medium">
+                        ✓ USDA Match Selected: {ing.usdaFood.description}
+                      </div>
+                      {ing.usdaFood.dataQualityWarnings && ing.usdaFood.dataQualityWarnings.length > 0 && (
+                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                          <div className="font-semibold text-amber-900 mb-1 flex items-center gap-1">
+                            ⚠️ USDA Data Quality Issue
+                          </div>
+                          {ing.usdaFood.dataQualityWarnings.map((warning, wIdx) => (
+                            <div key={wIdx} className="text-amber-800 mb-1">
+                              {warning.message}
+                            </div>
+                          ))}
+                          <div className="text-amber-700 mt-1 italic">
+                            Values automatically corrected. You can override by selecting a different USDA entry.
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="text-sm text-red-600 mt-1 font-medium">
                       ❌ No match found - please search manually

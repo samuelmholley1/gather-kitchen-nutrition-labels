@@ -49,6 +49,17 @@ export interface NutrientProfile {
 }
 
 /**
+ * USDA data quality warning
+ */
+export interface USDADataWarning {
+  type: 'missing_sugar' | 'sugar_exceeds_carbs' | 'added_sugar_exceeds_total' | 
+        'fiber_exceeds_carbs' | 'saturated_fat_exceeds_total' | 'trans_fat_exceeds_total'
+  message: string
+  originalValue?: number
+  correctedValue?: number
+}
+
+/**
  * Initialize a NutrientProfile with all values at 0
  */
 export function initializeNutrientProfile(): NutrientProfile {
@@ -107,6 +118,7 @@ export interface Ingredient {
   nutrientProfile?: NutrientProfile // Nutrient data (fetched when needed)
   gramsCalculated?: number          // Converted weight in grams
   conversionConfidence?: 'high' | 'medium' | 'low' | 'unknown'
+  dataQualityWarnings?: USDADataWarning[] // USDA data issues detected
 }
 
 /**
@@ -167,6 +179,7 @@ export interface USDAFood {
   dataType: string                  // "Foundation", "SR Legacy", "Branded", etc.
   nutrientProfile: NutrientProfile  // Per 100g nutrient data
   foodPortions?: FoodPortion[]      // USDA portion data (for conversions)
+  dataQualityWarnings?: USDADataWarning[] // USDA data issues detected and corrected
   
   // Custom conversion factors (Risk Mitigation #1)
   customConversions?: Record<string, number>  // User-defined unit conversions

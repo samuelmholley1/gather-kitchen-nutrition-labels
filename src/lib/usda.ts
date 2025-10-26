@@ -14,6 +14,7 @@ import type {
   NutrientProfile,
   USDAFoodNutrient,
   FoodPortion,
+  USDADataWarning,
 } from '@/types/nutrition'
 import { initializeNutrientProfile } from '@/types/nutrition'
 import { requireValidEnvironment } from './validateEnv'
@@ -242,12 +243,13 @@ const NUTRIENT_MAP: Record<number, keyof NutrientProfile> = {
  * Transform USDA nutrient array into our NutrientProfile format
  * 
  * @param usdaNutrients - Array of nutrient data from USDA API
- * @returns Normalized nutrient profile per 100g
+ * @returns Object with normalized nutrient profile per 100g and any data quality warnings
  */
 export function transformNutrients(
   usdaNutrients: USDAFoodNutrient[]
-): NutrientProfile {
+): { profile: NutrientProfile; warnings: USDADataWarning[] } {
   const profile = initializeNutrientProfile()
+  const warnings: USDADataWarning[] = []
   
   for (const nutrient of usdaNutrients) {
     const field = NUTRIENT_MAP[nutrient.nutrientId]
@@ -269,6 +271,12 @@ export function transformNutrients(
   // if totalSugars is 0 but carbs are very high (>95g/100g), assume it's all sugar.
   if (profile.totalSugars === 0 && profile.totalCarbohydrate >= 95) {
     console.log(`🔧 USDA DATA FIX: totalSugars was 0 but carbs=${profile.totalCarbohydrate}g/100g. Assuming pure sugar.`)
+    warnings.push({
+      type: 'missing_sugar',
+      message: `USDA database missing sugar data. Inferred ${profile.totalCarbohydrate.toFixed(1)}g sugar from carbohydrate content.`,
+      originalValue: 0,
+      correctedValue: profile.totalCarbohydrate
+    })
     profile.totalSugars = profile.totalCarbohydrate
     profile.addedSugars = profile.totalCarbohydrate // Granulated sugar is all added sugar
   }
@@ -277,6 +285,12 @@ export function transformNutrients(
   // This catches USDA data errors where sugar values are inflated
   if (profile.totalSugars > profile.totalCarbohydrate && profile.totalCarbohydrate > 0) {
     console.warn(`🔧 USDA DATA FIX: totalSugars (${profile.totalSugars}g) > totalCarbohydrate (${profile.totalCarbohydrate}g). Capping sugars to carbs.`)
+    warnings.push({
+      type: 'sugar_exceeds_carbs',
+      message: `USDA data error: Sugar (${profile.totalSugars.toFixed(1)}g) cannot exceed carbohydrates (${profile.totalCarbohydrate.toFixed(1)}g). Corrected to ${profile.totalCarbohydrate.toFixed(1)}g.`,
+      originalValue: profile.totalSugars,
+      correctedValue: profile.totalCarbohydrate
+    })
     profile.totalSugars = profile.totalCarbohydrate
     // Also cap added sugars if needed
     if (profile.addedSugars > profile.totalCarbohydrate) {
@@ -287,28 +301,52 @@ export function transformNutrients(
   // VALIDATION: addedSugars should never exceed totalSugars
   if (profile.addedSugars > profile.totalSugars && profile.totalSugars > 0) {
     console.warn(`🔧 USDA DATA FIX: addedSugars (${profile.addedSugars}g) > totalSugars (${profile.totalSugars}g). Capping added sugars.`)
+    warnings.push({
+      type: 'added_sugar_exceeds_total',
+      message: `USDA data error: Added sugars (${profile.addedSugars.toFixed(1)}g) cannot exceed total sugars (${profile.totalSugars.toFixed(1)}g). Corrected to ${profile.totalSugars.toFixed(1)}g.`,
+      originalValue: profile.addedSugars,
+      correctedValue: profile.totalSugars
+    })
     profile.addedSugars = profile.totalSugars
   }
   
   // VALIDATION: Fiber should never exceed carbohydrate
   if (profile.dietaryFiber > profile.totalCarbohydrate && profile.totalCarbohydrate > 0) {
     console.warn(`🔧 USDA DATA FIX: dietaryFiber (${profile.dietaryFiber}g) > totalCarbohydrate (${profile.totalCarbohydrate}g). Capping fiber.`)
+    warnings.push({
+      type: 'fiber_exceeds_carbs',
+      message: `USDA data error: Fiber (${profile.dietaryFiber.toFixed(1)}g) cannot exceed carbohydrates (${profile.totalCarbohydrate.toFixed(1)}g). Corrected to ${profile.totalCarbohydrate.toFixed(1)}g.`,
+      originalValue: profile.dietaryFiber,
+      correctedValue: profile.totalCarbohydrate
+    })
     profile.dietaryFiber = profile.totalCarbohydrate
   }
   
   // VALIDATION: Saturated fat should never exceed total fat
   if (profile.saturatedFat > profile.totalFat && profile.totalFat > 0) {
     console.warn(`🔧 USDA DATA FIX: saturatedFat (${profile.saturatedFat}g) > totalFat (${profile.totalFat}g). Capping saturated fat.`)
+    warnings.push({
+      type: 'saturated_fat_exceeds_total',
+      message: `USDA data error: Saturated fat (${profile.saturatedFat.toFixed(1)}g) cannot exceed total fat (${profile.totalFat.toFixed(1)}g). Corrected to ${profile.totalFat.toFixed(1)}g.`,
+      originalValue: profile.saturatedFat,
+      correctedValue: profile.totalFat
+    })
     profile.saturatedFat = profile.totalFat
   }
   
   // VALIDATION: Trans fat should never exceed total fat
   if (profile.transFat > profile.totalFat && profile.totalFat > 0) {
     console.warn(`🔧 USDA DATA FIX: transFat (${profile.transFat}g) > totalFat (${profile.totalFat}g). Capping trans fat.`)
+    warnings.push({
+      type: 'trans_fat_exceeds_total',
+      message: `USDA data error: Trans fat (${profile.transFat.toFixed(1)}g) cannot exceed total fat (${profile.totalFat.toFixed(1)}g). Corrected to ${profile.totalFat.toFixed(1)}g.`,
+      originalValue: profile.transFat,
+      correctedValue: profile.totalFat
+    })
     profile.transFat = profile.totalFat
   }
   
-  return profile
+  return { profile, warnings }
 }
 
 /**
@@ -348,12 +386,15 @@ export function transformFoodPortions(usdaFood: any): FoodPortion[] {
  * @returns Normalized USDAFood object
  */
 export function transformUSDAFood(usdaFood: any): USDAFood {
+  const { profile, warnings } = transformNutrients(usdaFood.foodNutrients || [])
+  
   return {
     fdcId: usdaFood.fdcId,
     name: usdaFood.description || '',
     dataType: usdaFood.dataType || 'Unknown',
-    nutrientProfile: transformNutrients(usdaFood.foodNutrients || []),
+    nutrientProfile: profile,
     foodPortions: transformFoodPortions(usdaFood),
+    dataQualityWarnings: warnings.length > 0 ? warnings : undefined,
     brandOwner: usdaFood.brandOwner,
     brandName: usdaFood.brandName,
     lastUpdated: new Date().toISOString(),
