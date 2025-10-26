@@ -88,9 +88,10 @@ export async function POST(request: NextRequest) {
             
             // SPECIFIC HANDLING: "flour, sifted" should always match standard all-purpose flour
             if (queryLower.includes('flour, sifted') || queryLower.includes('sifted flour')) {
-              if (desc.includes('wheat flour, white, all-purpose, enriched, bleached')) score += 1000 // Massive boost for sifted flour queries
+              if (desc.includes('wheat flour, white, all-purpose, enriched, bleached')) score += 1000 // Exact match for standard bleached flour
               if (desc.includes('wheat flour, white, all-purpose, enriched')) score += 800
               if (desc.includes('all-purpose') && desc.includes('wheat')) score += 600 // Additional boost for any all-purpose wheat flour
+              if (desc.includes('all-purpose') && desc.includes('flour')) score += 400 // Boost any all-purpose flour
             }
             
             // BOOST fresh/raw eggs over dried/processed
@@ -144,6 +145,12 @@ export async function POST(request: NextRequest) {
             
             // PENALIZE Italian 00 flour (very specialty) unless explicitly requested
             if ((desc.includes('00') || desc.includes('tipo 00')) && !queryLower.includes('00')) score -= 100
+            
+            // EXTRA PENALTY: For "flour, sifted" queries, heavily penalize specialty flours
+            if (queryLower.includes('flour, sifted') || queryLower.includes('sifted flour')) {
+              if ((desc.includes('00') || desc.includes('tipo 00'))) score -= 500 // Massive penalty for 00 flour in sifted queries
+              if (desc.includes('bread flour') || desc.includes('cake flour')) score -= 300 // Penalize other specialty flours too
+            }
             
             // Prefer Foundation/SR Legacy over Branded
             // Foundation & SR Legacy are USDA's standardized reference data (generic ingredients)
