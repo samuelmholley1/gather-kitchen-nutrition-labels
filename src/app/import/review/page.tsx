@@ -261,24 +261,17 @@ export default function ReviewPage() {
     })
     
     // Auto-select serving size based on total calories
-    // Under 600 cal = 1 serving, 600-1200 cal = 2 servings, over 1200 = calculate
-    if (totalCalories > 0) {
-      if (totalCalories < 600) {
-        setServingsPerContainer(1)
-      } else if (totalCalories <= 1200) {
-        setServingsPerContainer(2)
-      } else {
-        // For very large recipes, calculate sensible default
-        const estimatedServings = Math.round((totalCalories / 400) * 2) / 2 // ~400 cal per serving, round to 0.5
-        if ([1, 1.5, 2, 2.5].includes(estimatedServings)) {
-          setServingsPerContainer(estimatedServings)
-        } else {
-          setServingsPerContainer('other')
-          setOtherServingsValue(estimatedServings.toFixed(1))
-        }
-      }
-      setHasAutoSelectedServings(true) // Mark that we've auto-selected
+    // SIMPLE RULE: Under 600 cal = 1 serving, otherwise = 2 servings
+    // If anything goes wrong or totalCalories is 0, default to 1
+    if (totalCalories > 0 && totalCalories < 600) {
+      setServingsPerContainer(1)
+    } else if (totalCalories >= 600) {
+      setServingsPerContainer(2)
+    } else {
+      // Fallback: if we can't calculate or something goes wrong, default to 1
+      setServingsPerContainer(1)
     }
+    setHasAutoSelectedServings(true) // Mark that we've auto-selected
   }, [finalDishIngredients, subRecipes, hasAutoSelectedServings])
 
   // Auto-select dish category based on recipe name and ingredients
