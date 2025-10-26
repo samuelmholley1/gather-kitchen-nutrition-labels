@@ -390,13 +390,13 @@ export default function ReviewPage() {
     console.log(`🔥 TOTAL RECIPE CALORIES: ${totalCalories.toFixed(1)}`)
     
     // Auto-select serving size based on total calories
-    // SIMPLE RULE: Under 600 cal = 1 serving, otherwise = 2 servings
+    // SIMPLE RULE: Under 800 cal = 1 serving, otherwise = 2 servings
     // If anything goes wrong or totalCalories is 0, default to 1
-    if (totalCalories > 0 && totalCalories < 600) {
-      console.log(`✓ Auto-selected 1 serving (${totalCalories.toFixed(1)} cal < 600)`)
+    if (totalCalories > 0 && totalCalories < 800) {
+      console.log(`✓ Auto-selected 1 serving (${totalCalories.toFixed(1)} cal < 800)`)
       setServingsPerContainer(1)
-    } else if (totalCalories >= 600) {
-      console.log(`✓ Auto-selected 2 servings (${totalCalories.toFixed(1)} cal >= 600)`)
+    } else if (totalCalories >= 800) {
+      console.log(`✓ Auto-selected 2 servings (${totalCalories.toFixed(1)} cal >= 800)`)
       setServingsPerContainer(2)
     } else {
       console.log(`⚠️ Fallback to 1 serving (totalCalories = ${totalCalories})`)
