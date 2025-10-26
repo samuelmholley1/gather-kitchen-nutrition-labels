@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
             // ROBUST FLOUR SOLUTION: When query is just "flour", massively boost standard all-purpose flour
             // This prevents specialty flours from winning even with penalties
             if (queryLower.trim() === 'flour' || queryLower.trim() === 'flours') {
-              if (desc.includes('wheat flour, white, all-purpose, enriched')) score += 500 // Massive boost for exact standard flour
+              if (desc.includes('wheat flour, white, all-purpose, enriched, bleached')) score += 600 // Exact match for standard bleached flour
+              if (desc.includes('wheat flour, white, all-purpose, enriched')) score += 500 // Standard enriched flour (may be bleached or unbleached)
+              if (desc.includes('all-purpose') && desc.includes('wheat') && desc.includes('bleached')) score += 450
               if (desc.includes('all-purpose') && desc.includes('wheat')) score += 400
               if (desc.includes('white flour') && desc.includes('wheat')) score += 300
             }
