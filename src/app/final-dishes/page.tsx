@@ -299,10 +299,10 @@ export default function FinalDishesPage() {
           onClick={() => setViewingLabel(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full max-h-[95vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 sticky top-0 bg-white z-10 pb-4 border-b">
               <h2 className="text-2xl font-bold text-gray-900">
                 {viewingLabel.name}
               </h2>
@@ -314,13 +314,15 @@ export default function FinalDishesPage() {
               </button>
             </div>
 
-            <NutritionLabel
-              dishName={viewingLabel.name}
-              servingSize={`${viewingLabel.servingSize}g`}
-              servingsPerContainer={viewingLabel.servingsPerContainer}
-              nutrients={viewingLabel.nutritionLabel}
-              allergens={viewingLabel.allergens}
-            />
+            <div className="flex justify-center">
+              <NutritionLabel
+                dishName={viewingLabel.name}
+                servingSize={`${viewingLabel.servingSize}g`}
+                servingsPerContainer={viewingLabel.servingsPerContainer}
+                nutrients={viewingLabel.nutritionLabel}
+                allergens={viewingLabel.allergens}
+              />
+            </div>
           </div>
         </div>
       )}

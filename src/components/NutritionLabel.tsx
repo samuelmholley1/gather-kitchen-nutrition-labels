@@ -90,6 +90,9 @@ export default function NutritionLabel({
       // Use html-to-image for better border/line rendering
       const { toPng, toJpeg } = await import('html-to-image')
       
+      // Wait a tick for any layout changes to settle
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       const dataUrl = format === 'jpeg' 
         ? await toJpeg(labelRef.current, {
             quality: 0.98,
@@ -97,6 +100,8 @@ export default function NutritionLabel({
             backgroundColor: '#ffffff',
             cacheBust: true,
             skipAutoScale: true,
+            // Ensure we capture the full height including borders
+            height: labelRef.current.scrollHeight,
           })
         : await toPng(labelRef.current, {
             quality: 0.98,
@@ -104,6 +109,8 @@ export default function NutritionLabel({
             backgroundColor: '#ffffff',
             cacheBust: true,
             skipAutoScale: true,
+            // Ensure we capture the full height including borders
+            height: labelRef.current.scrollHeight,
           })
 
       // Convert data URL to blob
@@ -137,12 +144,17 @@ export default function NutritionLabel({
     try {
       const { toPng } = await import('html-to-image')
 
+      // Wait a tick for any layout changes to settle
+      await new Promise(resolve => setTimeout(resolve, 100))
+
       const dataUrl = await toPng(labelRef.current, {
         quality: 0.98,
         pixelRatio: 3,
         backgroundColor: '#ffffff',
         cacheBust: true,
         skipAutoScale: true,
+        // Ensure we capture the full height including borders
+        height: labelRef.current.scrollHeight,
       })
 
       // Convert data URL to blob
@@ -251,11 +263,12 @@ export default function NutritionLabel({
       {/* FDA Nutrition Label */}
       <div
         ref={labelRef}
-        className="bg-white border-2 border-black px-2 pb-2 box-border"
+        className="bg-white border-2 border-black px-2 pb-4 box-border"
         style={{
           width: '288px', // FDA standard width (2.4 inches at 120 DPI)
           fontFamily: 'Helvetica, Arial, sans-serif',
           boxSizing: 'border-box',
+          paddingBottom: '16px', // Ensure bottom border has room in exports
         }}
       >
         {/* Title */}
@@ -484,7 +497,7 @@ export default function NutritionLabel({
 
         {/* Allergens (if any) */}
         {allergens.length > 0 && (
-          <div className="border-t-2 border-black pt-2 pb-1">
+          <div className="border-t-2 border-black pt-2 pb-2">
             <div className="text-xs font-bold">CONTAINS:</div>
             <div className="text-xs">{allergens.join(', ')}</div>
           </div>
