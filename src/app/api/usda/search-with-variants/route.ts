@@ -27,9 +27,13 @@ export const dynamic = 'force-dynamic'
  * }
  */
 export async function POST(request: NextRequest) {
+  const stamp = createRouteStamp('usda/search-with-variants')
+  
   try {
     const body = await request.json()
     const { ingredient } = body
+    
+    logStamp('usda-search-in', stamp, { ingredient })
 
     if (!ingredient || typeof ingredient !== 'string') {
       return NextResponse.json(
