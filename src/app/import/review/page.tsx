@@ -47,6 +47,8 @@ export default function ReviewPage() {
   const [servingsPerContainer, setServingsPerContainer] = useState<number | 'other'>(1)
   const [otherServingsValue, setOtherServingsValue] = useState('')
   const [dishCategory, setDishCategory] = useState<string>('')
+  const [dishName, setDishName] = useState<string>('')
+  const [isEditingDishName, setIsEditingDishName] = useState(false)
   const [saveProgress, setSaveProgress] = useState('')
   const [autoSearching, setAutoSearching] = useState(false)
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 })
@@ -240,7 +242,9 @@ export default function ReviewPage() {
           const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
           const caloriesPer100g = (caloriesNutrient.value / 100) * 100
           const totalGramsForIngredient = ing.quantity * portionGrams
-          totalCalories += (caloriesPer100g / 100) * totalGramsForIngredient
+          const ingredientCalories = (caloriesPer100g / 100) * totalGramsForIngredient
+          console.log(`${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal (${ing.quantity} × ${portionGrams}g)`)
+          totalCalories += ingredientCalories
         }
       }
     })
@@ -254,20 +258,27 @@ export default function ReviewPage() {
             const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
             const caloriesPer100g = (caloriesNutrient.value / 100) * 100
             const totalGramsForIngredient = ing.quantity * portionGrams
-            totalCalories += (caloriesPer100g / 100) * totalGramsForIngredient
+            const ingredientCalories = (caloriesPer100g / 100) * totalGramsForIngredient
+            console.log(`${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal`)
+            totalCalories += ingredientCalories
           }
         }
       })
     })
     
+    console.log(`🔥 TOTAL RECIPE CALORIES: ${totalCalories.toFixed(1)}`)
+    
     // Auto-select serving size based on total calories
     // SIMPLE RULE: Under 600 cal = 1 serving, otherwise = 2 servings
     // If anything goes wrong or totalCalories is 0, default to 1
     if (totalCalories > 0 && totalCalories < 600) {
+      console.log(`✓ Auto-selected 1 serving (${totalCalories.toFixed(1)} cal < 600)`)
       setServingsPerContainer(1)
     } else if (totalCalories >= 600) {
+      console.log(`✓ Auto-selected 2 servings (${totalCalories.toFixed(1)} cal >= 600)`)
       setServingsPerContainer(2)
     } else {
+      console.log(`⚠️ Fallback to 1 serving (totalCalories = ${totalCalories})`)
       // Fallback: if we can't calculate or something goes wrong, default to 1
       setServingsPerContainer(1)
     }
@@ -310,6 +321,7 @@ export default function ReviewPage() {
 
     const result: SmartParseResult = JSON.parse(stored)
     setParseResult(result)
+    setDishName(result.finalDish.name) // Initialize dish name
 
     // Initialize final dish ingredients with USDA search queries
     const finalIngredients = result.finalDish.ingredients
@@ -541,7 +553,7 @@ export default function ReviewPage() {
     // Save progress to localStorage in case of browser crash during save
     try {
       localStorage.setItem('recipe_save_in_progress', JSON.stringify({
-        recipeName: parseResult.finalDish.name,
+        recipeName: dishName,
         timestamp: Date.now(),
         subRecipeCount: subRecipes.length,
         status: 'in_progress'
@@ -628,7 +640,7 @@ export default function ReviewPage() {
       }
 
       // Step 2: Create final dish with sub-recipes
-      setSaveProgress(`Creating final dish "${parseResult.finalDish.name}"...`)
+      setSaveProgress(`Creating final dish "${dishName}"...`)
       let finalDishId: string
       try {
         // Determine final servings-per-container override to send to saver
@@ -643,7 +655,7 @@ export default function ReviewPage() {
         }
 
         finalDishId = await createFinalDish(
-          parseResult.finalDish.name,
+          dishName,
           finalDishIngredients,
           subRecipesData,
           finalServingsOverride
@@ -698,7 +710,7 @@ export default function ReviewPage() {
       // Mark save as completed (not just remove - set status to completed)
       try {
         localStorage.setItem('recipe_save_in_progress', JSON.stringify({
-          recipeName: parseResult.finalDish.name,
+          recipeName: dishName,
           timestamp: Date.now(),
           subRecipeCount: subRecipes.length,
           status: 'completed'
@@ -968,7 +980,7 @@ export default function ReviewPage() {
                 {subRecipes.length > 0 && (
                   <li>✓ {subRecipes.length} Sub-Recipe{subRecipes.length > 1 ? 's' : ''}: {subRecipes.map(s => s.name).join(', ')}</li>
                 )}
-                <li>✓ 1 Final Dish: {parseResult.finalDish.name}</li>
+                <li>✓ 1 Final Dish: {dishName}</li>
                 <li className="text-sm text-emerald-700 mt-2">
                   📊 Total: {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => i.usdaFood).length} ingredients with nutrition data
                   {[...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => !i.usdaFood).length > 0 && 
@@ -1066,9 +1078,39 @@ export default function ReviewPage() {
 
         {/* Final Dish */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Final Dish: {parseResult.finalDish.name}
-          </h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">Final Dish:</h2>
+            {isEditingDishName ? (
+              <input
+                type="text"
+                value={dishName}
+                onChange={(e) => setDishName(e.target.value)}
+                onBlur={() => setIsEditingDishName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setIsEditingDishName(false)
+                  if (e.key === 'Escape') {
+                    setDishName(parseResult?.finalDish.name || '')
+                    setIsEditingDishName(false)
+                  }
+                }}
+                autoFocus
+                className="flex-1 text-2xl font-bold text-gray-900 border-2 border-emerald-500 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+            ) : (
+              <>
+                <span className="text-2xl font-bold text-emerald-700">{dishName}</span>
+                <button
+                  onClick={() => setIsEditingDishName(true)}
+                  className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                  title="Edit recipe name"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
 
           <div className="space-y-3">
             {finalDishIngredients.map((ing, idx) => (
