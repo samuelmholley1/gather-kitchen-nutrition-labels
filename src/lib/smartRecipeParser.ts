@@ -312,8 +312,30 @@ function detectSubRecipe(line: string): {
 
   const [, quantityStr, unit, name, ingredients] = match
 
+  // Quick check: If parentheses content starts with descriptive words, it's NOT a sub-recipe
+  // e.g., "(about 1 1/2 cups)", "(approximately 2 lbs)", "(optional)", "(to taste)"
+  const descriptivePrefixes = /^(about|approximately|approx|roughly|around|optional|to taste|as needed|or more|or less|plus more|divided)/i
+  if (descriptivePrefixes.test(ingredients.trim())) {
+    return null // This is just a descriptive note, not a sub-recipe
+  }
+
   // Split by commas to analyze the content
   const items = ingredients.split(',').map(s => s.trim())
+  
+  // If there's only ONE item (no commas) and it's not clearly multiple ingredients,
+  // it's likely a descriptor, not a sub-recipe
+  // e.g., "(about 1 1/2 cups)", "(large)", "(diced)"
+  if (items.length === 1) {
+    // Check if this single item looks like a measurement/descriptor
+    const singleItem = items[0]
+    const hasMultipleNumbers = (singleItem.match(/\d+/g) || []).length > 1
+    const hasUnit = /\b(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l)\b/i.test(singleItem)
+    
+    // If it's just a measurement (e.g., "1 1/2 cups") or size (e.g., "large"), not a sub-recipe
+    if (hasUnit || hasMultipleNumbers || singleItem.split(/\s+/).length <= 2) {
+      return null // Descriptor, not a sub-recipe
+    }
+  }
   
   // Check if items look like actual ingredients (vs just descriptive words)
   // Real ingredients typically:
