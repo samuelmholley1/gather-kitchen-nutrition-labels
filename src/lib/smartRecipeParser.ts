@@ -52,6 +52,7 @@ export interface SmartParseResult {
   finalDish: ParsedFinalDish
   subRecipes: ParsedSubRecipe[]
   errors: string[]
+  explicitServings?: number // If recipe explicitly states serving count
 }
 
 /**
@@ -456,6 +457,79 @@ function sanitizeRecipeText(text: string): string {
 }
 
 /**
+ * Check if a line should be skipped (not an ingredient)
+ * Filters out: directions, source info, ratings, metadata, etc.
+ */
+function shouldSkipLine(line: string): boolean {
+  const trimmed = line.trim().toLowerCase()
+  
+  // Empty lines
+  if (!trimmed) return true
+  
+  // Section headers and metadata keywords
+  const skipPatterns = [
+    /^(directions?|instructions?|steps?|method|preparation|prep time|cook time|total time):?/i,
+    /^(source|from|recipe (from|by|courtesy)|adapted from):?/i,
+    /^(nutrition|nutritional? info(rmation)?|calories):?/i,
+    /^(notes?|tips?|variations?):?/i,
+    /^(wash hands|preheat|heat|bake|cook|stir|mix|combine|pour|add|remove)/i, // Cooking actions
+    /rating/i,
+    /add to (cookbook|favorites)/i,
+    /^(serves?|servings?|yield|makes):?\s*\d+/i, // Will handle separately
+  ]
+  
+  for (const pattern of skipPatterns) {
+    if (pattern.test(trimmed)) {
+      return true
+    }
+  }
+  
+  // Skip lines that are just URLs
+  if (/^https?:\/\//i.test(trimmed)) {
+    return true
+  }
+  
+  // Skip lines that look like full sentences (directions)
+  // Heuristic: If it has more than 8 words and ends with period, likely a direction
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount > 8 && (trimmed.endsWith('.') || trimmed.endsWith('!'))) {
+    return true
+  }
+  
+  return false
+}
+
+/**
+ * Extract explicit serving count from recipe text
+ * Handles: "Makes: 12 Servings", "Serves 8", "Yield: 6 servings", etc.
+ */
+function extractServingCount(lines: string[]): number | undefined {
+  const servingPatterns = [
+    /^(makes?|serves?|servings?|yield):?\s*(\d+)/i,
+    /(\d+)\s+(servings?|serves?)/i,
+  ]
+  
+  for (const line of lines) {
+    const trimmed = line.trim()
+    
+    for (const pattern of servingPatterns) {
+      const match = trimmed.match(pattern)
+      if (match) {
+        // Extract the number (could be in capture group 2 or 1)
+        const numStr = match[2] || match[1]
+        const num = parseInt(numStr, 10)
+        
+        if (!isNaN(num) && num > 0 && num <= 1000) {
+          return num
+        }
+      }
+    }
+  }
+  
+  return undefined
+}
+
+/**
  * Parse a complete recipe with auto-detection of sub-recipes
  */
 export function parseSmartRecipe(recipeText: string): SmartParseResult {
@@ -487,9 +561,21 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
     }
   }
 
-  if (lines.length === 1) {
+  // Extract explicit serving count from all lines
+  const explicitServings = extractServingCount(lines)
+  
+  // Filter out non-ingredient lines
+  const filteredLines = lines.filter((line, index) => {
+    // First line is always the recipe name (never skip)
+    if (index === 0) return true
+    
+    // Check if this line should be skipped
+    return !shouldSkipLine(line)
+  })
+
+  if (filteredLines.length === 1) {
     // Check if the single line looks like it has multiple ingredients mashed together
-    const hasMultipleQuantities = (lines[0].match(/\d+\s*(g|gram|oz|cup|tbsp|tsp|lb|kg|ml)/gi) || []).length > 1
+    const hasMultipleQuantities = (filteredLines[0].match(/\d+\s*(g|gram|oz|cup|tbsp|tsp|lb|kg|ml)/gi) || []).length > 1
     
     if (hasMultipleQuantities) {
       errors.push('⚠️ It looks like all ingredients are on ONE line. Please format your recipe with:\n• Recipe name on the FIRST line\n• Blank line\n• Each ingredient on a SEPARATE line\n\nExample:\nChicken Tacos\n\n2 cups chicken\n1 cup salsa\n8 tortillas')
@@ -497,18 +583,19 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
       errors.push('Recipe must have at least one ingredient. Add ingredients on separate lines after the recipe name.')
     }
     return {
-      finalDish: { name: lines[0], ingredients: [] },
+      finalDish: { name: filteredLines[0], ingredients: [] },
       subRecipes: [],
-      errors
+      errors,
+      explicitServings
     }
   }
 
   // First line is the recipe name
-  const finalDishName = lines[0]
+  const finalDishName = filteredLines[0]
   
   // Process remaining lines as ingredients
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]
+  for (let i = 1; i < filteredLines.length; i++) {
+    const line = filteredLines[i]
     
     // Check for unbalanced parentheses
     const openParens = (line.match(/\(/g) || []).length
@@ -710,7 +797,8 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
       ingredients: finalDishIngredients
     },
     subRecipes,
-    errors
+    errors,
+    explicitServings
   }
 }
 

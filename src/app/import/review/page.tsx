@@ -399,10 +399,15 @@ export default function ReviewPage() {
     
     console.log(`🔥 TOTAL RECIPE CALORIES: ${totalCalories.toFixed(1)}`)
     
-    // Auto-select serving size based on total calories
-    // SIMPLE RULE: Under 800 cal = 1 serving, otherwise = 2 servings
-    // If anything goes wrong or totalCalories is 0, default to 1
-    if (totalCalories > 0 && totalCalories < 800) {
+    // Auto-select serving size:
+    // 1. If recipe explicitly states servings (e.g., "Makes: 12 Servings"), use that
+    // 2. Otherwise, use calorie-based logic: <800 cal = 1 serving, ≥800 = 2 servings
+    // 3. If anything goes wrong or totalCalories is 0, default to 1
+    
+    if (parseResult?.explicitServings) {
+      console.log(`✓ Using explicit serving count from recipe: ${parseResult.explicitServings} servings`)
+      setServingsPerContainer(parseResult.explicitServings)
+    } else if (totalCalories > 0 && totalCalories < 800) {
       console.log(`✓ Auto-selected 1 serving (${totalCalories.toFixed(1)} cal < 800)`)
       setServingsPerContainer(1)
     } else if (totalCalories >= 800) {
@@ -414,7 +419,7 @@ export default function ReviewPage() {
       setServingsPerContainer(1)
     }
     setHasAutoSelectedServings(true) // Mark that we've auto-selected
-  }, [finalDishIngredients, subRecipes, hasAutoSelectedServings, hasAutoSearched])
+  }, [finalDishIngredients, subRecipes, hasAutoSelectedServings, hasAutoSearched, parseResult])
 
   // Auto-select dish category based on recipe name and ingredients
   useEffect(() => {
