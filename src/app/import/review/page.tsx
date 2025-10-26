@@ -293,10 +293,12 @@ export default function ReviewPage() {
             // Try to find matching portion from USDA data
             const portions = ing.usdaFood.foodPortions || []
             const matchingPortion = portions.find(p => {
-              const portionDesc = p.portionDescription?.toLowerCase() || ''
-              return portionDesc.includes(unitLower) || 
-                     (unitLower === 'tbsp' && portionDesc.includes('tablespoon')) ||
-                     (unitLower === 'tsp' && portionDesc.includes('teaspoon'))
+              const modifier = p.modifier?.toLowerCase() || ''
+              const measureUnit = p.measureUnitName?.toLowerCase() || ''
+              return modifier.includes(unitLower) || 
+                     measureUnit.includes(unitLower) ||
+                     (unitLower === 'tbsp' && (modifier.includes('tablespoon') || measureUnit.includes('tablespoon'))) ||
+                     (unitLower === 'tsp' && (modifier.includes('teaspoon') || measureUnit.includes('teaspoon')))
             })
             
             if (matchingPortion) {
@@ -349,10 +351,12 @@ export default function ReviewPage() {
               // Try to find matching portion from USDA data
               const portions = ing.usdaFood.foodPortions || []
               const matchingPortion = portions.find(p => {
-                const portionDesc = p.portionDescription?.toLowerCase() || ''
-                return portionDesc.includes(unitLower) || 
-                       (unitLower === 'tbsp' && portionDesc.includes('tablespoon')) ||
-                       (unitLower === 'tsp' && portionDesc.includes('teaspoon'))
+                const modifier = p.modifier?.toLowerCase() || ''
+                const measureUnit = p.measureUnitName?.toLowerCase() || ''
+                return modifier.includes(unitLower) || 
+                       measureUnit.includes(unitLower) ||
+                       (unitLower === 'tbsp' && (modifier.includes('tablespoon') || measureUnit.includes('tablespoon'))) ||
+                       (unitLower === 'tsp' && (modifier.includes('teaspoon') || measureUnit.includes('teaspoon')))
               })
               
               if (matchingPortion) {
