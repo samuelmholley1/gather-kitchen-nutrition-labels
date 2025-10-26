@@ -220,6 +220,43 @@ async function checkDuplicateDish(name: string): Promise<boolean> {
 }
 
 /**
+ * Find an available dish name by appending (2), (3), etc. if duplicates exist
+ */
+async function findAvailableDishName(baseName: string): Promise<string> {
+  try {
+    const response = await fetch('/api/final-dishes')
+    if (!response.ok) return baseName
+    
+    const { finalDishes } = await response.json()
+    const existingNames = finalDishes.map((dish: any) => dish.name.toLowerCase().trim())
+    
+    // Check if base name is available
+    if (!existingNames.includes(baseName.toLowerCase().trim())) {
+      return baseName
+    }
+    
+    // Try appending (2), (3), (4), etc. until we find an available name
+    let counter = 2
+    let candidateName = `${baseName} (${counter})`
+    
+    while (existingNames.includes(candidateName.toLowerCase().trim())) {
+      counter++
+      candidateName = `${baseName} (${counter})`
+      
+      // Safety check to prevent infinite loops
+      if (counter > 100) {
+        throw new Error(`Could not find available name after 100 attempts for "${baseName}"`)
+      }
+    }
+    
+    return candidateName
+  } catch (error) {
+    console.warn('Could not check for available dish names:', error)
+    return baseName
+  }
+}
+
+/**
  * Detect circular sub-recipe references
  * Example: Recipe A uses sub-recipe B, which uses sub-recipe C, which uses A again
  */
@@ -323,13 +360,11 @@ export async function createFinalDish(
     }
   }
 
-  // Check for duplicate dish name
-  const isDuplicate = await checkDuplicateDish(dishName)
-  if (isDuplicate) {
-    throw new Error(
-      `A final dish named "${dishName}" already exists. ` +
-      `Please use a different name or delete the existing dish first.`
-    )
+  // Auto-rename if duplicate dish name exists (append (2), (3), etc.)
+  const originalDishName = dishName
+  dishName = await findAvailableDishName(dishName)
+  if (dishName !== originalDishName) {
+    console.log(`📝 Renamed dish from "${originalDishName}" to "${dishName}" to avoid duplicate`)
   }
   
   // Build components array for Airtable storage (minimal data)
