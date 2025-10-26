@@ -62,6 +62,9 @@ export async function POST(request: NextRequest) {
         
         if (results.foods && results.foods.length > 0) {
           // Score and rank results to prefer common ingredients over specialty ones
+          // BUT: Don't penalize specialty ingredients if they're explicitly in the query
+          const queryLower = variant.toLowerCase()
+          
           const scoredFoods = results.foods.map(food => {
             let score = 0
             const desc = food.description?.toLowerCase() || ''
@@ -73,13 +76,15 @@ export async function POST(request: NextRequest) {
             if (desc.includes('unenriched') || desc.includes('enriched')) score += 50
             if (desc.includes('raw') || desc.includes('fresh')) score += 30
             
-            // PENALIZE specialty ingredients
-            if (desc.includes('almond')) score -= 100
-            if (desc.includes('coconut')) score -= 80
-            if (desc.includes('gluten-free') || desc.includes('gluten free')) score -= 70
-            if (desc.includes('organic')) score -= 40
-            if (desc.includes('whole wheat') || desc.includes('whole grain')) score -= 50
-            if (desc.includes('buckwheat') || desc.includes('rice flour') || desc.includes('oat flour')) score -= 80
+            // PENALIZE specialty ingredients ONLY if not in the original query
+            // This allows "almond flour" to match almond flour, but "flour" won't match almond flour
+            if (desc.includes('almond') && !queryLower.includes('almond')) score -= 100
+            if (desc.includes('coconut') && !queryLower.includes('coconut')) score -= 80
+            if ((desc.includes('gluten-free') || desc.includes('gluten free')) && !queryLower.includes('gluten')) score -= 70
+            if (desc.includes('organic') && !queryLower.includes('organic')) score -= 40
+            if ((desc.includes('whole wheat') || desc.includes('whole grain')) && !queryLower.includes('whole')) score -= 50
+            if ((desc.includes('buckwheat') || desc.includes('rice flour') || desc.includes('oat flour')) && 
+                !queryLower.includes('buckwheat') && !queryLower.includes('rice') && !queryLower.includes('oat')) score -= 80
             
             // Prefer Foundation/SR Legacy over Branded
             if (food.dataType === 'Foundation') score += 60
