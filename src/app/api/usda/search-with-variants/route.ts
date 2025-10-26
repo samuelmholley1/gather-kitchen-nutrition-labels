@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
             if (queryLower.includes('flour, sifted') || queryLower.includes('sifted flour')) {
               if (desc.includes('wheat flour, white, all-purpose, enriched, bleached')) score += 1000 // Massive boost for sifted flour queries
               if (desc.includes('wheat flour, white, all-purpose, enriched')) score += 800
+              if (desc.includes('all-purpose') && desc.includes('wheat')) score += 600 // Additional boost for any all-purpose wheat flour
             }
             
             // BOOST fresh/raw eggs over dried/processed
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
             if (desc.includes('dehydrated') && !queryLower.includes('dehydrated')) score -= 60
             
             // PENALIZE Italian 00 flour (very specialty) unless explicitly requested
-            if ((desc.includes('00') || desc.includes('tipo 00')) && !queryLower.includes('00')) score -= 90
+            if ((desc.includes('00') || desc.includes('tipo 00')) && !queryLower.includes('00')) score -= 100
             
             // Prefer Foundation/SR Legacy over Branded
             // Foundation & SR Legacy are USDA's standardized reference data (generic ingredients)
