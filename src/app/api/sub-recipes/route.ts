@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Airtable from 'airtable'
-import { SubRecipe } from '@/types/liturgist'
+import { SubRecipe } from '@/types/recipe'
 
 const airtable = new Airtable({ 
   apiKey: process.env.AIRTABLE_PAT_TOKEN || 'placeholder_for_build' 

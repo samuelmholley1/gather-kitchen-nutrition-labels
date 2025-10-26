@@ -3,7 +3,7 @@
  * Creates sub-recipes first, then creates final dish using them
  */
 
-import { Ingredient, NutrientProfile } from '@/types/liturgist'
+import { Ingredient, NutrientProfile } from '@/types/recipe'
 import { initializeNutrientProfile } from '@/types/nutrition'
 import { calculateNutritionProfile, convertToGrams } from './calculator'
 import { transformNutrients } from './usda'

@@ -7,7 +7,7 @@ import IngredientSearch from '@/components/IngredientSearch'
 import NutritionLabel from '@/components/NutritionLabel'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
-import { USDAFood, NutrientProfile } from '@/types/liturgist'
+import { USDAFood, NutrientProfile } from '@/types/recipe'
 
 interface FinalDishComponent {
   id: string

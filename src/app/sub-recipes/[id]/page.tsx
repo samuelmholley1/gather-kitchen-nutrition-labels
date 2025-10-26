@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
-import { SubRecipe } from '@/types/liturgist'
+import { SubRecipe } from '@/types/recipe'
 
 export default function SubRecipeDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()

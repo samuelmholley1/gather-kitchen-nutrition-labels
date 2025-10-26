@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Modal from '@/components/Modal'
-import { SubRecipe } from '@/types/liturgist'
+import { SubRecipe } from '@/types/recipe'
 
 export default function SubRecipesPage() {
   const [subRecipes, setSubRecipes] = useState<SubRecipe[]>([])

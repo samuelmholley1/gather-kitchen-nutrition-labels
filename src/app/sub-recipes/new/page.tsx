@@ -7,7 +7,7 @@ import IngredientSearch from '@/components/IngredientSearch'
 import RecipePaste from '@/components/RecipePaste'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
-import { USDAFood, Ingredient, SubRecipe, NutrientProfile } from '@/types/liturgist'
+import { USDAFood, Ingredient, SubRecipe, NutrientProfile } from '@/types/recipe'
 import { ParsedIngredient, cleanIngredientForSearch } from '@/lib/recipeParser'
 
 interface SubRecipeForm {

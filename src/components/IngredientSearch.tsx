@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { USDAFood, USDANutrient } from '@/types/liturgist'
+import { USDAFood, USDANutrient } from '@/types/recipe'
 
 interface IngredientSearchProps {
   onSelectIngredient: (food: USDAFood) => void

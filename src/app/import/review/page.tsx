@@ -11,7 +11,7 @@ import IngredientSearch from '@/components/IngredientSearch'
 import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
 import BatchIngredientSpecificationModal from '@/components/BatchIngredientSpecificationModal'
 import { SmartParseResult } from '@/lib/smartRecipeParser'
-import { USDAFood } from '@/types/liturgist'
+import { USDAFood } from '@/types/recipe'
 import { cleanIngredientForUSDASearch } from '@/lib/smartRecipeParser'
 
 interface IngredientWithUSDA {

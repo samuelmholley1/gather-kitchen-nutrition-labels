@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { calculateNutritionProfile } from '@/lib/calculator'
 import { getFoodDetails } from '@/lib/usda'
-import { Ingredient, NutrientProfile } from '@/types/liturgist'
+import { Ingredient, NutrientProfile } from '@/types/recipe'
 
 /**
  * POST /api/sub-recipes/calculate

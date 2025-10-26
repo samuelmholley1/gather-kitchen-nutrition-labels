@@ -1,30 +1,8 @@
-export interface ServiceDate {
-  id: string
-  date: string
-  displayDate: string
-  liturgist?: Liturgist
-  isAvailable: boolean
-  notes?: string
-}
-
-export interface Liturgist {
-  id: string
-  name: string
-  email: string
-  phone?: string
-  preferredContact: 'email' | 'phone'
-}
-
-export interface SignupRequest {
-  serviceId: string
-  liturgistName: string
-  liturgistEmail: string
-  liturgistPhone?: string
-  preferredContact: 'email' | 'phone'
-  notes?: string
-}
-
-// ===== USDA & Nutrition Types =====
+/**
+ * Recipe and Nutrition Type Definitions
+ * 
+ * Types for ingredients, sub-recipes, final dishes, and USDA integration
+ */
 
 export interface USDANutrient {
   nutrientId: number
