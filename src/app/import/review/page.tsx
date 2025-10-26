@@ -406,7 +406,17 @@ export default function ReviewPage() {
     
     if (parseResult?.explicitServings) {
       console.log(`✓ Using explicit serving count from recipe: ${parseResult.explicitServings} servings`)
-      setServingsPerContainer(parseResult.explicitServings)
+      const explicitCount = parseResult.explicitServings
+      
+      // Check if it's one of the preset values
+      const presetValues = [1, 1.5, 2, 2.5]
+      if (presetValues.includes(explicitCount)) {
+        setServingsPerContainer(explicitCount)
+      } else {
+        // Use "Other" field for non-preset values
+        setServingsPerContainer('other')
+        setOtherServingsValue(explicitCount.toString())
+      }
     } else if (totalCalories > 0 && totalCalories < 800) {
       console.log(`✓ Auto-selected 1 serving (${totalCalories.toFixed(1)} cal < 800)`)
       setServingsPerContainer(1)

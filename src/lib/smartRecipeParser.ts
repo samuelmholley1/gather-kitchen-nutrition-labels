@@ -187,10 +187,16 @@ function parseIngredientLine(line: string): {
  * "chicken (boneless, skinless breast)" → "boneless skinless chicken breast"
  * "tomatoes (fresh, diced)" → "fresh diced tomatoes"
  * Handles multiple parentheses: "chicken (boneless) (organic)" → "boneless organic chicken"
+ * 
+ * BUT: Strips purely informational parentheses like "(about 1 cup)", "(optional)"
  */
 function mergeDescriptiveParentheses(ingredient: string): string {
+  // First pass: Remove purely informational parentheses (don't merge them)
+  // e.g., "(about 1 1/2 cups)", "(optional)", "(to taste)"
+  const descriptivePrefixes = /\((?:about|approximately|approx|roughly|around|optional|to taste|as needed|or more|or less|plus more|divided)[^)]*\)/gi
+  let processed = ingredient.replace(descriptivePrefixes, '').replace(/\s+/g, ' ').trim()
+  
   // Handle multiple parentheses groups by processing them sequentially
-  let processed = ingredient
   let iterations = 0
   const MAX_ITERATIONS = 5 // Prevent infinite loops
   
