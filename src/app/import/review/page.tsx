@@ -69,6 +69,15 @@ export default function ReviewPage() {
     title: '',
     message: ''
   })
+  const [renameModal, setRenameModal] = useState<{
+    isOpen: boolean
+    suggestedName: string
+    editableName: string
+  }>({
+    isOpen: false,
+    suggestedName: '',
+    editableName: ''
+  })
   const [specificationModal, setSpecificationModal] = useState<{
     ingredient: IngredientWithUSDA & {
       needsSpecification?: boolean
@@ -668,6 +677,48 @@ export default function ReviewPage() {
       setToast({ message: 'Please confirm all ingredient USDA matches before saving', type: 'error' })
       return
     }
+
+    // Check for duplicate dish name before proceeding
+    try {
+      const response = await fetch('/api/final-dishes')
+      if (response.ok) {
+        const { finalDishes } = await response.json()
+        const isDuplicate = finalDishes.some((dish: any) => 
+          dish.name.toLowerCase().trim() === dishName.toLowerCase().trim()
+        )
+        
+        if (isDuplicate) {
+          // Find suggested name with (2), (3), etc.
+          const existingNames = finalDishes.map((dish: any) => dish.name.toLowerCase().trim())
+          let counter = 2
+          let suggestedName = `${dishName} (${counter})`
+          
+          while (existingNames.includes(suggestedName.toLowerCase().trim())) {
+            counter++
+            suggestedName = `${dishName} (${counter})`
+            if (counter > 100) break // safety check
+          }
+          
+          // Show rename modal
+          setRenameModal({
+            isOpen: true,
+            suggestedName,
+            editableName: suggestedName
+          })
+          return // Don't proceed with save yet
+        }
+      }
+    } catch (error) {
+      console.warn('Could not check for duplicate dishes:', error)
+      // Continue with save anyway if check fails
+    }
+
+    // Proceed with actual save
+    performSave()
+  }
+
+  const performSave = async () => {
+    if (!parseResult) return
 
     // Save progress to localStorage in case of browser crash during save
     try {
@@ -1503,6 +1554,94 @@ export default function ReviewPage() {
         message={modal.message}
         type={modal.type}
       />
+
+      {/* Rename Modal for Duplicate Dishes */}
+      {renameModal.isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="rename-modal" role="dialog" aria-modal="true">
+          <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background overlay */}
+            <div 
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+              aria-hidden="true"
+              onClick={() => setRenameModal({ ...renameModal, isOpen: false })}
+            ></div>
+
+            {/* Center modal */}
+            <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+
+            <div className="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
+                    <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    {/* Logo */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="text-2xl">🥗</div>
+                      <span className="text-sm font-semibold text-gray-500">Gather Kitchen</span>
+                    </div>
+                    
+                    <h3 className="text-lg font-medium leading-6 text-gray-900" id="rename-modal">
+                      Duplicate Dish Name
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-4">
+                        A dish named "{dishName}" already exists. Please choose a different name:
+                      </p>
+                      
+                      <input
+                        type="text"
+                        value={renameModal.editableName}
+                        onChange={(e) => setRenameModal({ ...renameModal, editableName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        placeholder="Enter new dish name"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && renameModal.editableName.trim()) {
+                            setDishName(renameModal.editableName.trim())
+                            setRenameModal({ isOpen: false, suggestedName: '', editableName: '' })
+                            performSave()
+                          }
+                        }}
+                      />
+                      
+                      <p className="text-xs text-gray-400 mt-2">
+                        Suggested: {renameModal.suggestedName}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
+                <button
+                  type="button"
+                  disabled={!renameModal.editableName.trim()}
+                  className="inline-flex w-full justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    if (renameModal.editableName.trim()) {
+                      setDishName(renameModal.editableName.trim())
+                      setRenameModal({ isOpen: false, suggestedName: '', editableName: '' })
+                      performSave()
+                    }
+                  }}
+                >
+                  Save with New Name
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm"
+                  onClick={() => setRenameModal({ isOpen: false, suggestedName: '', editableName: '' })}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </MobileRestrict>
   )
 }

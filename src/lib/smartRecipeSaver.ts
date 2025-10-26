@@ -360,12 +360,8 @@ export async function createFinalDish(
     }
   }
 
-  // Auto-rename if duplicate dish name exists (append (2), (3), etc.)
-  const originalDishName = dishName
-  dishName = await findAvailableDishName(dishName)
-  if (dishName !== originalDishName) {
-    console.log(`📝 Renamed dish from "${originalDishName}" to "${dishName}" to avoid duplicate`)
-  }
+  // Note: Duplicate checking is now handled in the UI with a rename modal
+  // No longer auto-renaming here
   
   // Build components array for Airtable storage (minimal data)
   const components: any[] = []

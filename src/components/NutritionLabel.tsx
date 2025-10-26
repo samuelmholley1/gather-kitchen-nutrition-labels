@@ -251,7 +251,7 @@ export default function NutritionLabel({
       {/* FDA Nutrition Label */}
       <div
         ref={labelRef}
-        className="bg-white border-2 border-black p-2"
+        className="bg-white border-2 border-black pt-1 px-2 pb-3"
         style={{
           width: '288px', // FDA standard width (2.4 inches at 120 DPI)
           fontFamily: 'Helvetica, Arial, sans-serif',
