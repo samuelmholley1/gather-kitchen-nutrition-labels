@@ -251,10 +251,11 @@ export default function NutritionLabel({
       {/* FDA Nutrition Label */}
       <div
         ref={labelRef}
-        className="bg-white border-2 border-black px-2 pb-2"
+        className="bg-white border-2 border-black px-2 pb-2 box-border"
         style={{
           width: '288px', // FDA standard width (2.4 inches at 120 DPI)
           fontFamily: 'Helvetica, Arial, sans-serif',
+          boxSizing: 'border-box',
         }}
       >
         {/* Title */}
@@ -476,14 +477,14 @@ export default function NutritionLabel({
         <hr style={{ border: 'none', borderTop: '5px solid black', margin: 0 }} />
 
         {/* Footer */}
-        <div className="py-2 text-xs leading-tight">
+        <div className="pt-2 pb-1 text-xs leading-tight">
           * The % Daily Value (DV) tells you how much a nutrient in a serving of food contributes
           to a daily diet. 2,000 calories a day is used for general nutrition advice.
         </div>
 
         {/* Allergens (if any) */}
         {allergens.length > 0 && (
-          <div className="border-t-2 border-black pt-2">
+          <div className="border-t-2 border-black pt-2 pb-1">
             <div className="text-xs font-bold">CONTAINS:</div>
             <div className="text-xs">{allergens.join(', ')}</div>
           </div>
