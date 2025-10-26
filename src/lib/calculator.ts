@@ -148,6 +148,16 @@ export function calculateNutritionProfile(
     profile.sodium += (nutrients.sodium || 0) * scaleFactor
     profile.totalCarbohydrate += (nutrients.totalCarbohydrate || 0) * scaleFactor
     profile.dietaryFiber += (nutrients.dietaryFiber || 0) * scaleFactor
+    
+    // Debug sugar calculation
+    const ingredientName = ingredient.name || 'unknown'
+    const fdcId = ingredient.fdcId
+    if (nutrients.totalSugars !== undefined && nutrients.totalSugars > 0) {
+      console.log(`🍬 SUGAR DEBUG [${ingredientName}${fdcId ? ` FDC:${fdcId}` : ''}]: totalSugars=${nutrients.totalSugars}g/100g, weight=${weightInGrams.toFixed(2)}g, scaleFactor=${scaleFactor.toFixed(3)}, contribution=${(nutrients.totalSugars * scaleFactor).toFixed(2)}g`)
+    } else if (nutrients.totalSugars === 0 || nutrients.totalSugars === undefined) {
+      console.log(`⚠️ SUGAR WARNING [${ingredientName}${fdcId ? ` FDC:${fdcId}` : ''}]: totalSugars is ${nutrients.totalSugars} (missing or zero in USDA data), carbs=${nutrients.totalCarbohydrate}`)
+    }
+    
     profile.totalSugars += (nutrients.totalSugars || 0) * scaleFactor
     profile.addedSugars += (nutrients.addedSugars || 0) * scaleFactor
     profile.protein += (nutrients.protein || 0) * scaleFactor
