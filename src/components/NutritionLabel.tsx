@@ -96,7 +96,6 @@ export default function NutritionLabel({
       const dataUrl = format === 'jpeg' 
         ? await toJpeg(labelRef.current, {
             quality: 0.98,
-            pixelRatio: 3,
             backgroundColor: '#ffffff',
             cacheBust: true,
             skipAutoScale: true,
@@ -105,7 +104,6 @@ export default function NutritionLabel({
           })
         : await toPng(labelRef.current, {
             quality: 0.98,
-            pixelRatio: 3,
             backgroundColor: '#ffffff',
             cacheBust: true,
             skipAutoScale: true,
@@ -149,7 +147,6 @@ export default function NutritionLabel({
 
       const dataUrl = await toPng(labelRef.current, {
         quality: 0.98,
-        pixelRatio: 3,
         backgroundColor: '#ffffff',
         cacheBust: true,
         skipAutoScale: true,
