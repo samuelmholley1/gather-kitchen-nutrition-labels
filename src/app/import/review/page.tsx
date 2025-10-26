@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
 import Toast from '@/components/Toast'
+import Modal from '@/components/Modal'
 import IngredientSearch from '@/components/IngredientSearch'
 import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
 import BatchIngredientSpecificationModal from '@/components/BatchIngredientSpecificationModal'
@@ -56,6 +57,18 @@ export default function ReviewPage() {
   const [hasAutoSelectedServings, setHasAutoSelectedServings] = useState(false)
   const isNavigatingAway = useRef(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [modal, setModal] = useState<{
+    isOpen: boolean
+    type: 'info' | 'error' | 'warning' | 'success' | 'confirm'
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
   const [specificationModal, setSpecificationModal] = useState<{
     ingredient: IngredientWithUSDA & {
       needsSpecification?: boolean
@@ -266,10 +279,11 @@ export default function ReviewPage() {
           // For gram-based units (g, oz), quantity IS the total grams
           // For volume/count units (tsp, tbsp, cup), quantity needs to be multiplied by portion grams
           let totalGrams: number
-          if (ing.unit === 'g' || ing.unit === 'gram' || ing.unit === 'grams') {
+          const unitLower = ing.unit.toLowerCase()
+          if (unitLower === 'g' || unitLower === 'gram' || unitLower === 'grams') {
             // Quantity is already in grams
             totalGrams = ing.quantity
-          } else if (ing.unit === 'oz' || ing.unit === 'ounce' || ing.unit === 'ounces') {
+          } else if (unitLower === 'oz' || unitLower === 'ounce' || unitLower === 'ounces') {
             // Convert oz to grams (1 oz = 28.3495g)
             totalGrams = ing.quantity * 28.3495
           } else {
@@ -296,9 +310,10 @@ export default function ReviewPage() {
             
             // Handle different units properly
             let totalGrams: number
-            if (ing.unit === 'g' || ing.unit === 'gram' || ing.unit === 'grams') {
+            const unitLower = ing.unit.toLowerCase()
+            if (unitLower === 'g' || unitLower === 'gram' || unitLower === 'grams') {
               totalGrams = ing.quantity
-            } else if (ing.unit === 'oz' || ing.unit === 'ounce' || ing.unit === 'ounces') {
+            } else if (unitLower === 'oz' || unitLower === 'ounce' || unitLower === 'ounces') {
               totalGrams = ing.quantity * 28.3495
             } else {
               const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
@@ -435,19 +450,17 @@ export default function ReviewPage() {
           }
           
           // If we get here, show the prompt
-          const shouldContinue = confirm(
-            `⚠️ Incomplete Save Detected\n\n` +
-            `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\n` +
-            `This might be due to a browser crash or network error. ` +
-            `${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}` +
-            `\n\nClick OK to check Sub-Recipes page for cleanup, or Cancel to continue.`
-          )
-
-          if (shouldContinue) {
-            localStorage.removeItem('recipe_save_in_progress')
-            router.push('/sub-recipes')
-            return
-          }
+          setModal({
+            isOpen: true,
+            type: 'warning',
+            title: 'Incomplete Save Detected',
+            message: `Recipe "${recipeName}" was being saved ${minutesAgo} minute(s) ago but didn't complete.\n\nThis might be due to a browser crash or network error. ${subRecipeCount > 0 ? `${subRecipeCount} sub-recipe(s) may have been created. ` : ''}\n\nWould you like to check the Sub-Recipes page for cleanup?`,
+            onConfirm: () => {
+              localStorage.removeItem('recipe_save_in_progress')
+              router.push('/sub-recipes')
+            }
+          })
+          return
         }
 
         // Old save attempt (>5 min) - clear it
@@ -738,14 +751,13 @@ export default function ReviewPage() {
           
           console.error(warningMessage)
           
-          // Show alert to user (they need to know about this!)
-          alert(
-            `Warning: Cleanup Incomplete\n\n` +
-            `We tried to clean up ${createdSubRecipeIds.length} sub-recipes after the save failed, ` +
-            `but ${rollbackFailures} deletions failed. These orphaned records may remain in your database.\n\n` +
-            `You may need to manually delete them from Airtable later.\n\n` +
-            `Failed IDs: ${failedIds.join(', ')}`
-          )
+          // Show modal to user (they need to know about this!)
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Cleanup Incomplete',
+            message: `We tried to clean up ${createdSubRecipeIds.length} sub-recipes after the save failed, but ${rollbackFailures} deletions failed. These orphaned records may remain in your database.\n\nYou may need to manually delete them from Airtable later.\n\nFailed IDs: ${failedIds.join(', ')}`
+          })
         }
         
         throw finalDishError
@@ -781,15 +793,20 @@ export default function ReviewPage() {
       setSaveProgress('')
       
       // If some sub-recipes were created, inform user
-      let errorMessage = `❌ Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}\n\n`
+      let errorMessage = `Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}\n\n`
       
       if (createdSubRecipeIds.length > 0) {
-        errorMessage += `⚠️ Warning: ${createdSubRecipeIds.length} sub-recipe(s) were created before the error occurred. You may need to delete them manually from the Sub-Recipes page to avoid duplicates.\n\n`
+        errorMessage += `Warning: ${createdSubRecipeIds.length} sub-recipe(s) were created before the error occurred. You may need to delete them manually from the Sub-Recipes page to avoid duplicates.\n\n`
       }
       
       errorMessage += 'Please try again or contact support if the issue persists.'
       
-      alert(errorMessage)
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: errorMessage
+      })
     } finally {
       setSaving(false)
       setSaveProgress('')
@@ -979,19 +996,25 @@ export default function ReviewPage() {
                 <button
                   onClick={() => {
                     const unconfirmedCount = [...finalDishIngredients, ...subRecipes.flatMap(s => s.ingredients)].filter(i => !i.confirmed).length
-                    if (confirm(`Skip all ${unconfirmedCount} remaining unconfirmed ingredients?\n\nThese ingredients will NOT contribute to nutrition calculations. Only do this if they're negligible or non-food items.`)) {
-                      // Skip all unconfirmed in final dish
-                      setFinalDishIngredients(finalDishIngredients.map(ing => 
-                        ing.confirmed ? ing : { ...ing, confirmed: true, usdaFood: null }
-                      ))
-                      // Skip all unconfirmed in sub-recipes
-                      setSubRecipes(subRecipes.map(sub => ({
-                        ...sub,
-                        ingredients: sub.ingredients.map(ing =>
+                    setModal({
+                      isOpen: true,
+                      type: 'warning',
+                      title: 'Skip All Remaining Ingredients?',
+                      message: `This will skip all ${unconfirmedCount} remaining unconfirmed ingredients.\n\nThese ingredients will NOT contribute to nutrition calculations. Only do this if they're negligible or non-food items.`,
+                      onConfirm: () => {
+                        // Skip all unconfirmed in final dish
+                        setFinalDishIngredients(finalDishIngredients.map(ing => 
                           ing.confirmed ? ing : { ...ing, confirmed: true, usdaFood: null }
-                        )
-                      })))
-                    }
+                        ))
+                        // Skip all unconfirmed in sub-recipes
+                        setSubRecipes(subRecipes.map(sub => ({
+                          ...sub,
+                          ingredients: sub.ingredients.map(ing =>
+                            ing.confirmed ? ing : { ...ing, confirmed: true, usdaFood: null }
+                          )
+                        })))
+                      }
+                    })
                   }}
                   className="px-3 py-1.5 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-medium transition-colors"
                 >
@@ -1200,11 +1223,17 @@ export default function ReviewPage() {
                     )}
                     <button
                       onClick={() => {
-                        if (confirm(`Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`)) {
-                          const updated = [...finalDishIngredients]
-                          updated[idx] = { ...updated[idx], confirmed: true, usdaFood: null }
-                          setFinalDishIngredients(updated)
-                        }
+                        setModal({
+                          isOpen: true,
+                          type: 'warning',
+                          title: 'Skip Ingredient',
+                          message: `Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`,
+                          onConfirm: () => {
+                            const updated = [...finalDishIngredients]
+                            updated[idx] = { ...updated[idx], confirmed: true, usdaFood: null }
+                            setFinalDishIngredients(updated)
+                          }
+                        })
                       }}
                       className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
                       title="Skip USDA match - won't contribute to nutrition"
@@ -1270,15 +1299,21 @@ export default function ReviewPage() {
                       )}
                       <button
                         onClick={() => {
-                          if (confirm(`Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`)) {
-                            const updated = [...subRecipes]
-                            updated[subIdx].ingredients[ingIdx] = { 
-                              ...updated[subIdx].ingredients[ingIdx], 
-                              confirmed: true, 
-                              usdaFood: null 
+                          setModal({
+                            isOpen: true,
+                            type: 'warning',
+                            title: 'Skip Ingredient',
+                            message: `Skip USDA match for "${ing.ingredient}"?\n\nThis ingredient will NOT contribute to nutrition calculations. Only skip if:\n• It's a non-food item (garnish, wrapper)\n• Quantity is negligible\n• You'll add nutrition data manually later`,
+                            onConfirm: () => {
+                              const updated = [...subRecipes]
+                              updated[subIdx].ingredients[ingIdx] = { 
+                                ...updated[subIdx].ingredients[ingIdx], 
+                                confirmed: true, 
+                                usdaFood: null 
+                              }
+                              setSubRecipes(updated)
                             }
-                            setSubRecipes(updated)
-                          }
+                          })
                         }}
                         className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
                         title="Skip USDA match - won't contribute to nutrition"
@@ -1399,6 +1434,16 @@ export default function ReviewPage() {
           onCancel={handleCancelSpecification}
         />
       )}
+
+      {/* Modal for errors/confirmations */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </MobileRestrict>
   )
 }

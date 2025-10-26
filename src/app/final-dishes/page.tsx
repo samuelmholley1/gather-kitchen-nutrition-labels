@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import NutritionLabel from '@/components/NutritionLabel'
 import Header from '@/components/Header'
+import Modal from '@/components/Modal'
 
 interface FinalDish {
   id: string
@@ -25,6 +26,18 @@ export default function FinalDishesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [viewingLabel, setViewingLabel] = useState<FinalDish | null>(null)
+  const [modal, setModal] = useState<{
+    isOpen: boolean
+    type: 'info' | 'error' | 'warning' | 'success' | 'confirm'
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
 
   useEffect(() => {
     fetchFinalDishes()
@@ -45,22 +58,44 @@ export default function FinalDishesPage() {
   }
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Delete Final Dish',
+      message: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/final-dishes/${id}`, {
+            method: 'DELETE'
+          })
 
-    try {
-      const response = await fetch(`/api/final-dishes/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        setFinalDishes(finalDishes.filter(dish => dish.id !== id))
-      } else {
-        alert('Failed to delete final dish')
+          if (response.ok) {
+            setFinalDishes(finalDishes.filter(dish => dish.id !== id))
+            setModal({
+              isOpen: true,
+              type: 'success',
+              title: 'Deleted',
+              message: `"${name}" has been deleted successfully.`
+            })
+          } else {
+            setModal({
+              isOpen: true,
+              type: 'error',
+              title: 'Delete Failed',
+              message: 'Unable to delete the final dish. Please try again.'
+            })
+          }
+        } catch (error) {
+          console.error('Delete error:', error)
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Error',
+            message: 'An unexpected error occurred while deleting the dish.'
+          })
+        }
       }
-    } catch (error) {
-      console.error('Delete error:', error)
-      alert('Error deleting final dish')
-    }
+    })
   }
 
   // Filter final dishes
@@ -289,6 +324,17 @@ export default function FinalDishesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal for errors/confirmations */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        confirmText={modal.type === 'confirm' ? 'Delete' : 'OK'}
+      />
     </div>
   )
 }

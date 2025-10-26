@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
+import Modal from '@/components/Modal'
 import { SubRecipe } from '@/types/liturgist'
 
 export default function SubRecipesPage() {
@@ -10,6 +11,18 @@ export default function SubRecipesPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [modal, setModal] = useState<{
+    isOpen: boolean
+    type: 'info' | 'error' | 'warning' | 'success' | 'confirm'
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
 
   useEffect(() => {
     fetchSubRecipes()
@@ -30,24 +43,40 @@ export default function SubRecipesPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this sub-recipe?')) return
+  const handleDelete = async (id: string, name: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Delete Sub-Recipe',
+      message: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/sub-recipes/${id}`, {
+            method: 'DELETE'
+          })
 
-    try {
-      const response = await fetch(`/api/sub-recipes/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        setSubRecipes(subRecipes.filter(sr => sr.id !== id))
-        alert('Sub-recipe deleted successfully')
-      } else {
-        throw new Error('Delete failed')
+          if (response.ok) {
+            setSubRecipes(subRecipes.filter(sr => sr.id !== id))
+            setModal({
+              isOpen: true,
+              type: 'success',
+              title: 'Deleted',
+              message: `"${name}" has been deleted successfully.`
+            })
+          } else {
+            throw new Error('Delete failed')
+          }
+        } catch (error) {
+          console.error('Delete error:', error)
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Delete Failed',
+            message: 'Unable to delete the sub-recipe. Please try again.'
+          })
+        }
       }
-    } catch (error) {
-      console.error('Delete error:', error)
-      alert('Failed to delete sub-recipe')
-    }
+    })
   }
 
   // Filter sub-recipes
@@ -239,7 +268,7 @@ export default function SubRecipesPage() {
                     </Link>
                     
                     <button
-                      onClick={() => handleDelete(subRecipe.id)}
+                      onClick={() => handleDelete(subRecipe.id, subRecipe.name)}
                       className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                       title="Delete"
                     >
@@ -309,6 +338,17 @@ export default function SubRecipesPage() {
           </p>
         </div>
       </main>
+
+      {/* Modal for errors/confirmations */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        confirmText={modal.type === 'confirm' ? 'Delete' : 'OK'}
+      />
     </div>
   )
 }
