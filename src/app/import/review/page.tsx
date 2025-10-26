@@ -262,13 +262,25 @@ export default function ReviewPage() {
         if (caloriesNutrient) {
           // caloriesNutrient.value is calories per 100g
           const caloriesPer100g = caloriesNutrient.value
-          // ing.quantity is the parsed number (e.g., 300 for "300g", 2 for "2 tsp")
-          const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
-          // Total grams = quantity × grams per portion
-          const totalGrams = ing.quantity * portionGrams
+          
+          // For gram-based units (g, oz), quantity IS the total grams
+          // For volume/count units (tsp, tbsp, cup), quantity needs to be multiplied by portion grams
+          let totalGrams: number
+          if (ing.unit === 'g' || ing.unit === 'gram' || ing.unit === 'grams') {
+            // Quantity is already in grams
+            totalGrams = ing.quantity
+          } else if (ing.unit === 'oz' || ing.unit === 'ounce' || ing.unit === 'ounces') {
+            // Convert oz to grams (1 oz = 28.3495g)
+            totalGrams = ing.quantity * 28.3495
+          } else {
+            // For other units (tsp, tbsp, cup, etc.), use USDA portion grams
+            const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+            totalGrams = ing.quantity * portionGrams
+          }
+          
           // Scale calories: (calories per 100g) × (total grams / 100)
           const ingredientCalories = caloriesPer100g * (totalGrams / 100)
-          console.log(`  ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal [${ing.quantity} × ${portionGrams}g = ${totalGrams}g total]`)
+          console.log(`  ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal [${ing.quantity} ${ing.unit} = ${totalGrams.toFixed(1)}g total]`)
           totalCalories += ingredientCalories
         }
       }
@@ -281,10 +293,20 @@ export default function ReviewPage() {
           const caloriesNutrient = ing.usdaFood.foodNutrients?.find(n => n.nutrientId === 1008)
           if (caloriesNutrient) {
             const caloriesPer100g = caloriesNutrient.value
-            const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
-            const totalGrams = ing.quantity * portionGrams
+            
+            // Handle different units properly
+            let totalGrams: number
+            if (ing.unit === 'g' || ing.unit === 'gram' || ing.unit === 'grams') {
+              totalGrams = ing.quantity
+            } else if (ing.unit === 'oz' || ing.unit === 'ounce' || ing.unit === 'ounces') {
+              totalGrams = ing.quantity * 28.3495
+            } else {
+              const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+              totalGrams = ing.quantity * portionGrams
+            }
+            
             const ingredientCalories = caloriesPer100g * (totalGrams / 100)
-            console.log(`  ${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal [${totalGrams}g]`)
+            console.log(`  ${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal [${ing.quantity} ${ing.unit} = ${totalGrams.toFixed(1)}g]`)
             totalCalories += ingredientCalories
           }
         }
