@@ -273,6 +273,41 @@ export function transformNutrients(
     profile.addedSugars = profile.totalCarbohydrate // Granulated sugar is all added sugar
   }
   
+  // VALIDATION: totalSugars should never exceed totalCarbohydrate
+  // This catches USDA data errors where sugar values are inflated
+  if (profile.totalSugars > profile.totalCarbohydrate && profile.totalCarbohydrate > 0) {
+    console.warn(`🔧 USDA DATA FIX: totalSugars (${profile.totalSugars}g) > totalCarbohydrate (${profile.totalCarbohydrate}g). Capping sugars to carbs.`)
+    profile.totalSugars = profile.totalCarbohydrate
+    // Also cap added sugars if needed
+    if (profile.addedSugars > profile.totalCarbohydrate) {
+      profile.addedSugars = profile.totalCarbohydrate
+    }
+  }
+  
+  // VALIDATION: addedSugars should never exceed totalSugars
+  if (profile.addedSugars > profile.totalSugars && profile.totalSugars > 0) {
+    console.warn(`🔧 USDA DATA FIX: addedSugars (${profile.addedSugars}g) > totalSugars (${profile.totalSugars}g). Capping added sugars.`)
+    profile.addedSugars = profile.totalSugars
+  }
+  
+  // VALIDATION: Fiber should never exceed carbohydrate
+  if (profile.dietaryFiber > profile.totalCarbohydrate && profile.totalCarbohydrate > 0) {
+    console.warn(`🔧 USDA DATA FIX: dietaryFiber (${profile.dietaryFiber}g) > totalCarbohydrate (${profile.totalCarbohydrate}g). Capping fiber.`)
+    profile.dietaryFiber = profile.totalCarbohydrate
+  }
+  
+  // VALIDATION: Saturated fat should never exceed total fat
+  if (profile.saturatedFat > profile.totalFat && profile.totalFat > 0) {
+    console.warn(`🔧 USDA DATA FIX: saturatedFat (${profile.saturatedFat}g) > totalFat (${profile.totalFat}g). Capping saturated fat.`)
+    profile.saturatedFat = profile.totalFat
+  }
+  
+  // VALIDATION: Trans fat should never exceed total fat
+  if (profile.transFat > profile.totalFat && profile.totalFat > 0) {
+    console.warn(`🔧 USDA DATA FIX: transFat (${profile.transFat}g) > totalFat (${profile.totalFat}g). Capping trans fat.`)
+    profile.transFat = profile.totalFat
+  }
+  
   return profile
 }
 
