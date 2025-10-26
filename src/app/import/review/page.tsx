@@ -228,8 +228,19 @@ export default function ReviewPage() {
 
   // Auto-select serving size based on estimated total calories
   useEffect(() => {
+    console.log('🔍 Serving auto-select useEffect triggered')
+    console.log('  - allIngredientsConfirmed():', allIngredientsConfirmed())
+    console.log('  - hasAutoSelectedServings:', hasAutoSelectedServings)
+    console.log('  - finalDishIngredients count:', finalDishIngredients.length)
+    console.log('  - confirmed ingredients:', finalDishIngredients.filter(i => i.confirmed).length)
+    
     // Only auto-select once when all ingredients are confirmed for the first time
-    if (!allIngredientsConfirmed() || hasAutoSelectedServings) return
+    if (!allIngredientsConfirmed() || hasAutoSelectedServings) {
+      console.log('⚠️ Skipping auto-select: conditions not met')
+      return
+    }
+    
+    console.log('✓ Starting calorie calculation for auto-select...')
     
     // Calculate estimated total calories from confirmed ingredients
     let totalCalories = 0
@@ -243,7 +254,7 @@ export default function ReviewPage() {
           const caloriesPer100g = (caloriesNutrient.value / 100) * 100
           const totalGramsForIngredient = ing.quantity * portionGrams
           const ingredientCalories = (caloriesPer100g / 100) * totalGramsForIngredient
-          console.log(`${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal (${ing.quantity} × ${portionGrams}g)`)
+          console.log(`  ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal (${ing.quantity} × ${portionGrams}g)`)
           totalCalories += ingredientCalories
         }
       }
@@ -259,7 +270,7 @@ export default function ReviewPage() {
             const caloriesPer100g = (caloriesNutrient.value / 100) * 100
             const totalGramsForIngredient = ing.quantity * portionGrams
             const ingredientCalories = (caloriesPer100g / 100) * totalGramsForIngredient
-            console.log(`${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal`)
+            console.log(`  ${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal`)
             totalCalories += ingredientCalories
           }
         }
@@ -1028,7 +1039,6 @@ export default function ReviewPage() {
                     className="ml-2 px-3 py-1.5 border rounded-md w-24"
                   />
                 )}
-                <div className="text-xs text-gray-500 ml-auto">Default: 1</div>
               </div>
             </div>
 
