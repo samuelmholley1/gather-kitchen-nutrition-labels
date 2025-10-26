@@ -209,12 +209,18 @@ export default function FinalDishesPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Serving Size:</span>
-                    <span className="font-medium text-gray-900">{dish.servingSize}g</span>
+                    <span className="font-medium text-gray-900">
+                      {dish.servingSize}g 
+                      <span className="text-xs text-gray-500 ml-1">
+                        ({dish.servingsPerContainer} {dish.servingsPerContainer === 1 ? 'serving' : 'servings'}/container)
+                      </span>
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Calories:</span>
                     <span className="font-medium text-gray-900">
                       {Math.round(dish.nutritionLabel?.calories || 0)} kcal
+                      <span className="text-xs text-gray-500 ml-1">per serving</span>
                     </span>
                   </div>
                   {dish.allergens && dish.allergens.length > 0 && (
