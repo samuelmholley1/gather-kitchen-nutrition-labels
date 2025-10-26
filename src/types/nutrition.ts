@@ -352,6 +352,15 @@ export const STANDARD_CONVERSIONS: Record<string, number> = {
   'pinch': 0.5,
   'dash': 0.6,
   'smidgen': 0.25,
+  
+  // Egg sizes (USDA standards for whole eggs, whites are ~2/3 of total)
+  // For egg whites specifically: large egg white = ~33g
+  'large': 33,          // Large egg white (33g), or use as generic "1 large item"
+  'medium': 30,         // Medium egg white (30g)
+  'small': 25,          // Small egg white (25g)
+  'extra-large': 38,    // Extra large egg white (38g)
+  'jumbo': 42,          // Jumbo egg white (42g)
+  'xl': 38,             // Extra large (short form)
 }
 
 /**

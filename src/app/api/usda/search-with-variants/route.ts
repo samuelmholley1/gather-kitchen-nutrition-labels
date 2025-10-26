@@ -57,20 +57,55 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`[USDA Variants] Attempt ${i + 1}/${variants.length}: "${variant}"`)
         
-        const results = await searchFoods(variant, 1)
+        // Get top 10 results to score them
+        const results = await searchFoods(variant, 10)
         
         if (results.foods && results.foods.length > 0) {
-          // Found a match! Return the raw food data (not transformed)
-          // This keeps it consistent with the /api/usda/search endpoint
-          const firstResult = results.foods[0]
+          // Score and rank results to prefer common ingredients over specialty ones
+          const scoredFoods = results.foods.map(food => {
+            let score = 0
+            const desc = food.description?.toLowerCase() || ''
+            
+            // BOOST common/generic ingredients
+            if (desc.includes('all-purpose') || desc.includes('all purpose')) score += 100
+            if (desc.includes('white') && desc.includes('flour')) score += 80
+            if (desc.includes('wheat flour')) score += 70
+            if (desc.includes('unenriched') || desc.includes('enriched')) score += 50
+            if (desc.includes('raw') || desc.includes('fresh')) score += 30
+            
+            // PENALIZE specialty ingredients
+            if (desc.includes('almond')) score -= 100
+            if (desc.includes('coconut')) score -= 80
+            if (desc.includes('gluten-free') || desc.includes('gluten free')) score -= 70
+            if (desc.includes('organic')) score -= 40
+            if (desc.includes('whole wheat') || desc.includes('whole grain')) score -= 50
+            if (desc.includes('buckwheat') || desc.includes('rice flour') || desc.includes('oat flour')) score -= 80
+            
+            // Prefer Foundation/SR Legacy over Branded
+            if (food.dataType === 'Foundation') score += 60
+            if (food.dataType === 'SR Legacy') score += 40
+            if (food.dataType === 'Branded') score -= 30
+            
+            // Prefer shorter descriptions (more generic)
+            if (desc.length < 30) score += 20
+            if (desc.length > 60) score -= 20
+            
+            return { food, score }
+          })
           
-          if (i > 0) {
+          // Sort by score descending
+          scoredFoods.sort((a, b) => b.score - a.score)
+          
+          const bestFood = scoredFoods[0].food
+          
+          if (i > 0 || scoredFoods[0].score !== 0) {
             console.log(`[USDA Variants] ✓ Match found on attempt ${i + 1} using variant: "${variant}"`)
+            console.log(`[USDA Variants] Selected: "${bestFood.description}" (score: ${scoredFoods[0].score})`)
           }
           
           return NextResponse.json({
             success: true,
-            food: firstResult, // Return raw USDA food object
+            food: bestFood, // Return best-scored food
             variantUsed: variant,
             attemptNumber: i + 1,
             variantsTried: variants.slice(0, i + 1)
