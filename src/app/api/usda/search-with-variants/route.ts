@@ -104,9 +104,11 @@ export async function POST(request: NextRequest) {
             if ((desc.includes('00') || desc.includes('tipo 00')) && !queryLower.includes('00')) score -= 90
             
             // Prefer Foundation/SR Legacy over Branded
-            if (food.dataType === 'Foundation') score += 60
-            if (food.dataType === 'SR Legacy') score += 40
-            if (food.dataType === 'Branded') score -= 30
+            // Foundation & SR Legacy are USDA's standardized reference data (generic ingredients)
+            // Branded are specific products (Gold Medal, Pillsbury, etc.) - avoid unless needed
+            if (food.dataType === 'Foundation') score += 150
+            if (food.dataType === 'SR Legacy') score += 120
+            if (food.dataType === 'Branded') score -= 80
             
             // Prefer shorter descriptions (more generic)
             if (desc.length < 30) score += 20
