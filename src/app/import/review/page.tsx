@@ -260,11 +260,15 @@ export default function ReviewPage() {
       if (ing.usdaFood && ing.confirmed) {
         const caloriesNutrient = ing.usdaFood.foodNutrients?.find(n => n.nutrientId === 1008)
         if (caloriesNutrient) {
+          // caloriesNutrient.value is calories per 100g
+          const caloriesPer100g = caloriesNutrient.value
+          // ing.quantity is the parsed number (e.g., 300 for "300g", 2 for "2 tsp")
           const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
-          const caloriesPer100g = (caloriesNutrient.value / 100) * 100
-          const totalGramsForIngredient = ing.quantity * portionGrams
-          const ingredientCalories = (caloriesPer100g / 100) * totalGramsForIngredient
-          console.log(`  ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal (${ing.quantity} × ${portionGrams}g)`)
+          // Total grams = quantity × grams per portion
+          const totalGrams = ing.quantity * portionGrams
+          // Scale calories: (calories per 100g) × (total grams / 100)
+          const ingredientCalories = caloriesPer100g * (totalGrams / 100)
+          console.log(`  ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal [${ing.quantity} × ${portionGrams}g = ${totalGrams}g total]`)
           totalCalories += ingredientCalories
         }
       }
@@ -276,11 +280,11 @@ export default function ReviewPage() {
         if (ing.usdaFood && ing.confirmed) {
           const caloriesNutrient = ing.usdaFood.foodNutrients?.find(n => n.nutrientId === 1008)
           if (caloriesNutrient) {
+            const caloriesPer100g = caloriesNutrient.value
             const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
-            const caloriesPer100g = (caloriesNutrient.value / 100) * 100
-            const totalGramsForIngredient = ing.quantity * portionGrams
-            const ingredientCalories = (caloriesPer100g / 100) * totalGramsForIngredient
-            console.log(`  ${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal`)
+            const totalGrams = ing.quantity * portionGrams
+            const ingredientCalories = caloriesPer100g * (totalGrams / 100)
+            console.log(`  ${sub.name} - ${ing.ingredient}: ${ingredientCalories.toFixed(1)} cal [${totalGrams}g]`)
             totalCalories += ingredientCalories
           }
         }
