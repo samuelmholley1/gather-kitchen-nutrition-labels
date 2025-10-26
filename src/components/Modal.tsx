@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Image from 'next/image'
 
 interface ModalProps {
   isOpen: boolean
@@ -84,6 +85,18 @@ export default function Modal({
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
           <div className="p-6">
+            {/* Logo */}
+            <div className="flex justify-center mb-4">
+              <Image 
+                src="/gather_logo.png" 
+                alt="Gather Kitchen" 
+                width={120}
+                height={48}
+                className="h-12 w-auto"
+                priority
+              />
+            </div>
+
             {/* Icon */}
             {getIcon()}
 

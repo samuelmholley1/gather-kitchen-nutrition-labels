@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
 import Toast from '@/components/Toast'
@@ -1571,19 +1572,25 @@ export default function ReviewPage() {
 
             <div className="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                {/* Logo at top */}
+                <div className="flex justify-center mb-4">
+                  <Image 
+                    src="/gather_logo.png" 
+                    alt="Gather Kitchen" 
+                    width={120}
+                    height={48}
+                    className="h-12 w-auto"
+                    priority
+                  />
+                </div>
+
                 <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 flex-shrink-0">
                     <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    {/* Logo */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="text-2xl">🥗</div>
-                      <span className="text-sm font-semibold text-gray-500">Gather Kitchen</span>
-                    </div>
-                    
                     <h3 className="text-lg font-medium leading-6 text-gray-900" id="rename-modal">
                       Duplicate Dish Name
                     </h3>
