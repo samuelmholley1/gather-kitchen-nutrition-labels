@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { searchFoods, getFoodDetails, transformUSDAFood } from '@/lib/usda'
 import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
 import { generateSearchVariants } from '@/lib/smartRecipeParser'
+import { canonicalize, hasSpecialtyFlourQualifier } from '@/lib/canonicalize'
+import { isSpecialtyFlour, isAllPurposeFlour, scoreFlourCandidate } from '@/lib/taxonomy/flour'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,6 +47,11 @@ export async function POST(request: NextRequest) {
     // Generate search variants
     const variants = generateSearchVariants(ingredient)
     
+    // Canonicalize ingredient for taxonomy-based filtering
+    const canon = canonicalize(ingredient)
+    
+    logStamp('usda-search-in', stamp, { ingredient, canon, variantCount: variants.length })
+    
     if (variants.length === 0) {
       return NextResponse.json({
         success: false,
@@ -53,7 +60,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log(`[USDA Variants] Searching for "${ingredient}" with ${variants.length} variants`)
+    console.log(`[USDA Variants] Searching for "${ingredient}" (canonical: base="${canon.base}", qualifiers=[${canon.qualifiers.join(', ')}]) with ${variants.length} variants`)
 
     // Try each variant in sequence
     for (let i = 0; i < variants.length; i++) {
@@ -66,15 +73,39 @@ export async function POST(request: NextRequest) {
         const results = await searchFoods(variant, 10)
         
         if (results.foods && results.foods.length > 0) {
+          // PRE-FILTER: Remove specialty flours if querying for generic flour
+          let foods = results.foods
+          
+          if (canon.base === 'flour' && !hasSpecialtyFlourQualifier(canon.qualifiers)) {
+            console.log(`[USDA Taxonomy] Filtering specialty flours for generic "flour" query`)
+            const beforeCount = foods.length
+            foods = foods.filter(f => !isSpecialtyFlour(f.description || ''))
+            console.log(`[USDA Taxonomy] Filtered ${beforeCount - foods.length} specialty flours, ${foods.length} remain`)
+          }
+          
+          if (foods.length === 0) {
+            console.log(`[USDA Variants] All results filtered out for "${variant}", trying next variant`)
+            continue
+          }
+          
           // Score and rank results to prefer common ingredients over specialty ones
           // BUT: Don't penalize specialty ingredients if they're explicitly in the query
           const queryLower = variant.toLowerCase()
           
-          const scoredFoods = results.foods.map(food => {
+          const scoredFoods = foods.map(food => {
             let score = 0
             const desc = food.description?.toLowerCase() || ''
             
-            // BOOST common/generic ingredients
+            // FLOUR-SPECIFIC SCORING: Use taxonomy-based deterministic scoring
+            if (canon.base === 'flour') {
+              score += scoreFlourCandidate(
+                food.description || '',
+                food.dataType || 'Unknown',
+                food.foodCategory
+              )
+            }
+            
+            // BOOST common/generic ingredients (for non-flour items)
             if (desc.includes('all-purpose') || desc.includes('all purpose')) score += 100
             if (desc.includes('white') && desc.includes('flour')) score += 80
             if (desc.includes('wheat flour')) score += 70
