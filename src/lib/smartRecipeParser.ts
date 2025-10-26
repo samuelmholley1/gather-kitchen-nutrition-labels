@@ -460,22 +460,28 @@ function sanitizeRecipeText(text: string): string {
  * Check if a line should be skipped (not an ingredient)
  * Filters out: directions, source info, ratings, metadata, etc.
  */
-function shouldSkipLine(line: string): boolean {
+function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[], currentIndex?: number): boolean {
   const trimmed = line.trim().toLowerCase()
   
   // Empty lines
   if (!trimmed) return true
   
+  // Skip if this line is identical to the recipe title (duplicate)
+  if (recipeTitle && trimmed === recipeTitle.toLowerCase()) {
+    return true
+  }
+  
   // Section headers and metadata keywords
   const skipPatterns = [
-    /^(directions?|instructions?|steps?|method|preparation|prep time|cook time|total time):?/i,
-    /^(source|from|recipe (from|by|courtesy)|adapted from):?/i,
-    /^(nutrition|nutritional? info(rmation)?|calories):?/i,
-    /^(notes?|tips?|variations?):?/i,
-    /^(wash hands|preheat|heat|bake|cook|stir|mix|combine|pour|add|remove)/i, // Cooking actions
+    /^(directions?|instructions?|steps?|method|preparation|prep time|cook time|total time):?$/i,
+    /^(source|from|recipe (from|by|courtesy)|adapted from):?$/i,
+    /^(nutrition|nutritional? info(rmation)?|calories):?$/i,
+    /^(notes?|tips?|variations?):?$/i,
+    /^(ingredients?):?$/i, // Just the word "Ingredients" by itself
+    /^(makes?|serves?|servings?|yield):?$/i, // Just the word without number
+    /^(wash hands|preheat|heat|bake|cook|stir|mix|combine|pour|add|remove|place|set)/i, // Cooking actions
     /rating/i,
     /add to (cookbook|favorites)/i,
-    /^(serves?|servings?|yield|makes):?\s*\d+/i, // Will handle separately
   ]
   
   for (const pattern of skipPatterns) {
@@ -496,22 +502,56 @@ function shouldSkipLine(line: string): boolean {
     return true
   }
   
+  // Skip lines that are just a number followed by "Servings" or similar
+  // e.g., "12 Servings", "8 servings"
+  if (/^\d+\s+(servings?|serves?|portions?|people)$/i.test(trimmed)) {
+    return true
+  }
+  
+  // Skip lines that look like organization names (multiple capitalized words without numbers)
+  // e.g., "Ohio State University Cooperative Extension"
+  const hasNoNumbers = !/\d/.test(line) // Original case-sensitive check
+  const hasMultipleCapitalizedWords = (line.match(/\b[A-Z][a-z]+/g) || []).length >= 3
+  const looksLikeOrganization = hasNoNumbers && hasMultipleCapitalizedWords && wordCount >= 3
+  
+  if (looksLikeOrganization) {
+    return true
+  }
+  
+  // Skip single-word lines that don't have numbers (likely section headers)
+  // e.g., "Ingredients", "Directions", "Servings"
+  if (wordCount === 1 && !/\d/.test(trimmed)) {
+    return true
+  }
+  
+  // Check if previous line was a section header (context-aware skipping)
+  if (allLines && currentIndex !== undefined && currentIndex > 0) {
+    const prevLine = allLines[currentIndex - 1].trim().toLowerCase()
+    
+    // If previous line was "Source:" or similar, skip current line
+    if (/^(source|from|adapted from|recipe (by|from)|courtesy of):?$/i.test(prevLine)) {
+      return true
+    }
+  }
+  
   return false
 }
 
 /**
  * Extract explicit serving count from recipe text
  * Handles: "Makes: 12 Servings", "Serves 8", "Yield: 6 servings", etc.
+ * Also handles split lines: "Makes:" on one line, "12 Servings" on next
  */
 function extractServingCount(lines: string[]): number | undefined {
   const servingPatterns = [
     /^(makes?|serves?|servings?|yield):?\s*(\d+)/i,
-    /(\d+)\s+(servings?|serves?)/i,
+    /(\d+)\s+(servings?|serves?|portions?|people)/i,
   ]
   
-  for (const line of lines) {
-    const trimmed = line.trim()
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
     
+    // Try patterns on current line
     for (const pattern of servingPatterns) {
       const match = trimmed.match(pattern)
       if (match) {
@@ -519,6 +559,19 @@ function extractServingCount(lines: string[]): number | undefined {
         const numStr = match[2] || match[1]
         const num = parseInt(numStr, 10)
         
+        if (!isNaN(num) && num > 0 && num <= 1000) {
+          return num
+        }
+      }
+    }
+    
+    // Check for split pattern: "Makes:" on one line, "12 Servings" on next
+    if (/^(makes?|serves?|yield):?$/i.test(trimmed) && i + 1 < lines.length) {
+      const nextLine = lines[i + 1].trim()
+      const splitMatch = nextLine.match(/^(\d+)\s*(servings?|serves?|portions?|people)?/i)
+      
+      if (splitMatch) {
+        const num = parseInt(splitMatch[1], 10)
         if (!isNaN(num) && num > 0 && num <= 1000) {
           return num
         }
@@ -564,13 +617,16 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
   // Extract explicit serving count from all lines
   const explicitServings = extractServingCount(lines)
   
+  // First line is the recipe name
+  const recipeTitle = lines[0]
+  
   // Filter out non-ingredient lines
   const filteredLines = lines.filter((line, index) => {
     // First line is always the recipe name (never skip)
     if (index === 0) return true
     
-    // Check if this line should be skipped
-    return !shouldSkipLine(line)
+    // Check if this line should be skipped (pass context)
+    return !shouldSkipLine(line, recipeTitle, lines, index)
   })
 
   if (filteredLines.length === 1) {
