@@ -287,8 +287,35 @@ export default function ReviewPage() {
             // Convert oz to grams (1 oz = 28.3495g)
             totalGrams = ing.quantity * 28.3495
           } else {
-            // For other units (tsp, tbsp, cup, etc.), use USDA portion grams
-            const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+            // For other units (tsp, tbsp, cup, etc.), find matching USDA portion or use standard conversions
+            let portionGrams = 100 // fallback
+            
+            // Try to find matching portion from USDA data
+            const portions = ing.usdaFood.foodPortions || []
+            const matchingPortion = portions.find(p => {
+              const portionDesc = p.portionDescription?.toLowerCase() || ''
+              return portionDesc.includes(unitLower) || 
+                     (unitLower === 'tbsp' && portionDesc.includes('tablespoon')) ||
+                     (unitLower === 'tsp' && portionDesc.includes('teaspoon'))
+            })
+            
+            if (matchingPortion) {
+              portionGrams = matchingPortion.gramWeight
+            } else {
+              // Use standard cooking conversions if no USDA match
+              if (unitLower === 'tsp' || unitLower === 'teaspoon') {
+                portionGrams = 5 // 1 tsp ≈ 5g for most liquids/powders
+              } else if (unitLower === 'tbsp' || unitLower === 'tablespoon') {
+                portionGrams = 15 // 1 Tbsp ≈ 15g
+              } else if (unitLower === 'cup') {
+                portionGrams = 240 // 1 cup ≈ 240g for liquids
+              } else {
+                // Last resort: use first non-100g portion or 100g
+                const nonDefaultPortion = portions.find(p => p.gramWeight !== 100)
+                portionGrams = nonDefaultPortion?.gramWeight || 100
+              }
+            }
+            
             totalGrams = ing.quantity * portionGrams
           }
           
@@ -316,7 +343,35 @@ export default function ReviewPage() {
             } else if (unitLower === 'oz' || unitLower === 'ounce' || unitLower === 'ounces') {
               totalGrams = ing.quantity * 28.3495
             } else {
-              const portionGrams = ing.usdaFood.foodPortions?.[0]?.gramWeight || 100
+              // For other units (tsp, tbsp, cup, etc.), find matching USDA portion or use standard conversions
+              let portionGrams = 100 // fallback
+              
+              // Try to find matching portion from USDA data
+              const portions = ing.usdaFood.foodPortions || []
+              const matchingPortion = portions.find(p => {
+                const portionDesc = p.portionDescription?.toLowerCase() || ''
+                return portionDesc.includes(unitLower) || 
+                       (unitLower === 'tbsp' && portionDesc.includes('tablespoon')) ||
+                       (unitLower === 'tsp' && portionDesc.includes('teaspoon'))
+              })
+              
+              if (matchingPortion) {
+                portionGrams = matchingPortion.gramWeight
+              } else {
+                // Use standard cooking conversions if no USDA match
+                if (unitLower === 'tsp' || unitLower === 'teaspoon') {
+                  portionGrams = 5 // 1 tsp ≈ 5g for most liquids/powders
+                } else if (unitLower === 'tbsp' || unitLower === 'tablespoon') {
+                  portionGrams = 15 // 1 Tbsp ≈ 15g
+                } else if (unitLower === 'cup') {
+                  portionGrams = 240 // 1 cup ≈ 240g for liquids
+                } else {
+                  // Last resort: use first non-100g portion or 100g
+                  const nonDefaultPortion = portions.find(p => p.gramWeight !== 100)
+                  portionGrams = nonDefaultPortion?.gramWeight || 100
+                }
+              }
+              
               totalGrams = ing.quantity * portionGrams
             }
             
