@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { calculateNutritionProfile } from '@/lib/calculator'
+import { calculateNutritionProfile, applyYieldAdjustment } from '@/lib/calculator'
 import { NutrientProfile } from '@/types/nutrition'
 import Airtable from 'airtable'
 
@@ -91,13 +91,21 @@ export async function POST(request: NextRequest) {
 
     // Calculate nutrition profile per 100g
     const nutritionPer100g = calculateNutritionProfile(ingredients)
+    
+    // Apply yield adjustment for baked goods (moisture loss during baking)
+    // Angel food cake typically yields ~75% of raw ingredient weight
+    const yieldMultiplier = 0.75
+    const nutritionPer100gCooked = applyYieldAdjustment(nutritionPer100g, yieldMultiplier)
+    
+    // Adjust total weight for yield
+    const cookedTotalWeight = totalWeight * yieldMultiplier
 
     // Scale to serving size
-    const servingsPerContainer = (totalWeight / servingSize)
+    const servingsPerContainer = (cookedTotalWeight / servingSize)
 
     // Scale nutrition to serving size
-    const nutritionProfile = Object.keys(nutritionPer100g).reduce((acc, key) => {
-      const value = nutritionPer100g[key as keyof NutrientProfile]
+    const nutritionProfile = Object.keys(nutritionPer100gCooked).reduce((acc, key) => {
+      const value = nutritionPer100gCooked[key as keyof NutrientProfile]
       acc[key as keyof NutrientProfile] = (value * servingSize) / 100
       return acc
     }, {} as NutrientProfile)
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       nutritionProfile,
-      totalWeight,
+      totalWeight: cookedTotalWeight,
       servingSize,
       servingsPerContainer: parseFloat(servingsPerContainer.toFixed(1))
     })
