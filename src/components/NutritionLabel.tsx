@@ -90,25 +90,62 @@ export default function NutritionLabel({
       // Use html-to-image for better border/line rendering
       const { toPng, toJpeg } = await import('html-to-image')
       
+      // Wait for fonts to load
+      await document.fonts?.ready?.catch(() => {})
+      
+      // Wait for any images to load
+      const images = labelRef.current.querySelectorAll('img')
+      await Promise.all(
+        Array.from(images).map(img => 
+          img.complete ? Promise.resolve() : 
+          new Promise(res => { img.onload = img.onerror = res as any })
+        )
+      )
+      
       // Wait a tick for any layout changes to settle
       await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Get exact dimensions
+      const rect = labelRef.current.getBoundingClientRect()
+      const cs = getComputedStyle(labelRef.current)
+      
+      // Debug logging
+      console.table({
+        width: rect.width,
+        height: rect.height,
+        top: rect.top,
+        left: rect.left,
+        marginTop: cs.marginTop,
+        marginBottom: cs.marginBottom,
+        position: cs.position,
+        transform: cs.transform,
+        overflow: cs.overflow,
+      })
       
       const dataUrl = format === 'jpeg' 
         ? await toJpeg(labelRef.current, {
             quality: 0.98,
             backgroundColor: '#ffffff',
             cacheBust: true,
-            skipAutoScale: true,
-            // Ensure we capture the full height including borders
-            height: labelRef.current.scrollHeight,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            style: {
+              transform: 'none',
+              position: 'static',
+              margin: '0',
+            },
           })
         : await toPng(labelRef.current, {
             quality: 0.98,
             backgroundColor: '#ffffff',
             cacheBust: true,
-            skipAutoScale: true,
-            // Ensure we capture the full height including borders
-            height: labelRef.current.scrollHeight,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            style: {
+              transform: 'none',
+              position: 'static',
+              margin: '0',
+            },
           })
 
       // Convert data URL to blob
@@ -142,16 +179,35 @@ export default function NutritionLabel({
     try {
       const { toPng } = await import('html-to-image')
 
+      // Wait for fonts to load
+      await document.fonts?.ready?.catch(() => {})
+      
+      // Wait for any images to load
+      const images = labelRef.current.querySelectorAll('img')
+      await Promise.all(
+        Array.from(images).map(img => 
+          img.complete ? Promise.resolve() : 
+          new Promise(res => { img.onload = img.onerror = res as any })
+        )
+      )
+
       // Wait a tick for any layout changes to settle
       await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Get exact dimensions
+      const rect = labelRef.current.getBoundingClientRect()
 
       const dataUrl = await toPng(labelRef.current, {
         quality: 0.98,
         backgroundColor: '#ffffff',
         cacheBust: true,
-        skipAutoScale: true,
-        // Ensure we capture the full height including borders
-        height: labelRef.current.scrollHeight,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        style: {
+          transform: 'none',
+          position: 'static',
+          margin: '0',
+        },
       })
 
       // Convert data URL to blob
@@ -260,6 +316,7 @@ export default function NutritionLabel({
       {/* FDA Nutrition Label */}
       <div
         ref={labelRef}
+        data-label-export="true"
         className="bg-white border-2 border-black px-2 pb-4 box-border"
         style={{
           width: '288px', // FDA standard width (2.4 inches at 120 DPI)
