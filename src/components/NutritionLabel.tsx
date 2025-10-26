@@ -211,6 +211,12 @@ export default function NutritionLabel({
         />
       )}
 
+      {/* Editable Hint */}
+      <div className="print:hidden bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-2">
+        <p className="text-lg font-bold text-blue-900 mb-1">💡 Click any value to edit</p>
+        <p className="text-sm text-blue-700">All nutrition values are editable. Click a number to type a custom value.</p>
+      </div>
+
       {/* Control Buttons */}
       <div className="flex gap-2 print:hidden">
         <button
@@ -260,9 +266,12 @@ export default function NutritionLabel({
         {/* Servings info - no dividing line between these two */}
         <div className="pt-1">
           <div className="text-xs">{servingsPerContainer} servings per container</div>
-          <div className="text-xs font-bold">Serving size {servingSize}</div>
+          <div className="text-xs font-bold flex justify-between">
+            <span>Serving Size</span>
+            <span>{servingSize}</span>
+          </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '10px solid black', margin: '4px 0 0 0' }} />
+        <hr style={{ border: 'none', borderTop: '12px solid black', margin: '4px 0 0 0' }} />
 
         {/* Amount Per Serving */}
         <div className="py-1">
@@ -279,7 +288,7 @@ export default function NutritionLabel({
             </div>
           </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '5px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '7px solid black', margin: 0 }} />
 
         {/* % Daily Value Header */}
         <div className="border-b border-black py-1 text-right">
@@ -419,7 +428,7 @@ export default function NutritionLabel({
             />
           </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '5px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '7px solid black', margin: 0 }} />
 
         {/* Micronutrients */}
         <div className="py-2 space-y-1">
@@ -464,7 +473,7 @@ export default function NutritionLabel({
             <div>{calculateDailyValuePercent(nutrients.potassium, FDA_DAILY_VALUES.potassium)}</div>
           </div>
         </div>
-        <hr style={{ border: 'none', borderTop: '3px solid black', margin: 0 }} />
+        <hr style={{ border: 'none', borderTop: '5px solid black', margin: 0 }} />
 
         {/* Footer */}
         <div className="py-2 text-xs leading-tight">
