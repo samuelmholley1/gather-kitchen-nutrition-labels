@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { calculateNutritionProfile, applyYieldAdjustment } from '@/lib/calculator'
 import { NutrientProfile } from '@/types/nutrition'
 import Airtable from 'airtable'
+import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PAT_TOKEN! })
   .base(process.env.AIRTABLE_BASE_ID!)
@@ -20,8 +21,16 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PAT_TOKEN! })
  * }
  */
 export async function POST(request: NextRequest) {
+  const stamp = createRouteStamp('final-dishes/calculate')
+  
   try {
-    const { components, servingSize = 100 } = await request.json()
+    const { components, servingSize = 100, yieldMultiplier = 1.0 } = await request.json()
+    
+    logStamp('calc-in', stamp, { 
+      componentCount: components?.length, 
+      servingSize,
+      yieldMultiplier,
+    })
 
     if (!components || !Array.isArray(components) || components.length === 0) {
       return NextResponse.json(
@@ -92,13 +101,21 @@ export async function POST(request: NextRequest) {
     // Calculate nutrition profile per 100g
     const nutritionPer100g = calculateNutritionProfile(ingredients)
     
-    // Apply yield adjustment for baked goods (moisture loss during baking)
-    // Angel food cake typically yields ~75% of raw ingredient weight
-    const yieldMultiplier = 0.75
-    const nutritionPer100gCooked = applyYieldAdjustment(nutritionPer100g, yieldMultiplier)
+    // Apply yield adjustment (if provided)
+    // yieldMultiplier: 1.0 = no change, 0.75 = 25% moisture loss (baking), etc.
+    const nutritionPer100gCooked = yieldMultiplier !== 1.0 
+      ? applyYieldAdjustment(nutritionPer100g, yieldMultiplier)
+      : nutritionPer100g
     
     // Adjust total weight for yield
-    const cookedTotalWeight = totalWeight * yieldMultiplier
+    const cookedTotalWeight = Math.round(totalWeight * yieldMultiplier)
+    
+    console.log('[CALC WEIGHTS]', {
+      rawWeight_g: totalWeight,
+      yieldMultiplier,
+      cookedWeight_g: cookedTotalWeight,
+      servingSize_g: servingSize,
+    })
 
     // Scale to serving size
     const servingsPerContainer = (cookedTotalWeight / servingSize)
@@ -109,22 +126,48 @@ export async function POST(request: NextRequest) {
       acc[key as keyof NutrientProfile] = (value * servingSize) / 100
       return acc
     }, {} as NutrientProfile)
+    
+    logStamp('calc-out', stamp, {
+      cookedWeight_g: cookedTotalWeight,
+      servingSize_g: servingSize,
+      servingsPerContainer,
+      caloriesPerServing: nutritionProfile.calories,
+      caloriesPer100g: nutritionPer100gCooked.calories,
+    })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       nutritionProfile,
       totalWeight: cookedTotalWeight,
       servingSize,
-      servingsPerContainer: parseFloat(servingsPerContainer.toFixed(1))
+      servingsPerContainer: parseFloat(servingsPerContainer.toFixed(1)),
+      _stamp: stamp,
+      _debug: {
+        rawWeight_g: totalWeight,
+        cookedWeight_g: cookedTotalWeight,
+        yieldMultiplier,
+        caloriesPer100g: nutritionPer100gCooked.calories,
+        caloriesPerServing: nutritionProfile.calories,
+      }
     })
+    
+    stampHeaders(response.headers, stamp)
+    return response
   } catch (error) {
     console.error('Calculation error:', error)
-    return NextResponse.json(
+    
+    logStamp('calc-error', stamp, { error: error instanceof Error ? error.message : 'Unknown' })
+    
+    const response = NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Calculation failed'
+        error: error instanceof Error ? error.message : 'Calculation failed',
+        _stamp: stamp,
       },
       { status: 500 }
     )
+    
+    stampHeaders(response.headers, stamp)
+    return response
   }
 }

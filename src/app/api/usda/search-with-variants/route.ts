@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchFoods, getFoodDetails, transformUSDAFood } from '@/lib/usda'
+import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
 import { generateSearchVariants } from '@/lib/smartRecipeParser'
 
 export const runtime = 'nodejs'
@@ -176,13 +177,32 @@ export async function POST(request: NextRequest) {
             console.log(`[USDA Variants] Selected: "${bestFood.description}" (score: ${scoredFoods[0].score})`)
           }
           
-          return NextResponse.json({
+          // Log top candidates for debugging
+          console.table(scoredFoods.slice(0, 5).map(sf => ({
+            fdcId: sf.food.fdcId,
+            description: sf.food.description?.substring(0, 60),
+            score: sf.score,
+            dataType: sf.food.dataType,
+          })))
+          
+          logStamp('usda-search-out', stamp, {
+            variant,
+            selectedFdcId: bestFood.fdcId,
+            selectedDesc: bestFood.description,
+            score: scoredFoods[0].score,
+          })
+          
+          const response = NextResponse.json({
             success: true,
             food: bestFood, // Return best-scored food
             variantUsed: variant,
             attemptNumber: i + 1,
-            variantsTried: variants.slice(0, i + 1)
+            variantsTried: variants.slice(0, i + 1),
+            _stamp: stamp,
           })
+          
+          stampHeaders(response.headers, stamp)
+          return response
         } else {
           console.log(`[USDA Variants] No results for variant: "${variant}"`)
         }
@@ -195,22 +215,34 @@ export async function POST(request: NextRequest) {
     // All variants failed
     console.warn(`[USDA Variants] All ${variants.length} variants failed for "${ingredient}"`)
     
-    return NextResponse.json({
+    logStamp('usda-search-fail', stamp, { ingredient, variantCount: variants.length })
+    
+    const response = NextResponse.json({
       success: false,
       error: 'No matches found for any search variant',
-      variantsTried: variants
+      variantsTried: variants,
+      _stamp: stamp,
     })
+    
+    stampHeaders(response.headers, stamp)
+    return response
 
   } catch (error) {
     console.error('[USDA Variants] API error:', error)
     
-    return NextResponse.json(
+    logStamp('usda-search-error', stamp, { error: error instanceof Error ? error.message : 'Unknown' })
+    
+    const response = NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
-        variantsTried: []
+        variantsTried: [],
+        _stamp: stamp,
       },
       { status: 500 }
     )
+    
+    stampHeaders(response.headers, stamp)
+    return response
   }
 }
