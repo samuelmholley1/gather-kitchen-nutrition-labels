@@ -264,6 +264,15 @@ export function transformNutrients(
     }
   }
   
+  // WORKAROUND: Some USDA entries (like "Sugars, granulated" FDC:746784) have 
+  // totalSugars=0 but totalCarbohydrate is correct. For pure sugar/sweeteners,
+  // if totalSugars is 0 but carbs are very high (>95g/100g), assume it's all sugar.
+  if (profile.totalSugars === 0 && profile.totalCarbohydrate >= 95) {
+    console.log(`🔧 USDA DATA FIX: totalSugars was 0 but carbs=${profile.totalCarbohydrate}g/100g. Assuming pure sugar.`)
+    profile.totalSugars = profile.totalCarbohydrate
+    profile.addedSugars = profile.totalCarbohydrate // Granulated sugar is all added sugar
+  }
+  
   return profile
 }
 

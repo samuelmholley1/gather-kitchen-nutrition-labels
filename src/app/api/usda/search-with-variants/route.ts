@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
             if (desc.includes('barley') && !queryLower.includes('barley')) score -= 100
             if (desc.includes('rye') && !queryLower.includes('rye')) score -= 100
             if (desc.includes('spelt') && !queryLower.includes('spelt')) score -= 100
+            if (desc.includes('cassava') && !queryLower.includes('cassava')) score -= 100
+            if (desc.includes('tapioca') && !queryLower.includes('tapioca')) score -= 100
             if ((desc.includes('gluten-free') || desc.includes('gluten free')) && !queryLower.includes('gluten')) score -= 70
             if (desc.includes('organic') && !queryLower.includes('organic')) score -= 40
             if ((desc.includes('whole wheat') || desc.includes('whole grain')) && !queryLower.includes('whole')) score -= 50
