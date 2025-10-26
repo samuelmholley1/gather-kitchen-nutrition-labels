@@ -84,11 +84,15 @@ export async function POST(request: NextRequest) {
             // This allows "almond flour" to match almond flour, but "flour" won't match almond flour
             if (desc.includes('almond') && !queryLower.includes('almond')) score -= 100
             if (desc.includes('coconut') && !queryLower.includes('coconut')) score -= 80
+            if (desc.includes('amaranth') && !queryLower.includes('amaranth')) score -= 100
             if ((desc.includes('gluten-free') || desc.includes('gluten free')) && !queryLower.includes('gluten')) score -= 70
             if (desc.includes('organic') && !queryLower.includes('organic')) score -= 40
             if ((desc.includes('whole wheat') || desc.includes('whole grain')) && !queryLower.includes('whole')) score -= 50
             if ((desc.includes('buckwheat') || desc.includes('rice flour') || desc.includes('oat flour')) && 
                 !queryLower.includes('buckwheat') && !queryLower.includes('rice') && !queryLower.includes('oat')) score -= 80
+            
+            // PENALIZE wrong ingredient types
+            if (desc.includes('sauce') && !queryLower.includes('sauce')) score -= 100
             
             // PENALIZE processed/specialty forms
             if (desc.includes('dried') && !queryLower.includes('dried')) score -= 60
