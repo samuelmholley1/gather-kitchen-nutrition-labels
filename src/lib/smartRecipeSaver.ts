@@ -145,7 +145,7 @@ export async function createSubRecipe(subRecipe: SubRecipeWithUSDA): Promise<{ i
     name: ing.usdaFood.description,
     quantity: ing.quantity,
     unit: ing.unit,
-    nutrientProfile: ing.usdaFood.foodNutrients
+    nutrientProfile: transformNutrients(ing.usdaFood.foodNutrients).profile
   } as any))
 
   // Calculate total weight by converting each ingredient to grams
@@ -401,7 +401,7 @@ export async function createFinalDish(
       name: ing.usdaFood.description,
       quantity: ing.quantity,
       unit: ing.unit,
-      nutrientProfile: transformNutrients(ing.usdaFood.foodNutrients) // Transform raw USDA data
+      nutrientProfile: transformNutrients(ing.usdaFood.foodNutrients).profile // Transform raw USDA data
     }
     
     ingredientsForNutrition.push(ingredientForCalc)
