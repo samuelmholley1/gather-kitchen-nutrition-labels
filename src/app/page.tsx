@@ -97,7 +97,7 @@ export default function Home() {
                 handleParse()
               }
             }}
-            placeholder="Paste your recipe here...
+            placeholder={`Paste your recipe here...
 
 Example:
 Chicken Tacos
@@ -105,7 +105,7 @@ Chicken Tacos
 2 cups shredded chicken
 1 cup salsa verde (1/2 cup tomatillos, 1/4 cup onions, 2 tbsp cilantro, 1 jalapeño)
 8 corn tortillas
-1/2 cup cheese"
+1/2 cup cheese`}
             className="w-full h-[500px] px-6 py-4 border-4 border-emerald-300 rounded-xl focus:ring-4 focus:ring-emerald-400 focus:border-emerald-500 font-mono text-base resize-none shadow-inner"
           />
           <div className="mt-3 flex justify-between items-center text-sm">
