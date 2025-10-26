@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
               if (desc.includes('white flour') && desc.includes('wheat')) score += 300
             }
             
+            // SPECIFIC HANDLING: "flour, sifted" should always match standard all-purpose flour
+            if (queryLower.includes('flour, sifted') || queryLower.includes('sifted flour')) {
+              if (desc.includes('wheat flour, white, all-purpose, enriched, bleached')) score += 1000 // Massive boost for sifted flour queries
+              if (desc.includes('wheat flour, white, all-purpose, enriched')) score += 800
+            }
+            
             // BOOST fresh/raw eggs over dried/processed
             if ((desc.includes('egg') || desc.includes('eggs')) && (desc.includes('raw') || desc.includes('fresh'))) score += 50
             if ((desc.includes('egg white') || desc.includes('egg whites')) && !desc.includes('dried') && !desc.includes('powder')) score += 40
@@ -106,6 +112,7 @@ export async function POST(request: NextRequest) {
             if (desc.includes('lentil') && !queryLower.includes('lentil')) score -= 100
             if (desc.includes('quinoa') && !queryLower.includes('quinoa')) score -= 100
             if (desc.includes('arrowroot') && !queryLower.includes('arrowroot')) score -= 100
+            if (desc.includes('carob') && !queryLower.includes('carob')) score -= 100
             if ((desc.includes('gluten-free') || desc.includes('gluten free')) && !queryLower.includes('gluten')) score -= 70
             if (desc.includes('organic') && !queryLower.includes('organic')) score -= 40
             if ((desc.includes('whole wheat') || desc.includes('whole grain')) && !queryLower.includes('whole')) score -= 50
