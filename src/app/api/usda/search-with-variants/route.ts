@@ -83,13 +83,18 @@ export async function POST(request: NextRequest) {
             // PENALIZE specialty ingredients ONLY if not in the original query
             // This allows "almond flour" to match almond flour, but "flour" won't match almond flour
             if (desc.includes('almond') && !queryLower.includes('almond')) score -= 100
-            if (desc.includes('coconut') && !queryLower.includes('coconut')) score -= 80
+            if (desc.includes('coconut') && !queryLower.includes('coconut')) score -= 100
             if (desc.includes('amaranth') && !queryLower.includes('amaranth')) score -= 100
             if (desc.includes('barley') && !queryLower.includes('barley')) score -= 100
             if (desc.includes('rye') && !queryLower.includes('rye')) score -= 100
             if (desc.includes('spelt') && !queryLower.includes('spelt')) score -= 100
             if (desc.includes('cassava') && !queryLower.includes('cassava')) score -= 100
             if (desc.includes('tapioca') && !queryLower.includes('tapioca')) score -= 100
+            if (desc.includes('chestnut') && !queryLower.includes('chestnut')) score -= 100
+            if (desc.includes('chickpea') && !queryLower.includes('chickpea')) score -= 100
+            if (desc.includes('soy') && !queryLower.includes('soy')) score -= 100
+            if (desc.includes('lentil') && !queryLower.includes('lentil')) score -= 100
+            if (desc.includes('quinoa') && !queryLower.includes('quinoa')) score -= 100
             if ((desc.includes('gluten-free') || desc.includes('gluten free')) && !queryLower.includes('gluten')) score -= 70
             if (desc.includes('organic') && !queryLower.includes('organic')) score -= 40
             if ((desc.includes('whole wheat') || desc.includes('whole grain')) && !queryLower.includes('whole')) score -= 50
