@@ -799,7 +799,7 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
       // 3. "1 cup chicken (boneless, skinless)" → unit="cup", ingredient="chicken (boneless, skinless)"
       
       // Check if unit is actually a descriptor/color (not a real unit)
-      const realUnits = /^(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|item|clove|pinch|dash|slice|piece)s?$/i
+      const realUnits = /^(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|item|clove|pinch|dash|slice|piece|large|medium|small|extra-large|jumbo|xl)s?$/i
       const isUnitActuallyDescriptor = !realUnits.test(parsed.unit)
       
       if (parsed.ingredient.startsWith('(') && parsed.ingredient.endsWith(')')) {

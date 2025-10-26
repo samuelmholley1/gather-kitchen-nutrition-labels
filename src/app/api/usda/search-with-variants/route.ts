@@ -76,6 +76,10 @@ export async function POST(request: NextRequest) {
             if (desc.includes('unenriched') || desc.includes('enriched')) score += 50
             if (desc.includes('raw') || desc.includes('fresh')) score += 30
             
+            // BOOST fresh/raw eggs over dried/processed
+            if ((desc.includes('egg') || desc.includes('eggs')) && (desc.includes('raw') || desc.includes('fresh'))) score += 50
+            if ((desc.includes('egg white') || desc.includes('egg whites')) && !desc.includes('dried') && !desc.includes('powder')) score += 40
+            
             // PENALIZE specialty ingredients ONLY if not in the original query
             // This allows "almond flour" to match almond flour, but "flour" won't match almond flour
             if (desc.includes('almond') && !queryLower.includes('almond')) score -= 100
@@ -85,6 +89,15 @@ export async function POST(request: NextRequest) {
             if ((desc.includes('whole wheat') || desc.includes('whole grain')) && !queryLower.includes('whole')) score -= 50
             if ((desc.includes('buckwheat') || desc.includes('rice flour') || desc.includes('oat flour')) && 
                 !queryLower.includes('buckwheat') && !queryLower.includes('rice') && !queryLower.includes('oat')) score -= 80
+            
+            // PENALIZE processed/specialty forms
+            if (desc.includes('dried') && !queryLower.includes('dried')) score -= 60
+            if (desc.includes('powder') && !queryLower.includes('powder')) score -= 60
+            if (desc.includes('freeze-dried') || desc.includes('freeze dried')) score -= 80
+            if (desc.includes('dehydrated') && !queryLower.includes('dehydrated')) score -= 60
+            
+            // PENALIZE Italian 00 flour (very specialty) unless explicitly requested
+            if ((desc.includes('00') || desc.includes('tipo 00')) && !queryLower.includes('00')) score -= 90
             
             // Prefer Foundation/SR Legacy over Branded
             if (food.dataType === 'Foundation') score += 60
