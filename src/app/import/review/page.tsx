@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
+import Toast from '@/components/Toast'
 import IngredientSearch from '@/components/IngredientSearch'
 import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
 import BatchIngredientSpecificationModal from '@/components/BatchIngredientSpecificationModal'
@@ -51,6 +52,7 @@ export default function ReviewPage() {
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 })
   const [hasAutoSearched, setHasAutoSearched] = useState(false)
   const isNavigatingAway = useRef(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [specificationModal, setSpecificationModal] = useState<{
     ingredient: IngredientWithUSDA & {
       needsSpecification?: boolean
@@ -537,7 +539,7 @@ export default function ReviewPage() {
   const handleSave = async () => {
     if (!parseResult) return
     if (!allIngredientsConfirmed()) {
-      alert('Please confirm all ingredient USDA matches before saving')
+      setToast({ message: 'Please confirm all ingredient USDA matches before saving', type: 'error' })
       return
     }
 
@@ -877,6 +879,15 @@ export default function ReviewPage() {
 
   return (
     <MobileRestrict>
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
         <Header />
         <main className="container mx-auto px-4 py-8 max-w-6xl">

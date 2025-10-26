@@ -18,6 +18,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Toast from './Toast'
 import type { NutrientProfile } from '@/types/nutrition'
 import {
   roundCalories,
@@ -65,6 +66,7 @@ export default function NutritionLabel({
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [isExporting, setIsExporting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   // Get value with override support
   const getValue = (field: keyof typeof nutrients, formatter: (val: number) => string): string => {
@@ -151,10 +153,10 @@ export default function NutritionLabel({
         await navigator.clipboard.write([
           new ClipboardItem({ 'image/png': blob }),
         ])
-        alert('Nutrition label copied to clipboard!')
+        setToast({ message: 'Nutrition label copied to clipboard!', type: 'success' })
       } catch (err) {
         console.error('Clipboard write failed:', err)
-        alert('Failed to copy to clipboard. Try exporting as image instead.')
+        setToast({ message: 'Failed to copy to clipboard. Try exporting as image instead.', type: 'error' })
       }
 
       setIsExporting(false)
@@ -200,6 +202,15 @@ export default function NutritionLabel({
 
   return (
     <div className="space-y-4">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {/* Control Buttons */}
       <div className="flex gap-2 print:hidden">
         <button
