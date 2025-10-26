@@ -93,8 +93,8 @@ src/
 │   ├── retry.ts                    # Network retry logic
 │   └── security.ts                 # Input validation
 └── types/
-    ├── nutrition.ts                # Nutrition type definitions
-    └── liturgist.ts                # Legacy types (to be refactored)
+    ├── nutrition.ts                # Core nutrition type definitions
+    └── recipe.ts                   # Recipe and USDA types
 
 tests/
 ├── navigation.spec.ts              # Basic navigation tests
