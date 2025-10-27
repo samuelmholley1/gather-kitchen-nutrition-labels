@@ -297,17 +297,17 @@ describe('Honeypot Protection', () => {
 });
 
 describe('Email Content Generation', () => {
-  it('should format flagged ingredients for email', () => {
-    const ingredients = [
-      { name: 'All Purpose Flour', quantity: 150, units: 'g', flagged: true },
-      { name: 'Granulated Sugar', quantity: 100, units: 'g', flagged: true },
-      { name: 'Eggs', quantity: 3, units: null, flagged: false },
-    ];
+  it('should format ingredient context for email', () => {
+    const ingredient = { 
+      id: 'ing-1', 
+      name: 'All Purpose Flour', 
+      quantity: 150, 
+      units: 'g' 
+    };
 
-    const flagged = ingredients.filter((ing) => ing.flagged);
-    expect(flagged).toHaveLength(2);
-    expect(flagged[0].name).toBe('All Purpose Flour');
-    expect(flagged[1].name).toBe('Granulated Sugar');
+    expect(ingredient.name).toBe('All Purpose Flour');
+    expect(ingredient.quantity).toBe(150);
+    expect(ingredient.units).toBe('g');
   });
 
   it('should include timestamp in email', () => {

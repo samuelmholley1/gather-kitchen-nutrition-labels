@@ -13,6 +13,7 @@ interface ReportIssueModalProps {
   preselectedIngredient?: { id: string; name: string; quantity?: number; units?: string };
   breakdownSnapshot?: unknown;
   totals?: { kcal: number; carbs: number; protein: number; fat: number } | null;
+  laypersonSummary?: string;
   onSubmit?: (data: any) => void;
 }
 
@@ -35,6 +36,7 @@ export function ReportIssueModal({
   preselectedIngredient,
   breakdownSnapshot,
   totals,
+  laypersonSummary,
   onSubmit,
 }: ReportIssueModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -93,7 +95,7 @@ export function ReportIssueModal({
         reportId,
         recipeId,
         recipeName,
-        version,
+        version: version || '1.0',
         context,
         ...(context === 'ingredient' && preselectedIngredient ? {
           ingredientId: preselectedIngredient.id,
@@ -101,7 +103,9 @@ export function ReportIssueModal({
         } : {}),
         reasonType,
         comment: reasonType === 'comment' ? comment : undefined,
-        breakdownSnapshot,
+        breakdownSnapshot: laypersonSummary 
+          ? { ...(typeof breakdownSnapshot === 'object' && breakdownSnapshot !== null ? breakdownSnapshot : {}), laypersonSummary } 
+          : breakdownSnapshot,
         totals,
         userAgent,
         clientNonce,
@@ -299,7 +303,7 @@ export function ReportIssueModal({
               <button
                 type="submit"
                 disabled={!isFormValid || isSubmitting}
-                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all inline-flex items-center gap-2"
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all inline-flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>

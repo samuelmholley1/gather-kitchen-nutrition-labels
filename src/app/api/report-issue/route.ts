@@ -324,6 +324,13 @@ export async function POST(request: NextRequest) {
     let subject: string;
     let laypersonBreakdown: string;
 
+    // Extract layperson summary from breakdownSnapshot if available
+    const laypersonSummary = typeof payload.breakdownSnapshot === 'object' && 
+      payload.breakdownSnapshot !== null && 
+      'laypersonSummary' in payload.breakdownSnapshot 
+        ? (payload.breakdownSnapshot as any).laypersonSummary 
+        : '';
+
     if (payload.context === 'ingredient') {
       // Single ingredient reporting
       flaggedIngredients = [{
@@ -332,13 +339,13 @@ export async function POST(request: NextRequest) {
         quantity: null, // Will be populated from breakdown if available
         units: null,
       }];
-      subject = `[Nutrition Label Report] ${payload.recipeName} - Issue with ${payload.ingredientName}`;
-      laypersonBreakdown = `Issue reported for ingredient "${payload.ingredientName}" in recipe "${payload.recipeName}".`;
+      subject = `[Nutrition Label Report] ${payload.recipeName} – INGREDIENT: ${payload.ingredientName}`;
+      laypersonBreakdown = laypersonSummary || `Issue reported for ingredient "${payload.ingredientName}" in recipe "${payload.recipeName}".`;
     } else {
-      // Recipe-wide reporting (legacy support) - this shouldn't happen with new UI but keeping for compatibility
-      flaggedIngredients = []; // Empty for now, would need ingredients array in payload for legacy
-      subject = `[Nutrition Label Report] ${payload.recipeName} (${payload.recipeId}) – Issue reported`;
-      laypersonBreakdown = `Issue reported with recipe "${payload.recipeName}".`;
+      // Recipe-wide reporting
+      flaggedIngredients = [];
+      subject = `[Nutrition Label Report] ${payload.recipeName}`;
+      laypersonBreakdown = laypersonSummary || `Issue reported with recipe "${payload.recipeName}".`;
     }
 
     // Sanitize comment if provided

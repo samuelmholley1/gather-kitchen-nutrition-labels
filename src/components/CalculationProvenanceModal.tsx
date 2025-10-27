@@ -28,6 +28,11 @@ interface IngredientBreakdown {
     tiers: Array<{name: string; delta: number}>
     finalScore: number
   }
+  quantity?: number
+  units?: string
+  per100g?: { kcal: number; carbs: number; protein: number; fat: number }
+  scaled?: { kcal: number; carbs: number; protein: number; fat: number }
+  yieldFactor?: number
 }
 
 interface DataUsed {
@@ -123,7 +128,16 @@ export default function CalculationProvenanceModal({
                 </button>
               </div>
 
-              {calculationData.ingredients?.map((ingredient: IngredientBreakdown, index: number) => (
+              {calculationData.ingredients?.map((ingredient: IngredientBreakdown, index: number) => {
+                // Generate layperson summary
+                const laypersonSummary = `• You entered: "${ingredient.rawInput}"
+• Source: "USDA ${ingredient.selectedUSDA.dataType} / FDC ${ingredient.selectedUSDA.fdcId}"
+• Conversions used: 1 cup = 125 g → scaled to ${ingredient.quantity || 100} g
+• Per 100 g: kcal=${ingredient.per100g?.kcal || 0}, carbs=${ingredient.per100g?.carbs || 0}g, protein=${ingredient.per100g?.protein || 0}g, fat=${ingredient.per100g?.fat || 0}g
+• Scaled to ${ingredient.quantity || 100} g: kcal=${ingredient.scaled?.kcal || 0}, carbs=${ingredient.scaled?.carbs || 0}g, protein=${ingredient.scaled?.protein || 0}g, fat=${ingredient.scaled?.fat || 0}g
+• Yield/Waste factor: ${ingredient.yieldFactor || 1.0}`;
+
+                return (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-4">
                     <h4 className="font-medium text-gray-900">Ingredient {index + 1}</h4>
@@ -135,17 +149,31 @@ export default function CalculationProvenanceModal({
                       preselectedIngredient={{
                         id: `ing-${index}`,
                         name: ingredient.canonical.base,
-                        quantity: 100, // Default quantity, could be enhanced
-                        units: 'g'
+                        quantity: ingredient.quantity || 100,
+                        units: ingredient.units || 'g'
                       }}
                       breakdownSnapshot={calculationData}
                       totals={calculationData.totals}
-                      buttonText="Report Issue"
-                      buttonClassName="text-xs px-2 py-1"
+                      laypersonSummary={laypersonSummary}
+                      buttonText="Report issue"
+                      buttonClassName="rounded-full px-3 py-1 text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                       onReportSubmitted={(reportId) => {
                         console.log('Report submitted:', reportId);
                       }}
                     />
+                  </div>
+
+                  {/* Layperson Breakdown */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h5 className="font-medium text-blue-900 mb-2 text-sm">Plain-English Summary</h5>
+                    <ul className="space-y-1 text-sm text-blue-800">
+                      <li>• You entered: <span className="font-mono text-xs">"{ingredient.rawInput}"</span></li>
+                      <li>• Source: USDA {ingredient.selectedUSDA.dataType} / FDC {ingredient.selectedUSDA.fdcId}</li>
+                      <li>• Conversions used: 1 cup = 125 g → scaled to {ingredient.quantity || 100} g</li>
+                      <li>• Per 100 g: kcal={ingredient.per100g?.kcal || 0}, carbs={ingredient.per100g?.carbs || 0}g, protein={ingredient.per100g?.protein || 0}g, fat={ingredient.per100g?.fat || 0}g</li>
+                      <li>• Scaled to {ingredient.quantity || 100} g: kcal={ingredient.scaled?.kcal || 0}, carbs={ingredient.scaled?.carbs || 0}g, protein={ingredient.scaled?.protein || 0}g, fat={ingredient.scaled?.fat || 0}g</li>
+                      <li>• Yield/Waste factor: {ingredient.yieldFactor || 1.0}</li>
+                    </ul>
                   </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
@@ -279,7 +307,8 @@ export default function CalculationProvenanceModal({
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
 

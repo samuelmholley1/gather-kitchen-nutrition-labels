@@ -12,6 +12,7 @@ interface ReportIssueButtonProps {
   preselectedIngredient?: { id: string; name: string; quantity?: number; units?: string };
   breakdownSnapshot?: unknown;
   totals?: { kcal: number; carbs: number; protein: number; fat: number } | null;
+  laypersonSummary?: string;
   buttonText?: string;
   buttonClassName?: string;
   onReportSubmitted?: (reportId: string) => void;
@@ -29,8 +30,9 @@ export function ReportIssueButton({
   preselectedIngredient,
   breakdownSnapshot,
   totals,
-  buttonText = '🚨 Report issue',
-  buttonClassName = 'text-blue-600 hover:text-blue-800 underline text-sm',
+  laypersonSummary,
+  buttonText = 'Report issue',
+  buttonClassName = 'rounded-full px-3 py-1 text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400',
   onReportSubmitted,
 }: ReportIssueButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,6 +65,7 @@ export function ReportIssueButton({
         preselectedIngredient={preselectedIngredient}
         breakdownSnapshot={breakdownSnapshot}
         totals={totals}
+        laypersonSummary={laypersonSummary}
         onSubmit={handleSubmit}
       />
     </>
