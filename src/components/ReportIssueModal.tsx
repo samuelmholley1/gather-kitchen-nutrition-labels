@@ -1,24 +1,26 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { FlaggedIngredient } from '@/lib/types/report';
+import type { ReportContext } from '@/lib/types/report';
 
 interface ReportIssueModalProps {
   isOpen: boolean;
   onClose: () => void;
   recipeId: string;
   recipeName: string;
-  ingredients: FlaggedIngredient[];
-  totals?: Record<string, any>;
-  breakdownSnapshot?: Record<string, any>;
+  version?: string;
+  context: ReportContext;
+  preselectedIngredient?: { id: string; name: string; quantity?: number; units?: string };
+  breakdownSnapshot?: unknown;
+  totals?: { kcal: number; carbs: number; protein: number; fat: number } | null;
   onSubmit?: (data: any) => void;
 }
 
 /**
  * Modal for reporting nutrition calculation issues.
  * Features:
+ * - Ingredient-specific or recipe-level reporting
  * - Read-only calculation breakdown display
- * - Per-ingredient flagging with checkboxes
  * - Reason selection (self-evident or custom comment)
  * - Honeypot protection
  * - Focus trap and keyboard navigation
@@ -28,34 +30,22 @@ export function ReportIssueModal({
   onClose,
   recipeId,
   recipeName,
-  ingredients,
-  totals = {},
-  breakdownSnapshot = {},
+  version,
+  context,
+  preselectedIngredient,
+  breakdownSnapshot,
+  totals,
   onSubmit,
 }: ReportIssueModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const firstFocusableRef = useRef<HTMLElement>(null);
 
-  const [flaggedIngredients, setFlaggedIngredients] = useState<
-    Record<string, boolean>
-  >({});
-  const [reasonType, setReasonType] = useState<'self_evident' | 'comment'>(
-    'self_evident'
-  );
+  const [reasonType, setReasonType] = useState<'self_evident' | 'comment'>('self_evident');
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  // Initialize flagged state
-  useEffect(() => {
-    const initial: Record<string, boolean> = {};
-    ingredients.forEach((ing, idx) => {
-      initial[idx] = false;
-    });
-    setFlaggedIngredients(initial);
-  }, [ingredients]);
 
   // Focus management
   useEffect(() => {
@@ -79,22 +69,15 @@ export function ReportIssueModal({
     }
   }, [isOpen, onClose]);
 
-  // Check if at least one ingredient is flagged
-  const hasFlaggedIngredients = Object.values(flaggedIngredients).some(
-    (v) => v === true
-  );
+  // Check if form is valid
+  const isFormValid = reasonType === 'self_evident' || (reasonType === 'comment' && comment.trim().length > 0);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!hasFlaggedIngredients) {
-      setError('Please flag at least one ingredient');
-      return;
-    }
-
-    if (reasonType === 'comment' && !comment.trim()) {
-      setError('Please provide a comment');
+    if (!isFormValid) {
+      setError('Please select a reason and provide a comment if needed');
       return;
     }
 
@@ -102,20 +85,24 @@ export function ReportIssueModal({
     setError(null);
 
     try {
-      const clientNonce = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36);
+      const reportId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36);
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+      const clientNonce = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36);
 
       const payload = {
+        reportId,
         recipeId,
         recipeName,
-        ingredients: ingredients.map((ing, idx) => ({
-          ...ing,
-          flagged: flaggedIngredients[idx] || false,
-        })),
-        totals,
-        breakdownSnapshot,
+        version,
+        context,
+        ...(context === 'ingredient' && preselectedIngredient ? {
+          ingredientId: preselectedIngredient.id,
+          ingredientName: preselectedIngredient.name,
+        } : {}),
         reasonType,
         comment: reasonType === 'comment' ? comment : undefined,
+        breakdownSnapshot,
+        totals,
         userAgent,
         clientNonce,
         favorite_color: '', // Honeypot
@@ -194,12 +181,27 @@ export function ReportIssueModal({
 
           {/* Content */}
           <div className="p-6 space-y-6">
+            {/* Ingredient Context Info (if ingredient-specific) */}
+            {context === 'ingredient' && preselectedIngredient && (
+              <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">Reporting Issue With:</h3>
+                <p className="text-blue-800 font-medium">
+                  {preselectedIngredient.name}
+                  {preselectedIngredient.quantity && (
+                    <span className="text-blue-600 ml-2">
+                      ({preselectedIngredient.quantity}{preselectedIngredient.units ? ` ${preselectedIngredient.units}` : ''})
+                    </span>
+                  )}
+                </p>
+              </section>
+            )}
+
             {/* Section A: Calculation Breakdown */}
             <section>
               <h3 className="text-lg font-semibold mb-4">Calculation Breakdown</h3>
               <div className="bg-gray-50 rounded p-4 max-h-48 overflow-y-auto border border-gray-200">
                 <dl className="space-y-2">
-                  {Object.entries(totals).length > 0 ? (
+                  {totals && Object.keys(totals).length > 0 ? (
                     Object.entries(totals).map(([key, value]) => (
                       <div key={key} className="flex justify-between text-sm">
                         <dt className="font-medium text-gray-700">{key}:</dt>
@@ -213,49 +215,7 @@ export function ReportIssueModal({
               </div>
             </section>
 
-            {/* Section B: Ingredient Flagging */}
-            <section>
-              <h3 className="text-lg font-semibold mb-4">Flag Ingredients</h3>
-              <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded p-4">
-                {ingredients.length > 0 ? (
-                  ingredients.map((ing, idx) => (
-                    <label
-                      key={idx}
-                      className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer group"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={flaggedIngredients[idx] || false}
-                        onChange={(e) =>
-                          setFlaggedIngredients((prev) => ({
-                            ...prev,
-                            [idx]: e.target.checked,
-                          }))
-                        }
-                        disabled={isSubmitting}
-                        className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
-                        aria-label={`Flag ${ing.name}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate group-hover:text-blue-600">
-                          {ing.name}
-                        </div>
-                        {(ing.quantity || ing.units) && (
-                          <div className="text-xs text-gray-600">
-                            {ing.quantity}
-                            {ing.units ? ` ${ing.units}` : ''}
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-sm">No ingredients</p>
-                )}
-              </div>
-            </section>
-
-            {/* Section C: Reason */}
+            {/* Section B: Reason Selection */}
             <section>
               <h3 className="text-lg font-semibold mb-4">Reason</h3>
               <div className="space-y-4">
@@ -338,7 +298,7 @@ export function ReportIssueModal({
             <form onSubmit={handleSubmit} className="contents">
               <button
                 type="submit"
-                disabled={!hasFlaggedIngredients || isSubmitting}
+                disabled={!isFormValid || isSubmitting}
                 className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all inline-flex items-center gap-2"
               >
                 {isSubmitting ? (

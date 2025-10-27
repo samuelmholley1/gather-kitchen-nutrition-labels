@@ -60,7 +60,8 @@ function buildHtmlEmail(
   reasonType: string,
   comment: string | undefined,
   totals: any,
-  breakdown: any
+  breakdown: any,
+  laypersonBreakdown: string
 ): string {
   const flaggedCount = flaggedIngredients.length;
 
@@ -126,6 +127,9 @@ function buildHtmlEmail(
         <strong>Reason:</strong> ${reasonDisplay}<br>
         <strong>Flagged Ingredients:</strong> ${flaggedCount}
       </p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #333; font-weight: 500;">
+        ${escapeHtml(laypersonBreakdown)}
+      </p>
     </div>
 
     <h2 style="color: #333; font-size: 18px; margin: 20px 0 10px 0;">Flagged Ingredients</h2>
@@ -182,7 +186,8 @@ function buildTextEmail(
   reasonType: string,
   comment: string | undefined,
   totals: any,
-  breakdown: any
+  breakdown: any,
+  laypersonBreakdown: string
 ): string {
   const reasonDisplay =
     reasonType === 'self_evident' ? 'Error is self-evident' : 'User comment provided';
@@ -195,6 +200,8 @@ Recipe: ${recipeName}
 Recipe ID: ${recipeId}
 Reason: ${reasonDisplay}
 Flagged Ingredients: ${flaggedIngredients.length}
+
+${laypersonBreakdown}
 
 FLAGGED INGREDIENTS
 ─────────────────────────────────────────────────────
@@ -288,10 +295,11 @@ export async function POST(request: NextRequest) {
 
     const payload = validationResult.data;
 
-    // Rate limiting: 5 reports per minute per IP + recipeId
+    // Rate limiting: 5 reports per minute per IP + recipeId (+ ingredientId if applicable)
     const clientIp = getClientIp(request);
-    if (isRateLimited(clientIp, payload.recipeId)) {
-      const resetTime = getResetTime(clientIp, payload.recipeId);
+    const rateLimitKey = payload.context === 'ingredient' ? payload.ingredientId : undefined;
+    if (isRateLimited(clientIp, payload.recipeId, rateLimitKey)) {
+      const resetTime = getResetTime(clientIp, payload.recipeId, rateLimitKey);
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);
 
       return NextResponse.json(
@@ -311,8 +319,27 @@ export async function POST(request: NextRequest) {
     // Generate report ID
     const reportId = randomUUID();
 
-    // Extract and filter flagged ingredients
-    const flaggedIngredients = payload.ingredients.filter((ing) => ing.flagged);
+    // Handle ingredient-specific vs recipe-wide reporting
+    let flaggedIngredients: any[] = [];
+    let subject: string;
+    let laypersonBreakdown: string;
+
+    if (payload.context === 'ingredient') {
+      // Single ingredient reporting
+      flaggedIngredients = [{
+        id: payload.ingredientId,
+        name: payload.ingredientName,
+        quantity: null, // Will be populated from breakdown if available
+        units: null,
+      }];
+      subject = `[Nutrition Label Report] ${payload.recipeName} - Issue with ${payload.ingredientName}`;
+      laypersonBreakdown = `Issue reported for ingredient "${payload.ingredientName}" in recipe "${payload.recipeName}".`;
+    } else {
+      // Recipe-wide reporting (legacy support) - this shouldn't happen with new UI but keeping for compatibility
+      flaggedIngredients = []; // Empty for now, would need ingredients array in payload for legacy
+      subject = `[Nutrition Label Report] ${payload.recipeName} (${payload.recipeId}) – Issue reported`;
+      laypersonBreakdown = `Issue reported with recipe "${payload.recipeName}".`;
+    }
 
     // Sanitize comment if provided
     const sanitizedComment =
@@ -325,8 +352,6 @@ export async function POST(request: NextRequest) {
     const recipeName = payload.recipeName;
     const recipeId = payload.recipeId;
     const reasonType = payload.reasonType;
-
-    const subject = `[Nutrition Label Report] ${recipeName} (${recipeId}) – ${flaggedIngredients.length} flagged`;
     const htmlBody = buildHtmlEmail(
       recipeName,
       recipeId,
@@ -335,7 +360,8 @@ export async function POST(request: NextRequest) {
       reasonType,
       sanitizedComment,
       payload.totals,
-      payload.breakdownSnapshot
+      payload.breakdownSnapshot,
+      laypersonBreakdown
     );
     const textBody = buildTextEmail(
       recipeName,
@@ -345,7 +371,8 @@ export async function POST(request: NextRequest) {
       reasonType,
       sanitizedComment,
       payload.totals,
-      payload.breakdownSnapshot
+      payload.breakdownSnapshot,
+      laypersonBreakdown
     );
 
     // Send email

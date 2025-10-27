@@ -17,6 +17,7 @@ The "Report issue" feature allows users to flag problematic ingredients and subm
 Add the following variables to your `.env.local` file:
 
 ```env
+```env
 # Zoho SMTP Configuration
 ZOHO_USER=alerts@samuelholley.com
 ZOHO_APP_PASSWORD=YOUR_ZOHO_APP_PASSWORD_HERE
@@ -26,6 +27,7 @@ ZOHO_SECURE=true
 
 # Report Email Recipients (comma-separated)
 REPORT_TO="sam@samuelholley.com,info@gather.kitchen"
+```
 ```
 
 ### Zoho SMTP Setup

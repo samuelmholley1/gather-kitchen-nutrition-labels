@@ -2,14 +2,16 @@
 
 import React, { useState } from 'react';
 import { ReportIssueModal } from './ReportIssueModal';
-import type { FlaggedIngredient } from '@/lib/types/report';
+import type { ReportContext } from '@/lib/types/report';
 
 interface ReportIssueButtonProps {
   recipeId: string;
   recipeName: string;
-  ingredients: FlaggedIngredient[];
-  totals?: Record<string, any>;
-  breakdownSnapshot?: Record<string, any>;
+  version?: string;
+  context: ReportContext;
+  preselectedIngredient?: { id: string; name: string; quantity?: number; units?: string };
+  breakdownSnapshot?: unknown;
+  totals?: { kcal: number; carbs: number; protein: number; fat: number } | null;
   buttonText?: string;
   buttonClassName?: string;
   onReportSubmitted?: (reportId: string) => void;
@@ -22,9 +24,11 @@ interface ReportIssueButtonProps {
 export function ReportIssueButton({
   recipeId,
   recipeName,
-  ingredients,
-  totals,
+  version,
+  context,
+  preselectedIngredient,
   breakdownSnapshot,
+  totals,
   buttonText = '🚨 Report issue',
   buttonClassName = 'text-blue-600 hover:text-blue-800 underline text-sm',
   onReportSubmitted,
@@ -54,9 +58,11 @@ export function ReportIssueButton({
         onClose={() => setIsModalOpen(false)}
         recipeId={recipeId}
         recipeName={recipeName}
-        ingredients={ingredients}
-        totals={totals}
+        version={version}
+        context={context}
+        preselectedIngredient={preselectedIngredient}
         breakdownSnapshot={breakdownSnapshot}
+        totals={totals}
         onSubmit={handleSubmit}
       />
     </>

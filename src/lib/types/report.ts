@@ -3,6 +3,7 @@
  */
 
 export type ReasonType = 'self_evident' | 'comment';
+export type ReportContext = 'recipe' | 'ingredient';
 
 export interface FlaggedIngredient {
   id?: string;
@@ -17,25 +18,25 @@ export interface BreakdownSnapshot {
 }
 
 export interface Totals {
-  calories?: number;
+  kcal?: number;
+  carbs?: number;
   protein?: number;
   fat?: number;
-  carbs?: number;
-  fiber?: number;
-  sugar?: number;
-  sodium?: number;
   [key: string]: any;
 }
 
 export interface ReportPayload {
+  reportId: string;
   recipeId: string;
   recipeName: string;
   version?: string;
-  ingredients: FlaggedIngredient[];
-  totals?: Totals;
-  breakdownSnapshot?: BreakdownSnapshot;
+  context: ReportContext;
+  ingredientId?: string;
+  ingredientName?: string;
   reasonType: ReasonType;
   comment?: string;
+  breakdownSnapshot?: BreakdownSnapshot;
+  totals?: Totals;
   userAgent?: string;
   clientNonce: string;
 }

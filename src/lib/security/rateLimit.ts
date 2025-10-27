@@ -18,10 +18,11 @@ const MAX_REQUESTS = 5;
  * Check if a request is rate limited.
  * @param ip - Client IP address
  * @param recipeId - Recipe ID
+ * @param ingredientId - Ingredient ID (optional, for ingredient-specific reports)
  * @returns true if rate limited, false if allowed
  */
-export function isRateLimited(ip: string, recipeId: string): boolean {
-  const key = `${ip}:${recipeId}`;
+export function isRateLimited(ip: string, recipeId: string, ingredientId?: string): boolean {
+  const key = ingredientId ? `${ip}:${recipeId}:${ingredientId}` : `${ip}:${recipeId}`;
   const now = Date.now();
 
   // Get or create entry
@@ -54,8 +55,8 @@ export function isRateLimited(ip: string, recipeId: string): boolean {
 /**
  * Get remaining quota for a key.
  */
-export function getRemainingQuota(ip: string, recipeId: string): number {
-  const key = `${ip}:${recipeId}`;
+export function getRemainingQuota(ip: string, recipeId: string, ingredientId?: string): number {
+  const key = ingredientId ? `${ip}:${recipeId}:${ingredientId}` : `${ip}:${recipeId}`;
   const entry = rateLimitMap.get(key);
 
   if (!entry) {
@@ -71,8 +72,8 @@ export function getRemainingQuota(ip: string, recipeId: string): number {
 /**
  * Get reset time for a key.
  */
-export function getResetTime(ip: string, recipeId: string): number {
-  const key = `${ip}:${recipeId}`;
+export function getResetTime(ip: string, recipeId: string, ingredientId?: string): number {
+  const key = ingredientId ? `${ip}:${recipeId}:${ingredientId}` : `${ip}:${recipeId}`;
   const entry = rateLimitMap.get(key);
 
   if (!entry || entry.timestamps.length === 0) {
