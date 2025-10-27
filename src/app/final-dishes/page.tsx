@@ -6,7 +6,6 @@ import NutritionLabel from '@/components/NutritionLabel'
 import Header from '@/components/Header'
 import Modal from '@/components/Modal'
 import CalculationProvenanceModal from '@/components/CalculationProvenanceModal'
-import { ReportIssueButton } from '@/components/ReportIssueButton'
 
 interface FinalDish {
   id: string
@@ -328,7 +327,7 @@ export default function FinalDishesPage() {
               />
             </div>
 
-            <div className="mt-6 flex justify-center gap-4 flex-wrap">
+            <div className="mt-6 flex justify-center">
               <button
                 onClick={async () => {
                   try {
@@ -343,26 +342,10 @@ export default function FinalDishesPage() {
                     console.error('Failed to fetch provenance:', error)
                   }
                 }}
-                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                className="rounded-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white shadow-sm focus-visible:ring-2 focus-visible:ring-red-400"
               >
-                See how this was calculated
+                Something wrong? See how this was calculated
               </button>
-
-              <ReportIssueButton
-                recipeId={viewingLabel.id}
-                recipeName={viewingLabel.name}
-                ingredients={viewingLabel.components.map((comp: any) => ({
-                  id: comp.id,
-                  name: comp.name || comp.recipeName,
-                  quantity: comp.weight,
-                  units: 'g',
-                  flagged: false,
-                }))}
-                totals={viewingLabel.nutritionLabel}
-                breakdownSnapshot={provenanceData}
-                buttonText="🚨 Report issue"
-                buttonClassName="px-4 py-2 text-sm text-red-600 hover:text-red-800 underline"
-              />
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ReportIssueButton } from './ReportIssueButton'
 
 interface CalculationProvenanceModalProps {
   isOpen: boolean
@@ -124,6 +125,28 @@ export default function CalculationProvenanceModal({
 
               {calculationData.ingredients?.map((ingredient: IngredientBreakdown, index: number) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <h4 className="font-medium text-gray-900">Ingredient {index + 1}</h4>
+                    <ReportIssueButton
+                      recipeId={calculationData.recipeId || 'unknown'}
+                      recipeName={dishName}
+                      version={calculationData.version || '1.0'}
+                      context="ingredient"
+                      preselectedIngredient={{
+                        id: `ing-${index}`,
+                        name: ingredient.canonical.base,
+                        quantity: 100, // Default quantity, could be enhanced
+                        units: 'g'
+                      }}
+                      breakdownSnapshot={calculationData}
+                      totals={calculationData.totals}
+                      buttonText="Report Issue"
+                      buttonClassName="text-xs px-2 py-1"
+                      onReportSubmitted={(reportId) => {
+                        console.log('Report submitted:', reportId);
+                      }}
+                    />
+                  </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-medium text-gray-900 mb-2">Input Processing</h4>

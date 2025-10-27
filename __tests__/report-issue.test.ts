@@ -12,44 +12,48 @@ import {
   clearRateLimitData,
 } from '../src/lib/security/rateLimit';
 
+// Test payload fixtures
+const validIngredientPayload = {
+  reportId: 'report-123',
+  recipeId: 'recipe-123',
+  recipeName: 'Chocolate Cake',
+  version: '1.0',
+  context: 'ingredient' as const,
+  ingredientId: 'ing-1',
+  ingredientName: 'flour',
+  reasonType: 'self_evident' as const,
+  comment: undefined,
+  breakdownSnapshot: { items: [] },
+  totals: { kcal: 500, carbs: 50, protein: 5, fat: 10 },
+  userAgent: 'Mozilla/5.0',
+  clientNonce: 'nonce-123',
+};
+
+const validRecipePayload = {
+  reportId: 'report-456',
+  recipeId: 'recipe-456',
+  recipeName: 'Vanilla Cupcakes',
+  version: '2.0',
+  context: 'recipe' as const,
+  reasonType: 'comment' as const,
+  comment: 'The calculations seem off',
+  breakdownSnapshot: { items: [] },
+  totals: { kcal: 300, carbs: 40, protein: 3, fat: 8 },
+  userAgent: 'Mozilla/5.0',
+  clientNonce: 'nonce-456',
+};
+
 describe('Report Issue Validation', () => {
   describe('ReportPayloadSchema', () => {
-    const validPayload = {
-      recipeId: 'recipe-123',
-      recipeName: 'Chocolate Cake',
-      version: '1.0',
-      ingredients: [
-        {
-          id: 'ing-1',
-          name: 'flour',
-          quantity: 100,
-          units: 'g',
-          flagged: true,
-        },
-        {
-          id: 'ing-2',
-          name: 'sugar',
-          quantity: 50,
-          units: 'g',
-          flagged: false,
-        },
-      ],
-      totals: { calories: 500, protein: 5 },
-      breakdownSnapshot: { items: [] },
-      reasonType: 'self_evident' as const,
-      comment: undefined,
-      userAgent: 'Mozilla/5.0',
-      clientNonce: 'nonce-123',
-    };
 
-    it('should accept valid payload with self-evident reason', () => {
-      const result = ReportPayloadSchema.safeParse(validPayload);
+    it('should accept valid ingredient payload with self-evident reason', () => {
+      const result = ReportPayloadSchema.safeParse(validIngredientPayload);
       expect(result.success).toBe(true);
     });
 
-    it('should accept valid payload with comment reason', () => {
+    it('should accept valid ingredient payload with comment reason', () => {
       const payload = {
-        ...validPayload,
+        ...validIngredientPayload,
         reasonType: 'comment' as const,
         comment: 'The calculation seems wrong because...',
       };
@@ -57,25 +61,32 @@ describe('Report Issue Validation', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject payload with no flagged ingredients', () => {
+    it('should accept valid recipe payload with comment reason', () => {
+      const result = ReportPayloadSchema.safeParse(validRecipePayload);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject ingredient payload without ingredientId', () => {
       const payload = {
-        ...validPayload,
-        ingredients: [
-          { ...validPayload.ingredients[0], flagged: false },
-          { ...validPayload.ingredients[1], flagged: false },
-        ],
+        ...validIngredientPayload,
+        ingredientId: undefined,
       };
       const result = ReportPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues.some((i) => i.message.includes('flagged')))
-          .toBe(true);
-      }
+    });
+
+    it('should reject ingredient payload without ingredientName', () => {
+      const payload = {
+        ...validIngredientPayload,
+        ingredientName: undefined,
+      };
+      const result = ReportPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
     });
 
     it('should reject payload with comment reason but no comment', () => {
       const payload = {
-        ...validPayload,
+        ...validIngredientPayload,
         reasonType: 'comment' as const,
         comment: '',
       };
@@ -85,7 +96,7 @@ describe('Report Issue Validation', () => {
 
     it('should reject payload with comment reason but whitespace-only comment', () => {
       const payload = {
-        ...validPayload,
+        ...validIngredientPayload,
         reasonType: 'comment' as const,
         comment: '   ',
       };
@@ -96,7 +107,7 @@ describe('Report Issue Validation', () => {
     it('should reject comment exceeding 2000 characters', () => {
       const longComment = 'a'.repeat(2001);
       const payload = {
-        ...validPayload,
+        ...validIngredientPayload,
         reasonType: 'comment' as const,
         comment: longComment,
       };
@@ -107,7 +118,7 @@ describe('Report Issue Validation', () => {
     it('should accept comment at exactly 2000 characters', () => {
       const comment = 'a'.repeat(2000);
       const payload = {
-        ...validPayload,
+        ...validIngredientPayload,
         reasonType: 'comment' as const,
         comment,
       };
@@ -115,26 +126,26 @@ describe('Report Issue Validation', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should require reportId', () => {
+      const payload = { ...validIngredientPayload, reportId: '' };
+      const result = ReportPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+
     it('should require recipeId', () => {
-      const payload = { ...validPayload, recipeId: '' };
+      const payload = { ...validIngredientPayload, recipeId: '' };
       const result = ReportPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
 
     it('should require recipeName', () => {
-      const payload = { ...validPayload, recipeName: '' };
+      const payload = { ...validIngredientPayload, recipeName: '' };
       const result = ReportPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
 
     it('should require clientNonce', () => {
-      const payload = { ...validPayload, clientNonce: '' };
-      const result = ReportPayloadSchema.safeParse(payload);
-      expect(result.success).toBe(false);
-    });
-
-    it('should require at least one ingredient', () => {
-      const payload = { ...validPayload, ingredients: [] };
+      const payload = { ...validIngredientPayload, clientNonce: '' };
       const result = ReportPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
@@ -180,6 +191,25 @@ describe('Rate Limiting', () => {
 
     // ip2:recipe1 should still be allowed
     expect(isRateLimited(ip2, recipe1)).toBe(false);
+  });
+
+  it('should rate limit per IP + recipeId + ingredientId for ingredient reports', () => {
+    const ip = '192.168.1.1';
+    const recipeId = 'recipe-123';
+    const ingredientId1 = 'ing-1';
+    const ingredientId2 = 'ing-2';
+
+    // Exhaust quota for ip:recipe:ingredient1
+    for (let i = 0; i < 5; i++) {
+      expect(isRateLimited(ip, recipeId, ingredientId1)).toBe(false);
+    }
+    expect(isRateLimited(ip, recipeId, ingredientId1)).toBe(true);
+
+    // ip:recipe:ingredient2 should still be allowed
+    expect(isRateLimited(ip, recipeId, ingredientId2)).toBe(false);
+
+    // ip:recipe (no ingredient) should still be allowed
+    expect(isRateLimited(ip, recipeId)).toBe(false);
   });
 
   it('should return remaining quota', () => {
@@ -233,13 +263,9 @@ describe('Email Sanitization', () => {
     // Validated by ReportPayloadSchema.safeParse
     const longComment = 'a'.repeat(2001);
     const result = ReportPayloadSchema.safeParse({
-      recipeId: 'recipe-123',
-      recipeName: 'Test',
-      ingredients: [{ name: 'flour', quantity: 100, units: 'g', flagged: true }],
+      ...validIngredientPayload,
       reasonType: 'comment',
       comment: longComment,
-      userAgent: 'test',
-      clientNonce: 'test',
     });
     expect(result.success).toBe(false);
   });
@@ -248,12 +274,7 @@ describe('Email Sanitization', () => {
 describe('Honeypot Protection', () => {
   it('should reject submission if favorite_color is non-empty', () => {
     const payload = {
-      recipeId: 'recipe-123',
-      recipeName: 'Test',
-      ingredients: [{ name: 'flour', quantity: 100, units: 'g', flagged: true }],
-      reasonType: 'self_evident' as const,
-      userAgent: 'test',
-      clientNonce: 'test',
+      ...validIngredientPayload,
       favorite_color: 'blue', // Should be empty
     };
 
@@ -267,12 +288,7 @@ describe('Honeypot Protection', () => {
 
   it('should allow empty favorite_color', () => {
     const payload = {
-      recipeId: 'recipe-123',
-      recipeName: 'Test',
-      ingredients: [{ name: 'flour', quantity: 100, units: 'g', flagged: true }],
-      reasonType: 'self_evident' as const,
-      userAgent: 'test',
-      clientNonce: 'test',
+      ...validIngredientPayload,
       favorite_color: '',
     };
 
