@@ -38,6 +38,7 @@ export default function NewFinalDishPage() {
   const [saving, setSaving] = useState(false)
   const [previewNutrition, setPreviewNutrition] = useState<NutrientProfile | null>(null)
   const [calculating, setCalculating] = useState(false)
+  const [yieldMultiplier, setYieldMultiplier] = useState(1.0)
 
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm<FinalDishForm>({
     defaultValues: {
@@ -59,6 +60,13 @@ export default function NewFinalDishPage() {
 
   const components = watch('components')
   const servingSize = watch('servingSize')
+  const finalDishName = watch('name')
+
+  // Auto-detect baked goods and set default yield multiplier
+  useEffect(() => {
+    const isBakedGood = /\b(cake|bread|cookie|muffin|brownie|scone|biscuit|pie|pastry)\b/i.test(finalDishName)
+    setYieldMultiplier(isBakedGood ? 0.75 : 1.0)
+  }, [finalDishName])
 
   // Fetch sub-recipes on mount
   useEffect(() => {
@@ -92,7 +100,8 @@ export default function NewFinalDishPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           components,
-          servingSize
+          servingSize,
+          yieldMultiplier
         })
       })
 
@@ -155,7 +164,8 @@ export default function NewFinalDishPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           components: data.components,
-          servingSize: data.servingSize
+          servingSize: data.servingSize,
+          yieldMultiplier
         })
       })
 
@@ -275,6 +285,25 @@ export default function NewFinalDishPage() {
                       placeholder="150"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Yield Multiplier
+                      <span className="text-xs text-gray-500 ml-1">(baked goods: 0.75)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.5"
+                      max="1.0"
+                      value={yieldMultiplier}
+                      onChange={(e) => setYieldMultiplier(parseFloat(e.target.value))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Accounts for moisture loss during cooking (1.0 = no loss)
+                    </p>
                   </div>
 
                   <div>
