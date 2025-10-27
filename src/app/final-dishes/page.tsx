@@ -6,6 +6,7 @@ import NutritionLabel from '@/components/NutritionLabel'
 import Header from '@/components/Header'
 import Modal from '@/components/Modal'
 import CalculationProvenanceModal from '@/components/CalculationProvenanceModal'
+import { ReportIssueButton } from '@/components/ReportIssueButton'
 
 interface FinalDish {
   id: string
@@ -327,7 +328,7 @@ export default function FinalDishesPage() {
               />
             </div>
 
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex justify-center gap-4 flex-wrap">
               <button
                 onClick={async () => {
                   try {
@@ -344,8 +345,24 @@ export default function FinalDishesPage() {
                 }}
                 className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                Something seem off? See how this was calculated
+                See how this was calculated
               </button>
+
+              <ReportIssueButton
+                recipeId={viewingLabel.id}
+                recipeName={viewingLabel.name}
+                ingredients={viewingLabel.components.map((comp: any) => ({
+                  id: comp.id,
+                  name: comp.name || comp.recipeName,
+                  quantity: comp.weight,
+                  units: 'g',
+                  flagged: false,
+                }))}
+                totals={viewingLabel.nutritionLabel}
+                breakdownSnapshot={provenanceData}
+                buttonText="🚨 Report issue"
+                buttonClassName="px-4 py-2 text-sm text-red-600 hover:text-red-800 underline"
+              />
             </div>
           </div>
         </div>
