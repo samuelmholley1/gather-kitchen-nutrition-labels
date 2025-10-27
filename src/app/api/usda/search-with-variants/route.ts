@@ -98,11 +98,17 @@ export async function POST(request: NextRequest) {
             
             // FLOUR-SPECIFIC SCORING: Use taxonomy-based deterministic scoring
             if (canon.base === 'flour') {
-              score += scoreFlourCandidate(
+              const breakdown = scoreFlourCandidate(
                 food.description || '',
                 food.dataType || 'Unknown',
-                food.foodCategory
+                undefined
               )
+              score += breakdown.finalScore
+              
+              // Log scoring breakdown for flour candidates
+              console.log(`[USDA Taxonomy] Flour candidate "${food.description?.substring(0, 50)}..." → ${breakdown.baseType} (${breakdown.finalScore})`)
+              if (breakdown.positives.length > 0) console.log(`[USDA Taxonomy]   + ${breakdown.positives.join(', ')}`)
+              if (breakdown.negatives.length > 0) console.log(`[USDA Taxonomy]   - ${breakdown.negatives.join(', ')}`)
             }
             
             // BOOST common/generic ingredients (for non-flour items)

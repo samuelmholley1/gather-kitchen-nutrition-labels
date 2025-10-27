@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Header from '@/components/Header'
@@ -10,6 +10,7 @@ import Modal from '@/components/Modal'
 import IngredientSearch from '@/components/IngredientSearch'
 import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
 import BatchIngredientSpecificationModal from '@/components/BatchIngredientSpecificationModal'
+import ParseIssuesPanel from '@/components/ParseIssuesPanel'
 import { SmartParseResult } from '@/lib/smartRecipeParser'
 import { USDAFood } from '@/types/recipe'
 import { cleanIngredientForUSDASearch } from '@/lib/smartRecipeParser'
@@ -91,6 +92,8 @@ export default function ReviewPage() {
     ingredientIndex: number
   } | null>(null)
   
+  const [useBatchModal, setUseBatchModal] = useState(true) // Toggle for batch vs sequential
+  
   const [batchSpecificationModal, setBatchSpecificationModal] = useState<Array<{
     id: string
     quantity: number
@@ -102,7 +105,70 @@ export default function ReviewPage() {
     ingredientIndex: number
   }>>([])
   
-  const [useBatchModal, setUseBatchModal] = useState(true) // Toggle for batch vs sequential
+  // Convert parse errors and specification needs into actionable issues
+  const parseIssues = React.useMemo(() => {
+    const issues: Array<{
+      type: 'error' | 'warning' | 'info'
+      message: string
+      lineNumber?: number
+      originalLine?: string
+      actionable?: boolean
+      actionLabel?: string
+      onAction?: () => void
+    }> = []
+
+    // Add parse errors from SmartParseResult
+    if (parseResult?.errors) {
+      parseResult.errors.forEach(error => {
+        const isWarning = error.startsWith('⚠️')
+        const cleanMessage = error.replace(/^⚠️\s*/, '').replace(/^Warning:\s*/i, '')
+        
+        issues.push({
+          type: isWarning ? 'warning' : 'error',
+          message: cleanMessage,
+          actionable: false // Parse errors are not directly actionable
+        })
+      })
+    }
+
+    // Add specification-needed ingredients as actionable issues
+    const allIngredients = [
+      ...finalDishIngredients.map((ing, idx) => ({ ...ing, type: 'final' as const, ingredientIndex: idx })),
+      ...subRecipes.flatMap((sub, subIdx) => 
+        sub.ingredients.map((ing, ingIdx) => ({ ...ing, type: 'sub' as const, subRecipeIndex: subIdx, ingredientIndex: ingIdx }))
+      )
+    ]
+
+    allIngredients.forEach(ing => {
+      if (ing.needsSpecification) {
+        issues.push({
+          type: 'info',
+          message: `${ing.specificationPrompt || 'Specify variety/size'}: "${ing.ingredient}"`,
+          originalLine: `${ing.quantity} ${ing.unit} ${ing.ingredient}`,
+          actionable: true,
+          actionLabel: 'Specify',
+          onAction: () => {
+            if (ing.type === 'final') {
+              setSpecificationModal({
+                ingredient: ing,
+                type: 'final',
+                ingredientIndex: ing.ingredientIndex
+              })
+            } else {
+              setSpecificationModal({
+                ingredient: ing,
+                type: 'sub',
+                subRecipeIndex: ing.subRecipeIndex,
+                ingredientIndex: ing.ingredientIndex
+              })
+            }
+          }
+        })
+      }
+    })
+
+    return issues
+  }, [parseResult, finalDishIngredients, subRecipes])
 
   // Auto-search USDA for all ingredients on mount
   useEffect(() => {
@@ -1269,6 +1335,11 @@ export default function ReviewPage() {
               ))}
             </ul>
           </div>
+        )}
+
+        {/* Parse Issues Panel */}
+        {parseIssues.length > 0 && (
+          <ParseIssuesPanel issues={parseIssues} />
         )}
 
         {/* Final Dish */}

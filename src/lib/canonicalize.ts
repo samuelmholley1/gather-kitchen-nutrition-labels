@@ -17,8 +17,8 @@ export interface Canon {
  * - "chicken (boneless, skinless)" → { base: "chicken", qualifiers: ["boneless", "skinless"] }
  * - "2 cups flour" → { base: "flour", qualifiers: [] }
  * 
- * Cooking descriptors that don't affect ingredient selection are stripped from base
- * but preserved in qualifiers if they appear in parentheses/commas
+ * Cooking descriptors that don't affect ingredient selection are preserved in qualifiers
+ * but NOT stripped from base (to avoid breaking selection)
  */
 export function canonicalize(input: string): Canon {
   const lower = input.toLowerCase().replace(/\s+/g, ' ').trim()
@@ -26,13 +26,18 @@ export function canonicalize(input: string): Canon {
   // Split on parentheses and commas to extract parts
   const parts = lower.split(/[(),]/).map(s => s.trim()).filter(Boolean)
   
-  // First part is the base, but we need to strip cooking descriptors
-  const cookingDescriptors = /\b(sifted|chopped|diced|minced|sliced|shredded|grated|finely|coarse|crushed|ground|fresh|raw|cooked|dried|frozen)\b/g
+  // First part is the base - preserve cooking descriptors that don't change type
   const rawBase = parts[0] || lower
-  const base = rawBase.replace(cookingDescriptors, '').replace(/\s+/g, ' ').trim() || rawBase
   
-  // Remaining parts are qualifiers
-  const qualifiers = parts.slice(1).filter(q => q.length > 0)
+  // Non-type-changing qualifiers (prep methods that don't affect ingredient selection)
+  const prepQualifiers = /\b(sifted|chopped|diced|minced|sliced|shredded|grated|finely|coarse|crushed|ground)\b/g
+  
+  // Extract prep qualifiers from the base
+  const prepMatches = rawBase.match(prepQualifiers) || []
+  const base = rawBase.replace(prepQualifiers, '').replace(/\s+/g, ' ').trim() || rawBase
+  
+  // Combine prep qualifiers with other parts
+  const qualifiers = [...prepMatches, ...parts.slice(1)].filter(q => q.length > 0)
   
   return { base, qualifiers }
 }

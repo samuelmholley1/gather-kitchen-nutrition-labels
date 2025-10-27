@@ -5,6 +5,7 @@ import Link from 'next/link'
 import NutritionLabel from '@/components/NutritionLabel'
 import Header from '@/components/Header'
 import Modal from '@/components/Modal'
+import CalculationProvenanceModal from '@/components/CalculationProvenanceModal'
 
 interface FinalDish {
   id: string
@@ -26,6 +27,8 @@ export default function FinalDishesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [viewingLabel, setViewingLabel] = useState<FinalDish | null>(null)
+  const [showingProvenance, setShowingProvenance] = useState(false)
+  const [provenanceData, setProvenanceData] = useState<any>(null)
   const [modal, setModal] = useState<{
     isOpen: boolean
     type: 'info' | 'error' | 'warning' | 'success' | 'confirm'
@@ -323,6 +326,27 @@ export default function FinalDishesPage() {
                 allergens={viewingLabel.allergens}
               />
             </div>
+
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={async () => {
+                  try {
+                    // Fetch detailed calculation data with provenance
+                    const response = await fetch(`/api/final-dishes/${viewingLabel.id}/calculate`)
+                    if (response.ok) {
+                      const data = await response.json()
+                      setProvenanceData(data)
+                      setShowingProvenance(true)
+                    }
+                  } catch (error) {
+                    console.error('Failed to fetch provenance:', error)
+                  }
+                }}
+                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Something seem off? See how this was calculated
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -336,6 +360,14 @@ export default function FinalDishesPage() {
         message={modal.message}
         type={modal.type}
         confirmText={modal.type === 'confirm' ? 'Delete' : 'OK'}
+      />
+
+      {/* Calculation Provenance Modal */}
+      <CalculationProvenanceModal
+        isOpen={showingProvenance}
+        onClose={() => setShowingProvenance(false)}
+        dishName={viewingLabel?.name || ''}
+        calculationData={provenanceData}
       />
     </div>
   )

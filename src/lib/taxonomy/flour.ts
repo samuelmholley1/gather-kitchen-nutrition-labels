@@ -3,6 +3,14 @@
  * Defines what counts as "specialty" vs "standard" flour
  */
 
+export type ScoreBreakdown = {
+  baseType: 'all_purpose' | 'specialty' | 'unknown';
+  positives: string[];           // matched specialty tokens, tiers won
+  negatives: string[];           // penalties applied (and why)
+  tiers: Array<{name:string; delta:number}>;
+  finalScore: number;
+};
+
 /**
  * Check if a USDA food description indicates specialty flour
  * 
@@ -63,36 +71,100 @@ export function scoreFlourCandidate(
   desc: string,
   dataType: string,
   foodCategory?: string
-): number {
+): ScoreBreakdown {
   let score = 0
   const d = desc.toLowerCase()
+  const positives: string[] = []
+  const negatives: string[] = []
+  const tiers: Array<{name:string; delta:number}> = []
+  
+  // Determine base type FIRST (before specialty detection)
+  let baseType: 'all_purpose' | 'specialty' | 'unknown' = 'unknown'
+  
+  if (isAllPurposeFlour(desc)) {
+    baseType = 'all_purpose'
+  } else if (isSpecialtyFlour(desc)) {
+    baseType = 'specialty'
+  }
   
   // TIER 1: Category match
   if (foodCategory?.toLowerCase().includes('cereal') || foodCategory?.toLowerCase().includes('grain')) {
-    score += 100
+    const delta = 100
+    score += delta
+    tiers.push({name: 'Category match (Cereal Grains)', delta})
+    positives.push('Cereal Grains category')
   }
   
-  // TIER 2: Specialty vs standard
-  if (isAllPurposeFlour(desc)) {
-    score += 500 // Massive boost for all-purpose
-  } else if (isSpecialtyFlour(desc)) {
-    score -= 1000 // Eliminate specialty flours
+  // TIER 2: Specialty vs standard (base type detection already done above)
+  if (baseType === 'all_purpose') {
+    const delta = 500
+    score += delta
+    tiers.push({name: 'All-purpose flour bonus', delta})
+    positives.push('All-purpose wheat flour')
+  } else if (baseType === 'specialty') {
+    const delta = -1000
+    score += delta
+    tiers.push({name: 'Specialty flour penalty', delta})
+    negatives.push('Specialty flour type detected')
   }
   
   // TIER 3: Data type preference
-  if (dataType === 'Foundation') score += 150
-  else if (dataType === 'SR Legacy') score += 120
-  else if (dataType === 'Survey (FNDDS)') score += 100
-  else if (dataType === 'Branded') score -= 80
+  if (dataType === 'Foundation') {
+    const delta = 150
+    score += delta
+    tiers.push({name: 'Foundation data type', delta})
+    positives.push('Foundation data source')
+  } else if (dataType === 'SR Legacy') {
+    const delta = 120
+    score += delta
+    tiers.push({name: 'SR Legacy data type', delta})
+    positives.push('SR Legacy data source')
+  } else if (dataType === 'Survey (FNDDS)') {
+    const delta = 100
+    score += delta
+    tiers.push({name: 'Survey data type', delta})
+    positives.push('Survey data source')
+  } else if (dataType === 'Branded') {
+    const delta = -80
+    score += delta
+    tiers.push({name: 'Branded data penalty', delta})
+    negatives.push('Branded product data')
+  }
   
   // TIER 4: Specific all-purpose indicators
-  if (d.includes('all-purpose') || d.includes('all purpose')) score += 200
-  if (d.includes('enriched')) score += 50
-  if (d.includes('bleached') || d.includes('unbleached')) score += 30
-  if (d.includes('white') && d.includes('flour')) score += 40
+  if (d.includes('all-purpose') || d.includes('all purpose')) {
+    const delta = 200
+    score += delta
+    tiers.push({name: 'All-purpose indicator', delta})
+    positives.push('All-purpose keyword')
+  }
+  if (d.includes('enriched')) {
+    const delta = 50
+    score += delta
+    tiers.push({name: 'Enriched indicator', delta})
+    positives.push('Enriched flour')
+  }
+  if (d.includes('bleached') || d.includes('unbleached')) {
+    const delta = 30
+    score += delta
+    tiers.push({name: 'Bleached/unbleached indicator', delta})
+    positives.push('Standard processing')
+  }
+  if (d.includes('white') && d.includes('flour')) {
+    const delta = 40
+    score += delta
+    tiers.push({name: 'White flour indicator', delta})
+    positives.push('White flour')
+  }
   
   // TIER 5: Protein range heuristic (AP flour typically 9-13%)
   // This would require nutrient data, skip for now
   
-  return score
+  return {
+    baseType,
+    positives,
+    negatives,
+    tiers,
+    finalScore: score
+  }
 }

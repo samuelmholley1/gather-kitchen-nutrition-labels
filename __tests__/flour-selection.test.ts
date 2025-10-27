@@ -61,72 +61,93 @@ describe('Flour Taxonomy', () => {
 
 describe('Flour Scoring', () => {
   it('should score all-purpose flour much higher than specialty', () => {
-    const apScore = scoreFlourCandidate(
+    const apBreakdown = scoreFlourCandidate(
       'Wheat flour, white, all-purpose, enriched, bleached',
       'SR Legacy',
       'Cereal Grains and Pasta'
     )
 
-    const specialtyScore = scoreFlourCandidate(
+    const specialtyBreakdown = scoreFlourCandidate(
       'Flour, tipo 00',
       'SR Legacy',
       'Cereal Grains and Pasta'
     )
 
-    expect(apScore).toBeGreaterThan(500)
-    expect(specialtyScore).toBeLessThan(0) // Should be negative due to -1000 penalty
-    expect(apScore - specialtyScore).toBeGreaterThan(1000)
+    expect(apBreakdown.finalScore).toBeGreaterThan(500)
+    expect(specialtyBreakdown.finalScore).toBeLessThan(0) // Should be negative due to -1000 penalty
+    expect(apBreakdown.finalScore - specialtyBreakdown.finalScore).toBeGreaterThan(1000)
   })
 
   it('should prefer Foundation data type', () => {
-    const foundationScore = scoreFlourCandidate(
+    const foundationBreakdown = scoreFlourCandidate(
       'Wheat flour, white, all-purpose, enriched',
       'Foundation',
       'Cereal Grains and Pasta'
     )
 
-    const legacyScore = scoreFlourCandidate(
+    const legacyBreakdown = scoreFlourCandidate(
       'Wheat flour, white, all-purpose, enriched',
       'SR Legacy',
       'Cereal Grains and Pasta'
     )
 
-    expect(foundationScore).toBeGreaterThan(legacyScore)
+    expect(foundationBreakdown.finalScore).toBeGreaterThan(legacyBreakdown.finalScore)
   })
 
   it('should penalize branded products', () => {
-    const standardScore = scoreFlourCandidate(
+    const standardBreakdown = scoreFlourCandidate(
       'Wheat flour, white, all-purpose, enriched',
       'SR Legacy',
       'Cereal Grains and Pasta'
     )
 
-    const brandedScore = scoreFlourCandidate(
+    const brandedBreakdown = scoreFlourCandidate(
       'Wheat flour, white, all-purpose, enriched',
       'Branded',
       'Cereal Grains and Pasta'
     )
 
-    expect(standardScore).toBeGreaterThan(brandedScore)
+    expect(standardBreakdown.finalScore).toBeGreaterThan(brandedBreakdown.finalScore)
   })
 })
 
 describe('Golden Tests - Expected Behavior', () => {
-  it('GOLDEN: "flour, sifted" should select all-purpose flour over 00 flour', () => {
+  it('GOLDEN: "flour, sifted" should select all-purpose flour over 00 flour with explicit scoreBreakdown', () => {
     const canon = canonicalize('flour, sifted')
     expect(canon.base).toBe('flour')
+    expect(canon.qualifiers).toContain('sifted')
     expect(hasSpecialtyFlourQualifier(canon.qualifiers)).toBe(false)
     
     // When base is 'flour' and no specialty qualifiers, specialty flours should be filtered
-    const shouldFilter00 = !hasSpecialtyFlourQualifier(canon.qualifiers) && canon.base === 'flour'
-    expect(shouldFilter00).toBe(true)
+    const shouldFilterSpecialty = !hasSpecialtyFlourQualifier(canon.qualifiers) && canon.base === 'flour'
+    expect(shouldFilterSpecialty).toBe(true)
     
-    // After filtering, all-purpose should win scoring
-    const apScore = scoreFlourCandidate(
+    // After filtering, all-purpose should win scoring with detailed breakdown
+    const apBreakdown = scoreFlourCandidate(
       'Wheat flour, white, all-purpose, enriched, bleached',
-      'SR Legacy'
+      'SR Legacy',
+      'Cereal Grains and Pasta'
     )
-    expect(apScore).toBeGreaterThan(500)
+    
+    expect(apBreakdown.finalScore).toBeGreaterThan(500)
+    expect(apBreakdown.baseType).toBe('all_purpose')
+    expect(apBreakdown.positives).toContain('All-purpose wheat flour')
+    expect(apBreakdown.positives).toContain('Cereal Grains category')
+    expect(apBreakdown.negatives).toHaveLength(0) // No penalties for all-purpose
+    
+    // Specialty flour should be penalized
+    const specialtyBreakdown = scoreFlourCandidate(
+      'Flour, tipo 00',
+      'SR Legacy',
+      'Cereal Grains and Pasta'
+    )
+    
+    expect(specialtyBreakdown.finalScore).toBeLessThan(0)
+    expect(specialtyBreakdown.baseType).toBe('specialty')
+    expect(specialtyBreakdown.negatives).toContain('Specialty flour type detected')
+    
+    // All-purpose should beat specialty by a wide margin
+    expect(apBreakdown.finalScore - specialtyBreakdown.finalScore).toBeGreaterThan(1000)
   })
 
   it('GOLDEN: "almond flour" should NOT filter specialty flours', () => {
