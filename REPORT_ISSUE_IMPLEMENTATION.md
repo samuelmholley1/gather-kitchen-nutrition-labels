@@ -121,7 +121,7 @@ A complete "Report issue" flow has been implemented for the nutrition label calc
 - [x] **Environment Variables** (`.env.local`)
   ```
   ZOHO_USER=alerts@samuelholley.com
-  ZOHO_APP_PASSWORD=Smh_Ukiah2025@!
+  ZOHO_APP_PASSWORD=YOUR_ZOHO_APP_PASSWORD_HERE
   ZOHO_HOST=smtp.zoho.com
   ZOHO_PORT=465
   ZOHO_SECURE=true
