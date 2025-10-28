@@ -8,6 +8,7 @@ import type { Transporter } from 'nodemailer';
 
 interface EmailPayload {
   to: string;
+  cc?: string[];
   subject: string;
   html: string;
   text: string;
@@ -61,6 +62,7 @@ export async function sendReportEmail(payload: EmailPayload): Promise<string> {
     const result = await transport.sendMail({
       from,
       to: payload.to,
+      cc: payload.cc,
       subject: payload.subject,
       html: payload.html,
       text: payload.text,

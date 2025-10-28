@@ -29,6 +29,7 @@ export const ReportPayloadSchema = z.object({
     .string()
     .max(2000, 'Comment must be 2000 characters or less')
     .optional(),
+  ccInfoGather: z.boolean().optional().default(false),
   breakdownSnapshot: BreakdownSnapshotSchema,
   totals: TotalsSchema,
   userAgent: z.string().optional(),

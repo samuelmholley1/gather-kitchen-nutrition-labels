@@ -48,6 +48,7 @@ export function ReportIssueModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [ccInfoGather, setCcInfoGather] = useState(false);
 
   // Focus management
   useEffect(() => {
@@ -103,6 +104,7 @@ export function ReportIssueModal({
         } : {}),
         reasonType,
         comment: reasonType === 'comment' ? comment : undefined,
+        ccInfoGather,
         breakdownSnapshot: laypersonSummary 
           ? { ...(typeof breakdownSnapshot === 'object' && breakdownSnapshot !== null ? breakdownSnapshot : {}), laypersonSummary } 
           : breakdownSnapshot,
@@ -129,6 +131,7 @@ export function ReportIssueModal({
         setSuccess(false);
         setComment('');
         setReasonType('self_evident');
+        setCcInfoGather(false);
       }, 2000);
 
       if (onSubmit) {
@@ -185,6 +188,25 @@ export function ReportIssueModal({
 
           {/* Content */}
           <div className="p-6 space-y-6">
+            {/* Email destination info */}
+            <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-blue-900 mb-2">Email Recipients</h3>
+              <p className="text-blue-800 text-sm">
+                THIS ERROR REPORT WILL BE EMAILED TO SAM@SAMUELHOLLEY.COM SO THAT SAMUEL CAN FIX IT. INFO@GATHER.KITCHEN CAN BE COPIED AS WELL IF YOU WOULD LIKE.
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer group mt-3">
+                <input
+                  type="checkbox"
+                  checked={ccInfoGather}
+                  onChange={(e) => setCcInfoGather(e.target.checked)}
+                  disabled={isSubmitting}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                />
+                <span className="font-medium text-sm group-hover:text-blue-600">
+                  Also send to info@gather.kitchen
+                </span>
+              </label>
+            </section>
             {/* Ingredient Context Info (if ingredient-specific) */}
             {context === 'ingredient' && preselectedIngredient && (
               <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">

@@ -384,9 +384,12 @@ export async function POST(request: NextRequest) {
 
     // Send email
     const reportTo = process.env.REPORT_TO || 'sam@samuelholley.com';
+    const ccRecipients = payload.ccInfoGather ? ['info@gather.kitchen'] : [];
+    
     try {
       await sendReportEmail({
         to: reportTo,
+        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
         subject,
         html: htmlBody,
         text: textBody,
