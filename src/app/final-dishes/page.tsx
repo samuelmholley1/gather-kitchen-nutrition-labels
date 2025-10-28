@@ -24,6 +24,7 @@ interface FinalDish {
 export default function FinalDishesPage() {
   const [finalDishes, setFinalDishes] = useState<FinalDish[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingCalculations, setLoadingCalculations] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [viewingLabel, setViewingLabel] = useState<FinalDish | null>(null)
@@ -329,6 +330,7 @@ export default function FinalDishesPage() {
                     <span className="text-red-600 font-medium">Something Wrong?</span>
                     <button
                       onClick={async () => {
+                        setLoadingCalculations(true)
                         try {
                           const response = await fetch(`/api/final-dishes/${viewingLabel.id}/calculate`)
                           if (response.ok) {
@@ -350,14 +352,17 @@ export default function FinalDishesPage() {
                             isOpen: true,
                             type: 'error',
                             title: 'Error',
-                          message: 'Unable to load calculation details. Please try again.'
-                        })
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 font-medium"
-                  >
-                                          View/Edit Calculations
-                  </button>
+                            message: 'Unable to load calculation details. Please try again.'
+                          })
+                        } finally {
+                          setLoadingCalculations(false)
+                        }
+                      }}
+                      disabled={loadingCalculations}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loadingCalculations ? 'Loading...' : 'View/Edit Calculations'}
+                    </button>
                   </div>
                 }
               />

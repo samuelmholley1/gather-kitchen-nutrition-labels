@@ -125,6 +125,13 @@ export default function CalculationProvenanceModal({
                 </button>
               </div>
 
+              {!calculationData.ingredients || calculationData.ingredients.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg mb-2">No ingredients found</p>
+                  <p className="text-gray-400 text-sm">This dish may not have any USDA-matched ingredients to analyze.</p>
+                </div>
+              ) : (
+                <>
               {calculationData.ingredients?.map((ingredient: IngredientBreakdown, index: number) => {
                 // Generate layperson summary
                 const laypersonSummary = `• You entered: "${ingredient.rawInput}"
@@ -139,9 +146,9 @@ export default function CalculationProvenanceModal({
                   <div className="flex items-start justify-between mb-4">
                     <h4 className="font-medium text-gray-900">Ingredient {index + 1}</h4>
                     <ReportIssueButton
-                      recipeId={calculationData.recipeId || 'unknown'}
+                      recipeId={calculationData.dishId || 'unknown'}
                       recipeName={dishName}
-                      version={calculationData.version || '1.0'}
+                      version="1.0"
                       context="ingredient"
                       preselectedIngredient={{
                         id: `ing-${index}`,
@@ -150,7 +157,7 @@ export default function CalculationProvenanceModal({
                         units: ingredient.unit || 'g'
                       }}
                       breakdownSnapshot={calculationData}
-                      totals={calculationData.totals}
+                      totals={calculationData.finalNutrition || {}}
                       laypersonSummary={laypersonSummary}
                       buttonText="Report issue"
                       buttonClassName="rounded-full px-3 py-1 text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
@@ -296,6 +303,8 @@ export default function CalculationProvenanceModal({
                 </div>
               );
               })}
+              </>
+              )}
             </div>
           )}
 
