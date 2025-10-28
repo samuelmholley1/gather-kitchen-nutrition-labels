@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { ReportIssueButton } from './ReportIssueButton'
 
 interface CalculationProvenanceModalProps {
@@ -37,10 +38,8 @@ export default function CalculationProvenanceModal({
   dishName,
   calculationData
 }: CalculationProvenanceModalProps) {
-  if (!isOpen || !calculationData) return null
+  const [isReverting, setIsReverting] = useState(false)
 
-  const ingredients: IngredientBreakdown[] = calculationData.ingredients || []
-  
   // Helper function to safely get nutrition values
   const safeNutrition = (nutrition: any): NutritionValues => ({
     kcal: nutrition?.kcal ?? 0,
@@ -48,6 +47,38 @@ export default function CalculationProvenanceModal({
     protein: nutrition?.protein ?? 0,
     fat: nutrition?.fat ?? 0
   })
+
+  const handleRevertToCalculated = async () => {
+    if (!calculationData?.dishId) return
+
+    setIsReverting(true)
+    try {
+      const response = await fetch(`/api/final-dishes/${calculationData.dishId}/revert-to-calculated`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: 'User chose to revert to calculated values from provenance modal'
+        })
+      })
+
+      if (response.ok) {
+        // Refresh the page to show updated values
+        window.location.reload()
+      } else {
+        console.error('Failed to revert to calculated values')
+        alert('Failed to revert to calculated values. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error reverting to calculated values:', error)
+      alert('Error reverting to calculated values. Please try again.')
+    } finally {
+      setIsReverting(false)
+    }
+  }
+
+  if (!isOpen || !calculationData) return null
+
+  const ingredients: IngredientBreakdown[] = calculationData.ingredients || []
   
   // Calculate running totals
   const runningTotals: NutritionValues[] = []
@@ -67,17 +98,23 @@ export default function CalculationProvenanceModal({
   // Use cumulative total (sum of all ingredients) as final total
   // If finalNutrition exists from backend, we can compare them
   const calculatedTotal = cumulative
-  const storedNutrition = calculationData.finalNutrition ? safeNutrition(calculationData.finalNutrition) : null
   
-  // Check if there's a discrepancy (tolerance: 1% or 1 unit)
+  // Handle new audit trail format
+  const nutritionData = calculationData.finalNutrition
+  const storedNutrition = nutritionData?.values ? safeNutrition(nutritionData.values) : null
+  const calculatedNutrition = nutritionData?.calculatedValues ? safeNutrition(nutritionData.calculatedValues) : calculatedTotal
+  const hasManualOverride = nutritionData?.source === 'manual_override'
+  const editMetadata = nutritionData?.manualEditMetadata
+  
+  // Check if there's a discrepancy between calculated and displayed values
   const hasMismatch = storedNutrition && (
-    Math.abs(calculatedTotal.kcal - storedNutrition.kcal) > Math.max(1, storedNutrition.kcal * 0.01) ||
-    Math.abs(calculatedTotal.carbs - storedNutrition.carbs) > Math.max(1, storedNutrition.carbs * 0.01) ||
-    Math.abs(calculatedTotal.protein - storedNutrition.protein) > Math.max(1, storedNutrition.protein * 0.01) ||
-    Math.abs(calculatedTotal.fat - storedNutrition.fat) > Math.max(1, storedNutrition.fat * 0.01)
+    Math.abs(calculatedNutrition.kcal - storedNutrition.kcal) > Math.max(1, storedNutrition.kcal * 0.01) ||
+    Math.abs(calculatedNutrition.carbs - storedNutrition.carbs) > Math.max(1, storedNutrition.carbs * 0.01) ||
+    Math.abs(calculatedNutrition.protein - storedNutrition.protein) > Math.max(1, storedNutrition.protein * 0.01) ||
+    Math.abs(calculatedNutrition.fat - storedNutrition.fat) > Math.max(1, storedNutrition.fat * 0.01)
   )
   
-  const finalNutrition = calculatedTotal
+  const finalNutrition = storedNutrition || calculatedTotal
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -210,18 +247,55 @@ export default function CalculationProvenanceModal({
                       
                       {/* Show warning if mismatch detected */}
                       {hasMismatch && storedNutrition && (
-                        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                          <div className="font-semibold text-yellow-900 mb-1">⚠️ Discrepancy Detected</div>
-                          <div className="text-yellow-800">
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                          <div className="font-semibold text-yellow-900 mb-2">⚠️ Discrepancy Detected</div>
+                          <div className="text-yellow-800 mb-3">
                             Stored label values differ from calculated totals. This may indicate manual edits or a calculation error.
                           </div>
-                          <details className="mt-2">
-                            <summary className="cursor-pointer text-yellow-700 hover:text-yellow-900 font-medium">View stored values</summary>
-                            <div className="mt-2 pl-2 space-y-1 text-yellow-800">
-                              <div>{storedNutrition.kcal.toFixed(1)} kcal (stored)</div>
-                              <div>{storedNutrition.carbs.toFixed(1)}g carbs (stored)</div>
-                              <div>{storedNutrition.protein.toFixed(1)}g protein (stored)</div>
-                              <div>{storedNutrition.fat.toFixed(1)}g fat (stored)</div>
+                          
+                          {hasManualOverride && editMetadata && (
+                            <div className="mb-3 p-2 bg-yellow-100 rounded">
+                              <div className="font-medium text-yellow-900">Manual Edit Details:</div>
+                              <div className="text-yellow-800 text-xs mt-1">
+                                Edited on {new Date(editMetadata.timestamp).toLocaleDateString()} by {editMetadata.editedBy || 'Unknown'}
+                                <br />
+                                Fields changed: {editMetadata.editedFields.join(', ')}
+                                <br />
+                                Reason: {editMetadata.reason}
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex gap-2 mb-2">
+                            <button 
+                              onClick={handleRevertToCalculated}
+                              disabled={isReverting}
+                              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isReverting ? 'Reverting...' : 'Use Calculated Values'}
+                            </button>
+                            <button className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700">
+                              Keep Manual Override
+                            </button>
+                          </div>
+                          
+                          <details>
+                            <summary className="cursor-pointer text-yellow-700 hover:text-yellow-900 font-medium">View comparison</summary>
+                            <div className="mt-2 grid grid-cols-2 gap-4 text-yellow-800">
+                              <div>
+                                <div className="font-medium mb-1">Calculated Values:</div>
+                                <div>{calculatedNutrition.kcal.toFixed(1)} kcal</div>
+                                <div>{calculatedNutrition.carbs.toFixed(1)}g carbs</div>
+                                <div>{calculatedNutrition.protein.toFixed(1)}g protein</div>
+                                <div>{calculatedNutrition.fat.toFixed(1)}g fat</div>
+                              </div>
+                              <div>
+                                <div className="font-medium mb-1">Stored Values:</div>
+                                <div>{storedNutrition.kcal.toFixed(1)} kcal</div>
+                                <div>{storedNutrition.carbs.toFixed(1)}g carbs</div>
+                                <div>{storedNutrition.protein.toFixed(1)}g protein</div>
+                                <div>{storedNutrition.fat.toFixed(1)}g fat</div>
+                              </div>
                             </div>
                           </details>
                         </div>

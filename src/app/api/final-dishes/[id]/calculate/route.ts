@@ -3,6 +3,8 @@ import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
 import { canonicalize } from '@/lib/canonicalize'
 import { scoreFlourCandidate } from '@/lib/taxonomy/flour'
 import { convertToGrams } from '@/lib/unitConversions'
+import { createNutritionLabelData } from '@/lib/nutritionAudit'
+import { normalizeNutritionProfile } from '@/types/nutritionAudit'
 
 interface DataUsed {
   field: string
@@ -317,6 +319,31 @@ export async function GET(
       result: 'Label-ready values'
     })
 
+    // Calculate total nutrition from all ingredients
+    const totalNutrition = ingredientBreakdown.reduce(
+      (total, ingredient) => {
+        const scaled = ingredient.scaled || { kcal: 0, carbs: 0, protein: 0, fat: 0 }
+        return {
+          kcal: total.kcal + scaled.kcal,
+          carbs: total.carbs + scaled.carbs,
+          protein: total.protein + scaled.protein,
+          fat: total.fat + scaled.fat
+        }
+      },
+      { kcal: 0, carbs: 0, protein: 0, fat: 0 }
+    )
+
+    // Create new audit trail format with calculated values
+    const calculatedNutritionData = createNutritionLabelData(totalNutrition)
+    
+    // Normalize stored nutrition profile (handles legacy format)
+    const storedNutritionData = normalizeNutritionProfile(nutritionProfile)
+    
+    // For display, use stored values if they exist, otherwise use calculated
+    const displayNutritionData = storedNutritionData.source === 'manual_override' 
+      ? storedNutritionData 
+      : calculatedNutritionData
+
     const responseData = {
       success: true,
       dishId,
@@ -325,7 +352,9 @@ export async function GET(
       dataUsed,
       mathChain,
       yieldMultiplier,
-      finalNutrition: nutritionProfile,
+      finalNutrition: displayNutritionData, // New audit trail format
+      calculatedNutrition: calculatedNutritionData, // Always calculated values
+      storedNutrition: storedNutritionData, // Normalized stored data
       _stamp: stamp
     }
 
