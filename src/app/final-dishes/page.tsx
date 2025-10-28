@@ -326,7 +326,7 @@ export default function FinalDishesPage() {
                 allergens={viewingLabel.allergens}
                 extraButtons={
                   <div className="flex items-center justify-center gap-3">
-                    <span className="text-gray-700 font-medium">Something Wrong?</span>
+                    <span className="text-red-600 font-medium">Something Wrong?</span>
                     <button
                       onClick={async () => {
                         try {
@@ -356,7 +356,7 @@ export default function FinalDishesPage() {
                     }}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 font-medium"
                   >
-                    View Calculations
+                                          View/Edit Calculations
                   </button>
                   </div>
                 }
