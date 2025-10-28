@@ -8,6 +8,7 @@ import NutritionLabel from '@/components/NutritionLabel'
 import Header from '@/components/Header'
 import MobileRestrict from '@/components/MobileRestrict'
 import { USDAFood, NutrientProfile } from '@/types/recipe'
+import { convertToGrams } from '@/lib/unitConversions'
 
 interface FinalDishComponent {
   id: string
@@ -486,7 +487,7 @@ export default function NewFinalDishPage() {
                   <NutritionLabel
                     dishName={watch('name') || 'Untitled Dish'}
                     servingSize={`${servingSize}g`}
-                    servingsPerContainer={Math.round((components.reduce((sum, c) => sum + c.quantity, 0)) / servingSize) || 1}
+                    servingsPerContainer={Math.round((components.reduce((sum, c) => sum + (convertToGrams(c.quantity || 0, c.unit || 'g') || 0), 0)) / servingSize) || 1}
                     nutrients={previewNutrition as any}
                     allergens={watch('allergens')}
                   />

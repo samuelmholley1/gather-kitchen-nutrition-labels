@@ -106,7 +106,7 @@ function buildHtmlEmail(
     : 'N/A';
 
   const reasonDisplay =
-    reasonType === 'self_evident' ? 'Error is self-evident' : `Reason: ${comment || 'User comment provided'}`;
+    reasonType === 'self_evident' ? 'Error is self-evident' : `${comment || 'User comment provided'}`;
 
   return `
 <!DOCTYPE html>
@@ -190,7 +190,7 @@ function buildTextEmail(
   laypersonBreakdown: string
 ): string {
   const reasonDisplay =
-    reasonType === 'self_evident' ? 'Error is self-evident' : `Reason: ${comment || 'User comment provided'}`;
+    reasonType === 'self_evident' ? 'Error is self-evident' : `${comment || 'User comment provided'}`;
 
   let text = `🚨 NUTRITION LABEL REPORT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

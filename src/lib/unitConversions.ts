@@ -106,6 +106,53 @@ export const UNIT_CONVERSIONS: Record<string, UnitConversion> = {
     gramsPerUnit: 3785,
     description: 'Gallon',
   },
+
+  // Count-based units (common food items)
+  // Egg sizes (approximate weights)
+  'large': {
+    unit: 'large',
+    aliases: ['large', 'lg'],
+    gramsPerUnit: 50,
+    description: 'Large egg (50g)',
+  },
+  'medium': {
+    unit: 'medium',
+    aliases: ['medium', 'md'],
+    gramsPerUnit: 44,
+    description: 'Medium egg (44g)',
+  },
+  'small': {
+    unit: 'small',
+    aliases: ['small', 'sm'],
+    gramsPerUnit: 38,
+    description: 'Small egg (38g)',
+  },
+  'extra large': {
+    unit: 'extra large',
+    aliases: ['extra large', 'extra-large', 'xl', 'jumbo'],
+    gramsPerUnit: 56,
+    description: 'Extra large egg (56g)',
+  },
+  'egg': {
+    unit: 'egg',
+    aliases: ['egg', 'eggs'],
+    gramsPerUnit: 50,
+    description: 'Egg (50g, large)',
+  },
+
+  // Other count-based items
+  'clove': {
+    unit: 'clove',
+    aliases: ['clove', 'cloves'],
+    gramsPerUnit: 5,
+    description: 'Garlic clove (5g)',
+  },
+  'slice': {
+    unit: 'slice',
+    aliases: ['slice', 'slices'],
+    gramsPerUnit: 20,
+    description: 'Bread slice (20g)',
+  },
 }
 
 /**
