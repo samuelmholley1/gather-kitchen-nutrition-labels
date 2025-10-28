@@ -59,6 +59,25 @@ export default function CalculationProvenanceModal({
     fat: nutrition?.fat ?? 0
   })
 
+  // Show loading state if modal is open but no data yet
+  if (isOpen && !calculationData) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Loading Calculations</h3>
+              <p className="text-sm text-gray-600 mt-2">Retrieving calculations may take a few moments...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isOpen || !calculationData) return null
+
   const handleRevertToCalculated = async () => {
     if (!calculationData?.dishId) return
 
