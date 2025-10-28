@@ -386,6 +386,7 @@ export async function GET(
       success: true,
       dishId,
       dishName: dish.Name || 'Unknown Dish',
+      servingsPerContainer: dish.ServingsPerContainer || 1,
       ingredients: ingredientBreakdown,
       dataUsed,
       mathChain,

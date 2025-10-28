@@ -8,6 +8,7 @@ interface CalculationProvenanceModalProps {
   onClose: () => void
   dishName: string
   calculationData: any
+  isLoading?: boolean
 }
 
 interface IngredientBreakdown {
@@ -36,7 +37,8 @@ export default function CalculationProvenanceModal({
   isOpen,
   onClose,
   dishName,
-  calculationData
+  calculationData,
+  isLoading = false
 }: CalculationProvenanceModalProps) {
   const [isReverting, setIsReverting] = useState(false)
   const [editingIngredient, setEditingIngredient] = useState<number | null>(null)
@@ -60,7 +62,7 @@ export default function CalculationProvenanceModal({
   })
 
   // Show loading state if modal is open but no data yet
-  if (isOpen && !calculationData) {
+  if (isOpen && (isLoading || !calculationData)) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
@@ -295,8 +297,9 @@ export default function CalculationProvenanceModal({
   if (!isOpen || !calculationData) return null
 
   const ingredients: IngredientBreakdown[] = calculationData.ingredients || []
+  const servingsPerContainer = calculationData.servingsPerContainer || 1
   
-  // Calculate running totals
+  // Calculate running totals (per entire recipe)
   const runningTotals: NutritionValues[] = []
   let cumulative: NutritionValues = { kcal: 0, carbs: 0, protein: 0, fat: 0 }
   
@@ -315,6 +318,14 @@ export default function CalculationProvenanceModal({
   // If finalNutrition exists from backend, we can compare them
   const calculatedTotal = cumulative
   
+  // Divide by servings to get per-serving values
+  const divideByServings = (nutrition: NutritionValues): NutritionValues => ({
+    kcal: nutrition.kcal / servingsPerContainer,
+    carbs: nutrition.carbs / servingsPerContainer,
+    protein: nutrition.protein / servingsPerContainer,
+    fat: nutrition.fat / servingsPerContainer
+  })
+  
   // Handle new audit trail format
   const nutritionData = calculationData.finalNutrition
   const storedNutrition = nutritionData?.values ? safeNutrition(nutritionData.values) : null
@@ -331,6 +342,7 @@ export default function CalculationProvenanceModal({
   )
   
   const finalNutrition = storedNutrition || calculatedTotal
+  const finalNutritionPerServing = divideByServings(finalNutrition)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -360,8 +372,11 @@ export default function CalculationProvenanceModal({
                   <tr className="border-b-2 border-gray-300">
                     <th className="text-left p-3 font-semibold text-gray-700 bg-gray-50">Ingredient + Quantity</th>
                     <th className="text-left p-3 font-semibold text-gray-700 bg-gray-50">Per 100g</th>
-                    <th className="text-left p-3 font-semibold text-gray-700 bg-gray-50">Scaled Nutrition</th>
-                    <th className="text-left p-3 font-semibold text-gray-700 bg-gray-50">Running Total</th>
+                    <th className="text-left p-3 font-semibold text-gray-700 bg-gray-50">
+                      Per Serving
+                      <div className="text-xs font-normal text-gray-500">({servingsPerContainer} servings total)</div>
+                    </th>
+                    <th className="text-left p-3 font-semibold text-gray-700 bg-gray-50">Running Total<br/><span className="text-xs font-normal text-gray-500">(per serving)</span></th>
                     <th className="text-center p-3 font-semibold text-gray-700 bg-gray-50">Actions</th>
                   </tr>
                 </thead>
@@ -369,7 +384,9 @@ export default function CalculationProvenanceModal({
                   {ingredients.map((ingredient, index) => {
                     const per100g = safeNutrition(ingredient.per100g)
                     const scaled = safeNutrition(ingredient.scaled)
+                    const scaledPerServing = divideByServings(scaled)
                     const running = runningTotals[index] || { kcal: 0, carbs: 0, protein: 0, fat: 0 }
+                    const runningPerServing = divideByServings(running)
 
                     const laypersonSummary = `• You entered: "${ingredient.rawInput}"
 • Source: "USDA ${ingredient.selectedUSDA?.dataType || 'Unknown'} / FDC ${ingredient.selectedUSDA?.fdcId || 'N/A'}"
@@ -507,23 +524,23 @@ export default function CalculationProvenanceModal({
                           </div>
                         </td>
 
-                        {/* Column 3: Scaled Nutrition */}
+                        {/* Column 3: Scaled Nutrition (Per Serving) */}
                         <td className="p-3 align-top">
                           <div className="text-sm space-y-1 font-medium text-emerald-700">
-                            <div>{scaled.kcal.toFixed(1)} kcal</div>
-                            <div>{scaled.carbs.toFixed(1)}g carbs</div>
-                            <div>{scaled.protein.toFixed(1)}g protein</div>
-                            <div>{scaled.fat.toFixed(1)}g fat</div>
+                            <div>{scaledPerServing.kcal.toFixed(1)} kcal</div>
+                            <div>{scaledPerServing.carbs.toFixed(1)}g carbs</div>
+                            <div>{scaledPerServing.protein.toFixed(1)}g protein</div>
+                            <div>{scaledPerServing.fat.toFixed(1)}g fat</div>
                           </div>
                         </td>
 
-                        {/* Column 4: Running Total */}
+                        {/* Column 4: Running Total (Per Serving) */}
                         <td className="p-3 align-top">
                           <div className="text-sm space-y-1 font-semibold text-blue-700">
-                            <div>{running.kcal.toFixed(1)} kcal</div>
-                            <div>{running.carbs.toFixed(1)}g carbs</div>
-                            <div>{running.protein.toFixed(1)}g protein</div>
-                            <div>{running.fat.toFixed(1)}g fat</div>
+                            <div>{runningPerServing.kcal.toFixed(1)} kcal</div>
+                            <div>{runningPerServing.carbs.toFixed(1)}g carbs</div>
+                            <div>{runningPerServing.protein.toFixed(1)}g protein</div>
+                            <div>{runningPerServing.fat.toFixed(1)}g fat</div>
                           </div>
                         </td>
 
@@ -556,7 +573,10 @@ export default function CalculationProvenanceModal({
 
                   {/* Final Totals Row */}
                   <tr className="border-t-2 border-gray-400 bg-blue-50">
-                    <td className="p-4 font-bold text-gray-900">FINAL DISH TOTAL</td>
+                    <td className="p-4 font-bold text-gray-900">
+                      FINAL PER SERVING
+                      <div className="text-xs font-normal text-gray-500">({servingsPerContainer} servings)</div>
+                    </td>
                     <td className="p-4 text-sm text-gray-500">—</td>
                     <td className="p-4 text-sm text-gray-500">—</td>
                     <td className="p-4">
@@ -635,13 +655,13 @@ export default function CalculationProvenanceModal({
                         <div>
                           <div className="flex items-center gap-2 mb-2">
                             <div className="text-sm space-y-1 font-bold text-blue-900 flex-1">
-                              <div>{finalNutrition.kcal.toFixed(1)} kcal</div>
-                              <div>{finalNutrition.carbs.toFixed(1)}g carbs</div>
-                              <div>{finalNutrition.protein.toFixed(1)}g protein</div>
-                              <div>{finalNutrition.fat.toFixed(1)}g fat</div>
+                              <div>{finalNutritionPerServing.kcal.toFixed(1)} kcal</div>
+                              <div>{finalNutritionPerServing.carbs.toFixed(1)}g carbs</div>
+                              <div>{finalNutritionPerServing.protein.toFixed(1)}g protein</div>
+                              <div>{finalNutritionPerServing.fat.toFixed(1)}g fat</div>
                             </div>
                             <button
-                              onClick={() => handleEditTotals(finalNutrition)}
+                              onClick={() => handleEditTotals(finalNutritionPerServing)}
                               className="text-blue-600 hover:text-blue-800 self-start"
                               title="Edit final totals"
                             >

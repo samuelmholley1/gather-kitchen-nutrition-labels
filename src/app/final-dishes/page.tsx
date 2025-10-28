@@ -400,10 +400,14 @@ export default function FinalDishesPage() {
 
       {/* Calculation Provenance Modal */}
       <CalculationProvenanceModal
-        isOpen={showingProvenance}
-        onClose={() => setShowingProvenance(false)}
+        isOpen={showingProvenance || loadingCalculations}
+        onClose={() => {
+          setShowingProvenance(false)
+          setLoadingCalculations(false)
+        }}
         dishName={viewingLabel?.name || ''}
         calculationData={provenanceData}
+        isLoading={loadingCalculations}
       />
     </div>
   )
