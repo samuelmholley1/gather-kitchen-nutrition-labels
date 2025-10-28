@@ -41,12 +41,20 @@ export default function CalculationProvenanceModal({
 
   const ingredients: IngredientBreakdown[] = calculationData.ingredients || []
   
+  // Helper function to safely get nutrition values
+  const safeNutrition = (nutrition: any): NutritionValues => ({
+    kcal: nutrition?.kcal ?? 0,
+    carbs: nutrition?.carbs ?? 0,
+    protein: nutrition?.protein ?? 0,
+    fat: nutrition?.fat ?? 0
+  })
+  
   // Calculate running totals
   const runningTotals: NutritionValues[] = []
   let cumulative: NutritionValues = { kcal: 0, carbs: 0, protein: 0, fat: 0 }
   
   ingredients.forEach((ing) => {
-    const scaled = ing.scaled || { kcal: 0, carbs: 0, protein: 0, fat: 0 }
+    const scaled = safeNutrition(ing.scaled)
     cumulative = {
       kcal: cumulative.kcal + scaled.kcal,
       carbs: cumulative.carbs + scaled.carbs,
@@ -56,7 +64,7 @@ export default function CalculationProvenanceModal({
     runningTotals.push({ ...cumulative })
   })
 
-  const finalNutrition = calculationData.finalNutrition || cumulative
+  const finalNutrition = safeNutrition(calculationData.finalNutrition || cumulative)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -93,12 +101,12 @@ export default function CalculationProvenanceModal({
                 </thead>
                 <tbody>
                   {ingredients.map((ingredient, index) => {
-                    const per100g = ingredient.per100g || { kcal: 0, carbs: 0, protein: 0, fat: 0 }
-                    const scaled = ingredient.scaled || { kcal: 0, carbs: 0, protein: 0, fat: 0 }
-                    const running = runningTotals[index]
+                    const per100g = safeNutrition(ingredient.per100g)
+                    const scaled = safeNutrition(ingredient.scaled)
+                    const running = runningTotals[index] || { kcal: 0, carbs: 0, protein: 0, fat: 0 }
 
                     const laypersonSummary = `• You entered: "${ingredient.rawInput}"
-• Source: "USDA ${ingredient.selectedUSDA.dataType} / FDC ${ingredient.selectedUSDA.fdcId}"
+• Source: "USDA ${ingredient.selectedUSDA?.dataType || 'Unknown'} / FDC ${ingredient.selectedUSDA?.fdcId || 'N/A'}"
 • Conversions used: 1 cup = 125 g → scaled to ${ingredient.quantity || 100} g
 • Per 100 g: kcal=${per100g.kcal}, carbs=${per100g.carbs}g, protein=${per100g.protein}g, fat=${per100g.fat}g
 • Scaled to ${ingredient.quantity || 100} g: kcal=${scaled.kcal}, carbs=${scaled.carbs}g, protein=${scaled.protein}g, fat=${scaled.fat}g
@@ -108,12 +116,12 @@ export default function CalculationProvenanceModal({
                       <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
                         {/* Column 1: Ingredient + Quantity */}
                         <td className="p-3 align-top">
-                          <div className="font-medium text-gray-900">{ingredient.canonical}</div>
+                          <div className="font-medium text-gray-900">{ingredient.canonical || 'Unknown ingredient'}</div>
                           <div className="text-sm text-gray-600 mt-1">
-                            {ingredient.quantity} {ingredient.unit}
+                            {ingredient.quantity || 0} {ingredient.unit || 'g'}
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
-                            USDA {ingredient.selectedUSDA.dataType} • FDC {ingredient.selectedUSDA.fdcId}
+                            USDA {ingredient.selectedUSDA?.dataType || 'Unknown'} • FDC {ingredient.selectedUSDA?.fdcId || 'N/A'}
                           </div>
                         </td>
 
