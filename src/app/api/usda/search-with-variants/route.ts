@@ -4,6 +4,7 @@ import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
 import { generateSearchVariants } from '@/lib/smartRecipeParser'
 import { canonicalize, hasSpecialtyFlourQualifier } from '@/lib/canonicalize'
 import { isSpecialtyFlour, isAllPurposeFlour, scoreFlourCandidate } from '@/lib/taxonomy/flour'
+import type { USDAFood } from '@/types/nutrition'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
           if (canon.base === 'flour' && !hasSpecialtyFlourQualifier(canon.qualifiers)) {
             console.log(`[USDA Taxonomy] Filtering specialty flours for generic "flour" query`)
             const beforeCount = foods.length
-            foods = foods.filter(f => !isSpecialtyFlour(f.description || ''))
+            foods = foods.filter((f: USDAFood) => !isSpecialtyFlour(f.description || ''))
             console.log(`[USDA Taxonomy] Filtered ${beforeCount - foods.length} specialty flours, ${foods.length} remain`)
           }
           
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
           // BUT: Don't penalize specialty ingredients if they're explicitly in the query
           const queryLower = variant.toLowerCase()
           
-          const scoredFoods = foods.map(food => {
+          const scoredFoods = foods.map((food: USDAFood) => {
             let score = 0
             const desc = food.description?.toLowerCase() || ''
             
