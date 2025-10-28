@@ -15,6 +15,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const stamp = createRouteStamp('final-dishes/[id]/calculate')
+  
+  console.log('[CALCULATE] === START ===')
+  console.log('[CALCULATE] Dish ID:', params.id)
 
   try {
     const dishId = params.id
@@ -22,19 +25,35 @@ export async function GET(
     // Fetch the final dish from Airtable
     const baseId = process.env.AIRTABLE_BASE_ID
     const tableName = process.env.AIRTABLE_FINALDISHES_TABLE || 'FinalDishes'
-    const apiKey = process.env.AIRTABLE_API_KEY
+    const apiKey = process.env.AIRTABLE_PAT_TOKEN || process.env.AIRTABLE_API_KEY
+
+    console.log('[CALCULATE] Config:', {
+      hasBaseId: !!baseId,
+      baseIdLength: baseId?.length,
+      tableName,
+      hasApiKey: !!apiKey,
+      apiKeyPrefix: apiKey?.substring(0, 10)
+    })
 
     if (!baseId || !tableName || !apiKey) {
+      console.error('[CALCULATE] Missing config:', { hasBaseId: !!baseId, tableName, hasApiKey: !!apiKey })
       throw new Error('Airtable configuration missing')
     }
 
     // Use direct record ID fetch instead of filterByFormula
     const airtableUrl = `https://api.airtable.com/v0/${baseId}/${tableName}/${dishId}`
+    console.log('[CALCULATE] Fetching:', airtableUrl)
+    
     const airtableResponse = await fetch(airtableUrl, {
       headers: { Authorization: `Bearer ${apiKey}` }
     })
 
+    console.log('[CALCULATE] Airtable response status:', airtableResponse.status)
+
     if (!airtableResponse.ok) {
+      const errorText = await airtableResponse.text()
+      console.error('[CALCULATE] Airtable error response:', errorText)
+      
       if (airtableResponse.status === 404) {
         const response = NextResponse.json(
           { success: false, error: 'Dish not found' },
@@ -43,33 +62,53 @@ export async function GET(
         stampHeaders(response.headers, stamp)
         return response
       }
-      throw new Error('Failed to fetch dish from Airtable')
+      throw new Error(`Failed to fetch dish from Airtable: ${airtableResponse.status} - ${errorText}`)
     }
 
+    console.log('[CALCULATE] Parsing Airtable response...')
     const record = await airtableResponse.json()
+    console.log('[CALCULATE] Record keys:', Object.keys(record))
+    console.log('[CALCULATE] Field keys:', Object.keys(record.fields || {}))
+    
     const dish = record.fields
     let components = []
     let yieldMultiplier = 1.0
     let nutritionProfile = {}
 
+    console.log('[CALCULATE] Dish name:', dish.Name)
+    console.log('[CALCULATE] Components type:', typeof dish.Components)
+
     try {
-      components = JSON.parse(dish.Components || '[]')
+      const componentsRaw = dish.Components
+      if (typeof componentsRaw === 'string') {
+        components = JSON.parse(componentsRaw)
+      } else if (Array.isArray(componentsRaw)) {
+        components = componentsRaw
+      }
+      console.log('[CALCULATE] Parsed components:', components.length, 'items')
     } catch (err) {
-      console.warn('Failed to parse Components JSON:', err)
+      console.error('[CALCULATE] Failed to parse Components:', err)
       components = []
     }
 
     try {
       yieldMultiplier = dish.YieldMultiplier || 1.0
+      console.log('[CALCULATE] YieldMultiplier:', yieldMultiplier)
     } catch (err) {
-      console.warn('Failed to parse YieldMultiplier:', err)
+      console.warn('[CALCULATE] Failed to parse YieldMultiplier:', err)
       yieldMultiplier = 1.0
     }
 
     try {
-      nutritionProfile = dish.NutritionProfile ? JSON.parse(dish.NutritionProfile) : {}
+      const nutritionRaw = dish.NutritionProfile
+      if (typeof nutritionRaw === 'string') {
+        nutritionProfile = JSON.parse(nutritionRaw)
+      } else if (typeof nutritionRaw === 'object' && nutritionRaw !== null) {
+        nutritionProfile = nutritionRaw
+      }
+      console.log('[CALCULATE] NutritionProfile parsed')
     } catch (err) {
-      console.warn('Failed to parse NutritionProfile JSON:', err)
+      console.error('[CALCULATE] Failed to parse NutritionProfile:', err)
       nutritionProfile = {}
     }
 
@@ -202,7 +241,10 @@ export async function GET(
     return response
 
   } catch (error) {
-    console.error('[Calc Provenance] Error:', error)
+    console.error('[CALCULATE] === ERROR ===')
+    console.error('[CALCULATE] Error type:', error?.constructor?.name)
+    console.error('[CALCULATE] Error message:', error instanceof Error ? error.message : String(error))
+    console.error('[CALCULATE] Error stack:', error instanceof Error ? error.stack : 'No stack')
 
     logStamp('calc-provenance-error', stamp, {
       error: error instanceof Error ? error.message : 'Unknown'
