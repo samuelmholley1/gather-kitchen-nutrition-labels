@@ -15,109 +15,71 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const stamp = createRouteStamp('final-dishes/[id]/calculate')
-  
-  console.log('[CALCULATE] Starting request for dishId:', params.id)
 
   try {
     const dishId = params.id
 
     // Fetch the final dish from Airtable
     const baseId = process.env.AIRTABLE_BASE_ID
-    const tableName = process.env.AIRTABLE_FINAL_DISHES_TABLE
+    const tableName = process.env.AIRTABLE_FINALDISHES_TABLE || 'FinalDishes'
     const apiKey = process.env.AIRTABLE_API_KEY
-
-    console.log('[CALCULATE] Config check:', { 
-      hasBaseId: !!baseId, 
-      hasTableName: !!tableName, 
-      hasApiKey: !!apiKey 
-    })
 
     if (!baseId || !tableName || !apiKey) {
       throw new Error('Airtable configuration missing')
     }
 
-    const airtableUrl = `https://api.airtable.com/v0/${baseId}/${tableName}?filterByFormula={DishId}="${dishId}"`
-    console.log('[CALCULATE] Fetching from Airtable...')
-    
+    // Use direct record ID fetch instead of filterByFormula
+    const airtableUrl = `https://api.airtable.com/v0/${baseId}/${tableName}/${dishId}`
     const airtableResponse = await fetch(airtableUrl, {
       headers: { Authorization: `Bearer ${apiKey}` }
     })
 
-    console.log('[CALCULATE] Airtable response status:', airtableResponse.status)
-
     if (!airtableResponse.ok) {
-      const errorText = await airtableResponse.text()
-      console.error('[CALCULATE] Airtable error:', errorText)
-      throw new Error(`Failed to fetch dish from Airtable: ${airtableResponse.status}`)
+      if (airtableResponse.status === 404) {
+        const response = NextResponse.json(
+          { success: false, error: 'Dish not found' },
+          { status: 404 }
+        )
+        stampHeaders(response.headers, stamp)
+        return response
+      }
+      throw new Error('Failed to fetch dish from Airtable')
     }
 
-    const airtableData = await airtableResponse.json()
-    console.log('[CALCULATE] Airtable data received, records count:', airtableData.records?.length || 0)
-    
-    const record = airtableData.records?.[0]
-
-    if (!record) {
-      console.log('[CALCULATE] No record found for dishId:', dishId)
-      const response = NextResponse.json(
-        { success: false, error: 'Dish not found' },
-        { status: 404 }
-      )
-      stampHeaders(response.headers, stamp)
-      return response
-    }
-
-    console.log('[CALCULATE] Record found, processing fields...')
+    const record = await airtableResponse.json()
     const dish = record.fields
     let components = []
     let yieldMultiplier = 1.0
     let nutritionProfile = {}
 
-    // Parse Components
     try {
-      const componentsRaw = dish.Components
-      console.log('[CALCULATE] Components type:', typeof componentsRaw)
-      if (typeof componentsRaw === 'string') {
-        components = JSON.parse(componentsRaw)
-      } else if (Array.isArray(componentsRaw)) {
-        components = componentsRaw
-      } else {
-        console.warn('[CALCULATE] Components is neither string nor array:', componentsRaw)
-        components = []
-      }
-      console.log('[CALCULATE] Parsed components count:', components.length)
+      components = JSON.parse(dish.Components || '[]')
     } catch (err) {
-      console.error('[CALCULATE] Failed to parse Components:', err)
+      console.warn('Failed to parse Components JSON:', err)
       components = []
     }
 
-    // Parse YieldMultiplier
     try {
-      yieldMultiplier = typeof dish.YieldMultiplier === 'number' ? dish.YieldMultiplier : parseFloat(dish.YieldMultiplier) || 1.0
-      console.log('[CALCULATE] YieldMultiplier:', yieldMultiplier)
+      yieldMultiplier = dish.YieldMultiplier || 1.0
     } catch (err) {
-      console.warn('[CALCULATE] Failed to parse YieldMultiplier:', err)
+      console.warn('Failed to parse YieldMultiplier:', err)
       yieldMultiplier = 1.0
     }
 
-    // Parse NutritionProfile
     try {
-      const nutritionRaw = dish.NutritionProfile
-      if (typeof nutritionRaw === 'string') {
-        nutritionProfile = JSON.parse(nutritionRaw)
-      } else if (typeof nutritionRaw === 'object' && nutritionRaw !== null) {
-        nutritionProfile = nutritionRaw
-      } else {
-        nutritionProfile = {}
-      }
-      console.log('[CALCULATE] NutritionProfile parsed successfully')
+      nutritionProfile = dish.NutritionProfile ? JSON.parse(dish.NutritionProfile) : {}
     } catch (err) {
-      console.error('[CALCULATE] Failed to parse NutritionProfile:', err)
+      console.warn('Failed to parse NutritionProfile JSON:', err)
       nutritionProfile = {}
     }
 
     // Validate components array
     if (!Array.isArray(components)) {
-      console.error('[CALCULATE] Components is not an array after parsing:', typeof components)
+      throw new Error('Components data is not in expected format')
+    }
+
+    // Validate components array
+    if (!Array.isArray(components)) {
       throw new Error('Components data is not in expected format')
     }
 
@@ -128,22 +90,13 @@ export async function GET(
       yieldMultiplier
     })
 
-    // Build detailed provenance data
+    // Build detailed provenance data (simplified for now)
     const ingredientBreakdown = []
     const dataUsed: DataUsed[] = []
     const mathChain = []
 
-    console.log('[CALCULATE] Processing components...')
-    
     // Process each component for provenance
-    for (let i = 0; i < components.length; i++) {
-      const component = components[i]
-      console.log(`[CALCULATE] Processing component ${i}:`, { 
-        type: component.type, 
-        name: component.name, 
-        hasFdcId: !!component.fdcId 
-      })
-      
+    for (const component of components) {
       if (component.type === 'ingredient' && component.fdcId) {
         // Get scoring breakdown (simulate the selection process)
         let scoreBreakdown;
@@ -155,7 +108,7 @@ export async function GET(
           )
         } catch (err) {
           // If scoring fails, provide a default breakdown
-          console.warn(`[CALCULATE] Scoring failed for ${component.name}:`, err)
+          console.warn(`Scoring failed for ${component.name}:`, err)
           scoreBreakdown = {
             baseType: 'unknown' as const,
             positives: [],
@@ -165,36 +118,26 @@ export async function GET(
           }
         }
 
-        try {
-          const canonResult = canonicalize(component.name || '')
-          console.log(`[CALCULATE] Canonicalized "${component.name}" to:`, canonResult.base)
-          
-          ingredientBreakdown.push({
-            rawInput: component.name || 'Unknown',
-            canonical: canonResult.base,
-            selectedUSDA: {
-              fdcId: component.fdcId,
-              description: component.name || 'Unknown',
-              dataType: component.dataType || 'SR Legacy'
-            },
-            scoreBreakdown
-          })
+        ingredientBreakdown.push({
+          rawInput: component.name || 'Unknown',
+          canonical: canonicalize(component.name || '').base,
+          selectedUSDA: {
+            fdcId: component.fdcId,
+            description: component.name || 'Unknown',
+            dataType: component.dataType || 'SR Legacy'
+          },
+          scoreBreakdown
+        })
 
-          // Placeholder nutrient data
-          dataUsed.push({
-            field: 'Sample nutrient',
-            value: 10,
-            unit: 'g',
-            source: `USDA FDC ${component.fdcId}`
-          })
-        } catch (err) {
-          console.error(`[CALCULATE] Error processing component ${i}:`, err)
-          // Continue to next component
-        }
+        // Placeholder nutrient data
+        dataUsed.push({
+          field: 'Sample nutrient',
+          value: 10,
+          unit: 'g',
+          source: `USDA FDC ${component.fdcId}`
+        })
       }
     }
-
-    console.log('[CALCULATE] Building math chain...')
 
     // Build math chain
     const totalRawWeight = components.reduce((sum: number, c: any) => {
@@ -248,8 +191,6 @@ export async function GET(
       _stamp: stamp
     }
 
-    console.log('[CALCULATE] Success! Returning response with', ingredientBreakdown.length, 'ingredients')
-
     logStamp('calc-provenance-out', stamp, {
       dishId,
       ingredientCount: ingredientBreakdown.length,
@@ -261,19 +202,16 @@ export async function GET(
     return response
 
   } catch (error) {
-    console.error('[CALCULATE] FATAL ERROR:', error)
-    console.error('[CALCULATE] Error stack:', error instanceof Error ? error.stack : 'No stack')
+    console.error('[Calc Provenance] Error:', error)
 
     logStamp('calc-provenance-error', stamp, {
-      error: error instanceof Error ? error.message : 'Unknown',
-      stack: error instanceof Error ? error.stack : undefined
+      error: error instanceof Error ? error.message : 'Unknown'
     })
 
     const response = NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: error instanceof Error ? error.stack : undefined,
         _stamp: stamp
       },
       { status: 500 }
