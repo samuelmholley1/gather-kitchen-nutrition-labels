@@ -171,6 +171,42 @@ export async function GET(
             const proteinNutrient = nutrients.find((n: any) => n.nutrient?.id === 1003 || n.nutrient?.name === 'Protein')
             const fatNutrient = nutrients.find((n: any) => n.nutrient?.id === 1004 || n.nutrient?.name?.includes('Total lipid'))
             
+            console.log(`[CALCULATE] Looking for carbs in ${component.name}, found:`, {
+              carbNutrient,
+              allCarbRelatedNutrients: nutrients.filter((n: any) => n.nutrient?.name?.toLowerCase().includes('carb')).map((n: any) => ({
+                id: n.nutrient?.id,
+                name: n.nutrient?.name,
+                amount: n.amount
+              }))
+            })
+            
+            console.log(`[CALCULATE] Nutrient details for ${component.name}:`, {
+              energyNutrient: energyNutrient ? {
+                id: energyNutrient.nutrient?.id,
+                name: energyNutrient.nutrient?.name,
+                amount: energyNutrient.amount,
+                unitName: energyNutrient.nutrient?.unitName
+              } : null,
+              carbNutrient: carbNutrient ? {
+                id: carbNutrient.nutrient?.id,
+                name: carbNutrient.nutrient?.name,
+                amount: carbNutrient.amount,
+                unitName: carbNutrient.nutrient?.unitName
+              } : null,
+              proteinNutrient: proteinNutrient ? {
+                id: proteinNutrient.nutrient?.id,
+                name: proteinNutrient.nutrient?.name,
+                amount: proteinNutrient.amount,
+                unitName: proteinNutrient.nutrient?.unitName
+              } : null,
+              fatNutrient: fatNutrient ? {
+                id: fatNutrient.nutrient?.id,
+                name: fatNutrient.nutrient?.name,
+                amount: fatNutrient.amount,
+                unitName: fatNutrient.nutrient?.unitName
+              } : null
+            })
+            
             console.log(`[CALCULATE] Extracted nutrients for ${component.name}:`, {
               energy: energyNutrient?.amount,
               carbs: carbNutrient?.amount,
@@ -184,6 +220,8 @@ export async function GET(
               protein: proteinNutrient?.amount || 0,
               fat: fatNutrient?.amount || 0
             }
+            
+            console.log(`[CALCULATE] FINAL per100g for ${component.name}:`, per100g)
             
             // Scale based on quantity (already converted to grams above)
             const scaleFactor = quantityInGrams / 100
