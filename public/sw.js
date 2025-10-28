@@ -1,10 +1,10 @@
-const CACHE_NAME = 'uumc-liturgist-v2';
+const CACHE_NAME = 'gather-kitchen-v2';
 const urlsToCache = [
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
   '/apple-touch-icon.png',
   '/favicon.ico',
-  '/logo-for-church-larger.jpg'
+  '/gather_logo.png'
 ];
 
 self.addEventListener('install', (event) => {

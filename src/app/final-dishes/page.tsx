@@ -346,15 +346,23 @@ export default function FinalDishesPage() {
                     <span className="text-red-600 font-medium">Something Wrong?</span>
                     <button
                       onClick={async () => {
+                        console.log('View/Edit Calculations button clicked')
                         setLoadingCalculations(true)
+                        console.log('Set loadingCalculations to true')
                         try {
+                          console.log('Fetching calculations for dish:', viewingLabel.id)
                           const response = await fetch(`/api/final-dishes/${viewingLabel.id}/calculate`)
+                          console.log('Fetch response status:', response.status)
                           if (response.ok) {
                             const data = await response.json()
+                            console.log('Calculation data received:', data)
                             setProvenanceData(data)
                             setShowingProvenance(true)
+                            console.log('Set provenance data and showing modal')
                           } else {
                             console.error('Failed to fetch calculations:', response.status)
+                            const errorText = await response.text()
+                            console.error('Error response:', errorText)
                             setModal({
                               isOpen: true,
                               type: 'error',
@@ -372,6 +380,7 @@ export default function FinalDishesPage() {
                           })
                         } finally {
                           setLoadingCalculations(false)
+                          console.log('Set loadingCalculations to false')
                         }
                       }}
                       disabled={loadingCalculations}

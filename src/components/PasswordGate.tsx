@@ -1,3 +1,4 @@
+/*
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -14,7 +15,7 @@ export default function PasswordGate({ children }: PasswordGateProps) {
 
   useEffect(() => {
     // Check if already authenticated in session storage
-    const auth = sessionStorage.getItem('liturgist-auth')
+    const auth = sessionStorage.getItem('gather-admin-auth')
     if (auth === 'true') {
       setIsAuthenticated(true)
     }
@@ -24,7 +25,7 @@ export default function PasswordGate({ children }: PasswordGateProps) {
     e.preventDefault()
     if (password === 'lovewins') {
       setIsAuthenticated(true)
-      sessionStorage.setItem('liturgist-auth', 'true')
+      sessionStorage.setItem('gather-admin-auth', 'true')
       setError(false)
     } else {
       setError(true)
@@ -41,8 +42,8 @@ export default function PasswordGate({ children }: PasswordGateProps) {
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
         <div className="text-center mb-6">
           <Image
-            src="/logo-for-church-larger.jpg"
-            alt="Ukiah United Methodist Church"
+            src="/gather_logo.png"
+            alt="Gather Kitchen"
             width={120}
             height={120}
             quality={100}
@@ -50,7 +51,7 @@ export default function PasswordGate({ children }: PasswordGateProps) {
             className="rounded-full shadow-md mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            Liturgist Schedule
+            Gather Kitchen Admin
           </h1>
           <p className="text-gray-600 text-sm">
             Please enter the password to continue
@@ -89,3 +90,4 @@ export default function PasswordGate({ children }: PasswordGateProps) {
     </div>
   )
 }
+*/
