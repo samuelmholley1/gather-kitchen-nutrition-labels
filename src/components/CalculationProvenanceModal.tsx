@@ -46,6 +46,10 @@ export default function CalculationProvenanceModal({
   const [editingTotals, setEditingTotals] = useState(false)
   const [editedTotals, setEditedTotals] = useState({ kcal: '', carbs: '', protein: '', fat: '' })
   const [editReason, setEditReason] = useState('')
+  const [editingUSDA, setEditingUSDA] = useState<number | null>(null)
+  const [usdaSearchQuery, setUsdaSearchQuery] = useState('')
+  const [usdaSearchResults, setUsdaSearchResults] = useState<any[]>([])
+  const [isSearchingUSDA, setIsSearchingUSDA] = useState(false)
 
   // Helper function to safely get nutrition values
   const safeNutrition = (nutrition: any): NutritionValues => ({
@@ -197,6 +201,78 @@ export default function CalculationProvenanceModal({
     }
   }
 
+  const handleEditUSDA = (index: number, currentName: string) => {
+    setEditingUSDA(index)
+    setUsdaSearchQuery(currentName)
+    setUsdaSearchResults([])
+  }
+
+  const handleCancelUSDAEdit = () => {
+    setEditingUSDA(null)
+    setUsdaSearchQuery('')
+    setUsdaSearchResults([])
+  }
+
+  const handleSearchUSDA = async () => {
+    if (!usdaSearchQuery.trim()) return
+
+    setIsSearchingUSDA(true)
+    try {
+      const response = await fetch(`/api/usda/search?q=${encodeURIComponent(usdaSearchQuery)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUsdaSearchResults(data.foods || [])
+      } else {
+        alert('Failed to search USDA database')
+      }
+    } catch (error) {
+      console.error('USDA search error:', error)
+      alert('Error searching USDA database')
+    } finally {
+      setIsSearchingUSDA(false)
+    }
+  }
+
+  const handleSelectUSDA = async (index: number, food: any) => {
+    if (!calculationData?.dishId) return
+
+    const reason = window.prompt(
+      `Changing from "${ingredients[index].selectedUSDA?.description}" to "${food.description}"\n\nReason for change:`
+    )
+    
+    if (!reason?.trim()) {
+      alert('Reason is required to change USDA match')
+      return
+    }
+
+    setIsSavingEdit(true)
+    try {
+      const response = await fetch(`/api/final-dishes/${calculationData.dishId}/update-usda-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          componentIndex: index,
+          fdcId: food.fdcId,
+          name: food.description,
+          dataType: food.dataType,
+          reason: reason.trim()
+        })
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        console.error('Failed to update USDA match')
+        alert('Failed to update USDA match. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error updating USDA match:', error)
+      alert('Error updating USDA match. Please try again.')
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
   if (!isOpen || !calculationData) return null
 
   const ingredients: IngredientBreakdown[] = calculationData.ingredients || []
@@ -337,9 +413,67 @@ export default function CalculationProvenanceModal({
                                   </div>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                USDA {ingredient.selectedUSDA?.dataType || 'Unknown'} • FDC {ingredient.selectedUSDA?.fdcId || 'N/A'}
+                              <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                <span>USDA {ingredient.selectedUSDA?.dataType || 'Unknown'} • FDC {ingredient.selectedUSDA?.fdcId || 'N/A'}</span>
+                                {editingUSDA !== index && (
+                                  <button
+                                    onClick={() => handleEditUSDA(index, ingredient.canonical || '')}
+                                    className="text-blue-600 hover:text-blue-800"
+                                    title="Change USDA match"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                )}
                               </div>
+                              {editingUSDA === index && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
+                                  <div className="text-xs font-semibold text-gray-700 mb-2">Change USDA Match:</div>
+                                  <div className="flex gap-2 mb-2">
+                                    <input
+                                      type="text"
+                                      value={usdaSearchQuery}
+                                      onChange={(e) => setUsdaSearchQuery(e.target.value)}
+                                      onKeyDown={(e) => e.key === 'Enter' && handleSearchUSDA()}
+                                      placeholder="Search USDA database..."
+                                      className="flex-1 px-2 py-1 border border-blue-300 rounded text-sm"
+                                    />
+                                    <button
+                                      onClick={handleSearchUSDA}
+                                      disabled={isSearchingUSDA}
+                                      className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                      {isSearchingUSDA ? '...' : 'Search'}
+                                    </button>
+                                    <button
+                                      onClick={handleCancelUSDAEdit}
+                                      className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                  {usdaSearchResults.length > 0 && (
+                                    <div className="max-h-48 overflow-y-auto border border-blue-200 rounded">
+                                      {usdaSearchResults.slice(0, 10).map((food, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() => handleSelectUSDA(index, food)}
+                                          className="w-full text-left px-2 py-2 hover:bg-blue-100 border-b border-blue-100 last:border-b-0"
+                                        >
+                                          <div className="text-xs font-medium text-gray-900">{food.description}</div>
+                                          <div className="text-xs text-gray-600">
+                                            {food.dataType} • FDC {food.fdcId}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {usdaSearchResults.length === 0 && usdaSearchQuery && !isSearchingUSDA && (
+                                    <div className="text-xs text-gray-500 mt-2">No results found. Try a different search.</div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
