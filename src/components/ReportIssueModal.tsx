@@ -192,7 +192,7 @@ export function ReportIssueModal({
             <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-blue-900 mb-2">Report Delivery</h3>
               <p className="text-blue-800 text-sm mb-3">
-                This report will be sent to our development team at sam@samuelholley.com for review and resolution.
+                This report will be sent to sam@samuelholley.com for review and resolution.
               </p>
               <div className="space-y-2">
                 <label className="flex items-center gap-3 cursor-pointer group">

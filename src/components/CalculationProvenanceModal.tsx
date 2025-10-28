@@ -64,7 +64,20 @@ export default function CalculationProvenanceModal({
     runningTotals.push({ ...cumulative })
   })
 
-  const finalNutrition = safeNutrition(calculationData.finalNutrition || cumulative)
+  // Use cumulative total (sum of all ingredients) as final total
+  // If finalNutrition exists from backend, we can compare them
+  const calculatedTotal = cumulative
+  const storedNutrition = calculationData.finalNutrition ? safeNutrition(calculationData.finalNutrition) : null
+  
+  // Check if there's a discrepancy (tolerance: 1% or 1 unit)
+  const hasMismatch = storedNutrition && (
+    Math.abs(calculatedTotal.kcal - storedNutrition.kcal) > Math.max(1, storedNutrition.kcal * 0.01) ||
+    Math.abs(calculatedTotal.carbs - storedNutrition.carbs) > Math.max(1, storedNutrition.carbs * 0.01) ||
+    Math.abs(calculatedTotal.protein - storedNutrition.protein) > Math.max(1, storedNutrition.protein * 0.01) ||
+    Math.abs(calculatedTotal.fat - storedNutrition.fat) > Math.max(1, storedNutrition.fat * 0.01)
+  )
+  
+  const finalNutrition = calculatedTotal
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -194,6 +207,25 @@ export default function CalculationProvenanceModal({
                         <div>{finalNutrition.protein.toFixed(1)}g protein</div>
                         <div>{finalNutrition.fat.toFixed(1)}g fat</div>
                       </div>
+                      
+                      {/* Show warning if mismatch detected */}
+                      {hasMismatch && storedNutrition && (
+                        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                          <div className="font-semibold text-yellow-900 mb-1">⚠️ Discrepancy Detected</div>
+                          <div className="text-yellow-800">
+                            Stored label values differ from calculated totals. This may indicate manual edits or a calculation error.
+                          </div>
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-yellow-700 hover:text-yellow-900 font-medium">View stored values</summary>
+                            <div className="mt-2 pl-2 space-y-1 text-yellow-800">
+                              <div>{storedNutrition.kcal.toFixed(1)} kcal (stored)</div>
+                              <div>{storedNutrition.carbs.toFixed(1)}g carbs (stored)</div>
+                              <div>{storedNutrition.protein.toFixed(1)}g protein (stored)</div>
+                              <div>{storedNutrition.fat.toFixed(1)}g fat (stored)</div>
+                            </div>
+                          </details>
+                        </div>
+                      )}
                     </td>
                     <td className="p-4"></td>
                   </tr>
