@@ -53,6 +53,11 @@ export async function GET(
     const components = JSON.parse(dish.Components || '[]')
     const yieldMultiplier = dish.YieldMultiplier || 1.0
 
+    // Validate components array
+    if (!Array.isArray(components)) {
+      throw new Error('Components data is not in expected format')
+    }
+
     logStamp('calc-provenance-in', stamp, {
       dishId,
       dishName: dish.Name,
@@ -72,9 +77,9 @@ export async function GET(
         let scoreBreakdown;
         try {
           scoreBreakdown = scoreFlourCandidate(
-            component.name,
-            'SR Legacy', // Default assumption
-            'Cereal Grains and Pasta'
+            component.name || 'Unknown ingredient',
+            component.dataType || 'SR Legacy',
+            component.foodCategory || 'Cereal Grains and Pasta'
           )
         } catch (err) {
           // If scoring fails, provide a default breakdown
@@ -89,12 +94,12 @@ export async function GET(
         }
 
         ingredientBreakdown.push({
-          rawInput: component.name,
-          canonical: canonicalize(component.name),
+          rawInput: component.name || 'Unknown',
+          canonical: canonicalize(component.name || ''),
           selectedUSDA: {
             fdcId: component.fdcId,
-            description: component.name,
-            dataType: 'SR Legacy'
+            description: component.name || 'Unknown',
+            dataType: component.dataType || 'SR Legacy'
           },
           scoreBreakdown
         })
@@ -110,11 +115,18 @@ export async function GET(
     }
 
     // Build math chain
-    const totalRawWeight = components.reduce((sum: number, c: any) => sum + c.quantity, 0)
+    const totalRawWeight = components.reduce((sum: number, c: any) => {
+      const qty = typeof c.quantity === 'number' ? c.quantity : 0
+      return sum + qty
+    }, 0)
     
     mathChain.push({
       description: 'Raw ingredient weights',
-      formula: components.map((c: any) => `${c.quantity}g ${c.name}`).join(' + '),
+      formula: components.map((c: any) => {
+        const qty = typeof c.quantity === 'number' ? c.quantity : 0
+        const name = c.name || 'Unknown'
+        return `${qty}g ${name}`
+      }).join(' + '),
       result: `${totalRawWeight}g total`
     })
 

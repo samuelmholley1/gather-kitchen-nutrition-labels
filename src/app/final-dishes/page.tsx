@@ -350,14 +350,14 @@ export default function FinalDishesPage() {
                             isOpen: true,
                             type: 'error',
                             title: 'Error',
-                            message: 'Unable to load calculation details. Please try again.'
-                          })
-                        }
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 font-medium"
-                    >
-                      View Calculations
-                    </button>
+                          message: 'Unable to load calculation details. Please try again.'
+                        })
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 font-medium"
+                  >
+                    View Calculations
+                  </button>
                   </div>
                 }
               />
