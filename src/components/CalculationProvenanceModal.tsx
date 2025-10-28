@@ -39,6 +39,13 @@ export default function CalculationProvenanceModal({
   calculationData
 }: CalculationProvenanceModalProps) {
   const [isReverting, setIsReverting] = useState(false)
+  const [editingIngredient, setEditingIngredient] = useState<number | null>(null)
+  const [editedQuantity, setEditedQuantity] = useState<string>('')
+  const [editedUnit, setEditedUnit] = useState<string>('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [editingTotals, setEditingTotals] = useState(false)
+  const [editedTotals, setEditedTotals] = useState({ kcal: '', carbs: '', protein: '', fat: '' })
+  const [editReason, setEditReason] = useState('')
 
   // Helper function to safely get nutrition values
   const safeNutrition = (nutrition: any): NutritionValues => ({
@@ -73,6 +80,120 @@ export default function CalculationProvenanceModal({
       alert('Error reverting to calculated values. Please try again.')
     } finally {
       setIsReverting(false)
+    }
+  }
+
+  const handleEditIngredient = (index: number, quantity: number | undefined, unit: string | undefined) => {
+    setEditingIngredient(index)
+    setEditedQuantity(String(quantity || 0))
+    setEditedUnit(unit || 'g')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingIngredient(null)
+    setEditedQuantity('')
+    setEditedUnit('')
+  }
+
+  const handleSaveIngredientEdit = async (index: number) => {
+    if (!calculationData?.dishId || editingIngredient === null) return
+
+    const newQuantity = parseFloat(editedQuantity)
+    if (isNaN(newQuantity) || newQuantity <= 0) {
+      alert('Please enter a valid positive quantity')
+      return
+    }
+
+    setIsSavingEdit(true)
+    try {
+      // Update the component in Airtable
+      const response = await fetch(`/api/final-dishes/${calculationData.dishId}/update-component`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          componentIndex: index,
+          quantity: newQuantity,
+          unit: editedUnit,
+          reason: `Updated ${ingredients[index].canonical} from ${ingredients[index].quantity}${ingredients[index].unit} to ${newQuantity}${editedUnit}`
+        })
+      })
+
+      if (response.ok) {
+        // Refresh the page to show updated calculations
+        window.location.reload()
+      } else {
+        console.error('Failed to save ingredient edit')
+        alert('Failed to save ingredient edit. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error saving ingredient edit:', error)
+      alert('Error saving ingredient edit. Please try again.')
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  const handleEditTotals = (nutrition: NutritionValues) => {
+    setEditingTotals(true)
+    setEditedTotals({
+      kcal: String(nutrition.kcal),
+      carbs: String(nutrition.carbs),
+      protein: String(nutrition.protein),
+      fat: String(nutrition.fat)
+    })
+    setEditReason('')
+  }
+
+  const handleCancelTotalsEdit = () => {
+    setEditingTotals(false)
+    setEditedTotals({ kcal: '', carbs: '', protein: '', fat: '' })
+    setEditReason('')
+  }
+
+  const handleSaveTotalsEdit = async () => {
+    if (!calculationData?.dishId) return
+    if (!editReason.trim()) {
+      alert('Please provide a reason for the manual edit')
+      return
+    }
+
+    const newKcal = parseFloat(editedTotals.kcal)
+    const newCarbs = parseFloat(editedTotals.carbs)
+    const newProtein = parseFloat(editedTotals.protein)
+    const newFat = parseFloat(editedTotals.fat)
+
+    if (isNaN(newKcal) || isNaN(newCarbs) || isNaN(newProtein) || isNaN(newFat)) {
+      alert('Please enter valid numbers for all nutrition fields')
+      return
+    }
+
+    setIsSavingEdit(true)
+    try {
+      const response = await fetch(`/api/final-dishes/${calculationData.dishId}/manual-override`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          overrides: {
+            calories: String(newKcal),
+            totalCarbohydrate: String(newCarbs),
+            protein: String(newProtein),
+            totalFat: String(newFat)
+          },
+          reason: editReason.trim()
+        })
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        console.error('Failed to save totals edit')
+        alert('Failed to save totals edit. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error saving totals edit:', error)
+      alert('Error saving totals edit. Please try again.')
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -166,12 +287,60 @@ export default function CalculationProvenanceModal({
                       <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
                         {/* Column 1: Ingredient + Quantity */}
                         <td className="p-3 align-top">
-                          <div className="font-medium text-gray-900">{ingredient.canonical || 'Unknown ingredient'}</div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            {ingredient.quantity || 0} {ingredient.unit || 'g'}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            USDA {ingredient.selectedUSDA?.dataType || 'Unknown'} • FDC {ingredient.selectedUSDA?.fdcId || 'N/A'}
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{ingredient.canonical || 'Unknown ingredient'}</div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {editingIngredient === index ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={editedQuantity}
+                                      onChange={(e) => setEditedQuantity(e.target.value)}
+                                      className="w-20 px-2 py-1 border border-blue-500 rounded focus:ring-2 focus:ring-blue-300"
+                                      autoFocus
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editedUnit}
+                                      onChange={(e) => setEditedUnit(e.target.value)}
+                                      className="w-16 px-2 py-1 border border-blue-500 rounded focus:ring-2 focus:ring-blue-300"
+                                      placeholder="unit"
+                                    />
+                                    <button
+                                      onClick={() => handleSaveIngredientEdit(index)}
+                                      disabled={isSavingEdit}
+                                      className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                      {isSavingEdit ? '...' : '✓'}
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEdit}
+                                      className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span>{ingredient.quantity || 0} {ingredient.unit || 'g'}</span>
+                                    <button
+                                      onClick={() => handleEditIngredient(index, ingredient.quantity, ingredient.unit)}
+                                      className="text-blue-600 hover:text-blue-800"
+                                      title="Edit quantity/unit"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                USDA {ingredient.selectedUSDA?.dataType || 'Unknown'} • FDC {ingredient.selectedUSDA?.fdcId || 'N/A'}
+                              </div>
+                            </div>
                           </div>
                         </td>
 
@@ -238,15 +407,101 @@ export default function CalculationProvenanceModal({
                     <td className="p-4 text-sm text-gray-500">—</td>
                     <td className="p-4 text-sm text-gray-500">—</td>
                     <td className="p-4">
-                      <div className="text-sm space-y-1 font-bold text-blue-900">
-                        <div>{finalNutrition.kcal.toFixed(1)} kcal</div>
-                        <div>{finalNutrition.carbs.toFixed(1)}g carbs</div>
-                        <div>{finalNutrition.protein.toFixed(1)}g protein</div>
-                        <div>{finalNutrition.fat.toFixed(1)}g fat</div>
-                      </div>
+                      {editingTotals ? (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-gray-700 mb-2">Edit Final Totals:</div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <label className="flex items-center gap-1">
+                              <span className="text-xs">Kcal:</span>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={editedTotals.kcal}
+                                onChange={(e) => setEditedTotals({ ...editedTotals, kcal: e.target.value })}
+                                className="w-20 px-2 py-1 border border-blue-500 rounded text-sm"
+                              />
+                            </label>
+                            <label className="flex items-center gap-1">
+                              <span className="text-xs">Carbs:</span>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={editedTotals.carbs}
+                                onChange={(e) => setEditedTotals({ ...editedTotals, carbs: e.target.value })}
+                                className="w-20 px-2 py-1 border border-blue-500 rounded text-sm"
+                              />
+                              <span className="text-xs">g</span>
+                            </label>
+                            <label className="flex items-center gap-1">
+                              <span className="text-xs">Protein:</span>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={editedTotals.protein}
+                                onChange={(e) => setEditedTotals({ ...editedTotals, protein: e.target.value })}
+                                className="w-20 px-2 py-1 border border-blue-500 rounded text-sm"
+                              />
+                              <span className="text-xs">g</span>
+                            </label>
+                            <label className="flex items-center gap-1">
+                              <span className="text-xs">Fat:</span>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={editedTotals.fat}
+                                onChange={(e) => setEditedTotals({ ...editedTotals, fat: e.target.value })}
+                                className="w-20 px-2 py-1 border border-blue-500 rounded text-sm"
+                              />
+                              <span className="text-xs">g</span>
+                            </label>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Reason for manual edit (required)"
+                            value={editReason}
+                            onChange={(e) => setEditReason(e.target.value)}
+                            className="w-full px-2 py-1 border border-blue-500 rounded text-sm"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveTotalsEdit}
+                              disabled={isSavingEdit || !editReason.trim()}
+                              className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button
+                              onClick={handleCancelTotalsEdit}
+                              className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-sm space-y-1 font-bold text-blue-900 flex-1">
+                              <div>{finalNutrition.kcal.toFixed(1)} kcal</div>
+                              <div>{finalNutrition.carbs.toFixed(1)}g carbs</div>
+                              <div>{finalNutrition.protein.toFixed(1)}g protein</div>
+                              <div>{finalNutrition.fat.toFixed(1)}g fat</div>
+                            </div>
+                            <button
+                              onClick={() => handleEditTotals(finalNutrition)}
+                              className="text-blue-600 hover:text-blue-800 self-start"
+                              title="Edit final totals"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Show warning if mismatch detected */}
-                      {hasMismatch && storedNutrition && (
+                      {!editingTotals && hasMismatch && storedNutrition && (
                         <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
                           <div className="font-semibold text-yellow-900 mb-2">⚠️ Discrepancy Detected</div>
                           <div className="text-yellow-800 mb-3">
