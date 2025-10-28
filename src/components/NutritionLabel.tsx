@@ -48,6 +48,8 @@ interface NutritionLabelProps {
   allergens?: string[]
   onExport?: (imageBlob: Blob) => void
   extraButtons?: React.ReactNode // Optional slot for additional buttons
+  dishId?: string // For saving manual overrides
+  onSaveOverrides?: (overrides: Record<string, string>, reason: string) => Promise<void> // Callback for saving overrides
 }
 
 interface EditableValue {
@@ -63,12 +65,17 @@ export default function NutritionLabel({
   allergens = [],
   onExport,
   extraButtons,
+  dishId,
+  onSaveOverrides,
 }: NutritionLabelProps) {
   const labelRef = useRef<HTMLDivElement>(null)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [isExporting, setIsExporting] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [showSavePanel, setShowSavePanel] = useState(false)
+  const [saveReason, setSaveReason] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   // Get value with override support
   const getValue = (field: keyof typeof nutrients, formatter: (val: number) => string): string => {
@@ -81,6 +88,36 @@ export default function NutritionLabel({
     setOverrides({ ...overrides, [field]: value })
     setIsEditing(null)
   }
+
+  // Handle saving manual overrides
+  const handleSaveOverrides = async () => {
+    if (!saveReason.trim()) {
+      setToast({ message: 'Please provide a reason for the manual edits', type: 'error' })
+      return
+    }
+
+    if (!onSaveOverrides || !dishId) {
+      setToast({ message: 'Save functionality not available', type: 'error' })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await onSaveOverrides(overrides, saveReason.trim())
+      setToast({ message: 'Manual edits saved successfully!', type: 'success' })
+      setOverrides({})
+      setSaveReason('')
+      setShowSavePanel(false)
+    } catch (error) {
+      console.error('Save error:', error)
+      setToast({ message: 'Failed to save manual edits', type: 'error' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Check if there are any overrides
+  const hasOverrides = Object.keys(overrides).length > 0
 
   // Export as image
   const exportAsImage = async (format: 'png' | 'jpeg' = 'png') => {
@@ -282,6 +319,39 @@ export default function NutritionLabel({
       <div className="print:hidden bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-2">
         <p className="text-lg font-bold text-blue-900 mb-1">💡 Click any value to edit</p>
         <p className="text-sm text-blue-700">All nutrition values are editable. Click a number to type a custom value.</p>
+        {hasOverrides && dishId && onSaveOverrides && (
+          <div className="mt-3 pt-3 border-t border-blue-200">
+            <p className="text-sm font-medium text-blue-900 mb-2">Manual edits detected! Save your changes:</p>
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Reason for manual edits (required)"
+                value={saveReason}
+                onChange={(e) => setSaveReason(e.target.value)}
+                className="w-full px-3 py-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveOverrides}
+                  disabled={isSaving || !saveReason.trim()}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Saving...' : 'Save Manual Edits'}
+                </button>
+                <button
+                  onClick={() => {
+                    setOverrides({})
+                    setSaveReason('')
+                    setShowSavePanel(false)
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Control Buttons */}

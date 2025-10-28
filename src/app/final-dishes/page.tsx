@@ -325,6 +325,22 @@ export default function FinalDishesPage() {
                 servingsPerContainer={viewingLabel.servingsPerContainer}
                 nutrients={viewingLabel.nutritionLabel}
                 allergens={viewingLabel.allergens}
+                dishId={viewingLabel.id}
+                onSaveOverrides={async (overrides, reason) => {
+                  const response = await fetch(`/api/final-dishes/${viewingLabel.id}/manual-override`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ overrides, reason })
+                  })
+
+                  if (!response.ok) {
+                    throw new Error('Failed to save manual overrides')
+                  }
+
+                  // Refresh the dish data
+                  await fetchFinalDishes()
+                  setViewingLabel(null) // Close modal to force refresh
+                }}
                 extraButtons={
                   <div className="flex items-center justify-center gap-3">
                     <span className="text-red-600 font-medium">Something Wrong?</span>
