@@ -12,10 +12,7 @@ interface CalculationProvenanceModalProps {
 
 interface IngredientBreakdown {
   rawInput: string
-  canonical: {
-    base: string
-    qualifiers: string[]
-  }
+  canonical: string  // Just the base string, not an object
   selectedUSDA: {
     fdcId: number
     description: string
@@ -29,7 +26,7 @@ interface IngredientBreakdown {
     finalScore: number
   }
   quantity?: number
-  units?: string
+  unit?: string
   per100g?: { kcal: number; carbs: number; protein: number; fat: number }
   scaled?: { kcal: number; carbs: number; protein: number; fat: number }
   yieldFactor?: number
@@ -148,9 +145,9 @@ export default function CalculationProvenanceModal({
                       context="ingredient"
                       preselectedIngredient={{
                         id: `ing-${index}`,
-                        name: ingredient.canonical.base,
+                        name: ingredient.canonical,
                         quantity: ingredient.quantity || 100,
-                        units: ingredient.units || 'g'
+                        units: ingredient.unit || 'g'
                       }}
                       breakdownSnapshot={calculationData}
                       totals={calculationData.totals}
@@ -188,18 +185,8 @@ export default function CalculationProvenanceModal({
                         <div>
                           <span className="font-medium text-gray-700">Canonical Base:</span>
                           <code className="ml-2 bg-blue-100 px-2 py-1 rounded text-xs">
-                            {ingredient.canonical.base}
+                            {ingredient.canonical}
                           </code>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Qualifiers:</span>
-                          <div className="ml-2 flex flex-wrap gap-1">
-                            {ingredient.canonical.qualifiers.map((q, i) => (
-                              <span key={i} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                {q}
-                              </span>
-                            ))}
-                          </div>
                         </div>
                       </div>
                     </div>
