@@ -3,6 +3,7 @@ import { calculateNutritionProfile, applyYieldAdjustment } from '@/lib/calculato
 import { NutrientProfile } from '@/types/nutrition'
 import Airtable from 'airtable'
 import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
+import { getFood, transformNutrients } from '@/lib/usda'
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PAT_TOKEN! })
   .base(process.env.AIRTABLE_BASE_ID!)
@@ -60,14 +61,35 @@ export async function POST(request: NextRequest) {
           nutritionProfile: subRecipeNutrition
         })
       } else if (component.type === 'ingredient') {
-        // Regular USDA ingredient
-        ingredients.push({
-          id: `usda_${component.fdcId}`,
-          name: component.name,
-          quantity: component.quantity,
-          unit: component.unit || 'grams',
-          fdcId: component.fdcId
-        })
+        // Regular USDA ingredient - fetch nutrient data
+        console.log(`[CALC] Fetching USDA data for FDC:${component.fdcId} (${component.name})`)
+        
+        try {
+          const usdaFood = await getFood(component.fdcId)
+          const { profile: nutrientProfile } = usdaFood.foodNutrients 
+            ? require('@/lib/usda').transformNutrients(usdaFood.foodNutrients)
+            : { profile: {} as NutrientProfile }
+          
+          ingredients.push({
+            id: `usda_${component.fdcId}`,
+            name: component.name,
+            quantity: component.quantity,
+            unit: component.unit || 'grams',
+            fdcId: component.fdcId,
+            nutrientProfile
+          })
+          
+          console.log(`[CALC] ✓ Got nutrients for ${component.name}: carbs=${nutrientProfile.totalCarbohydrate?.toFixed(1)}g/100g`)
+        } catch (error) {
+          console.error(`[CALC] ✗ Failed to fetch USDA data for ${component.name} (FDC:${component.fdcId}):`, error)
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: `Failed to fetch nutrition data for ingredient "${component.name}" (FDC ID: ${component.fdcId}). Please verify the ingredient exists in the USDA database.` 
+            },
+            { status: 400 }
+          )
+        }
       }
     }
 
