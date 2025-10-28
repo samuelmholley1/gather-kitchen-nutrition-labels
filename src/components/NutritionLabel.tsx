@@ -47,6 +47,7 @@ interface NutritionLabelProps {
   nutrients: NutrientProfile
   allergens?: string[]
   onExport?: (imageBlob: Blob) => void
+  extraButtons?: React.ReactNode // Optional slot for additional buttons
 }
 
 interface EditableValue {
@@ -61,6 +62,7 @@ export default function NutritionLabel({
   nutrients,
   allergens = [],
   onExport,
+  extraButtons,
 }: NutritionLabelProps) {
   const labelRef = useRef<HTMLDivElement>(null)
   const [isEditing, setIsEditing] = useState<string | null>(null)
@@ -283,35 +285,42 @@ export default function NutritionLabel({
       </div>
 
       {/* Control Buttons */}
-      <div className="flex gap-2 print:hidden">
+      <div className="flex gap-2 print:hidden mb-4">
         <button
           onClick={() => exportAsImage('png')}
           disabled={isExporting}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           {isExporting ? 'Exporting...' : 'Download PNG'}
         </button>
         <button
           onClick={() => exportAsImage('jpeg')}
           disabled={isExporting}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           Download JPEG
         </button>
         <button
           onClick={copyToClipboard}
           disabled={isExporting}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
         >
           Copy to Clipboard
         </button>
         <button
           onClick={() => window.print()}
-          className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
         >
           Print
         </button>
       </div>
+
+      {/* Extra Buttons Slot */}
+      {extraButtons && (
+        <div className="print:hidden mb-4">
+          {extraButtons}
+        </div>
+      )}
 
       {/* FDA Nutrition Label */}
       <div

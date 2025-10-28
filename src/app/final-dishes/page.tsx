@@ -324,28 +324,43 @@ export default function FinalDishesPage() {
                 servingsPerContainer={viewingLabel.servingsPerContainer}
                 nutrients={viewingLabel.nutritionLabel}
                 allergens={viewingLabel.allergens}
+                extraButtons={
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-gray-700 font-medium">Something Wrong?</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/final-dishes/${viewingLabel.id}/calculate`)
+                          if (response.ok) {
+                            const data = await response.json()
+                            setProvenanceData(data)
+                            setShowingProvenance(true)
+                          } else {
+                            console.error('Failed to fetch calculations:', response.status)
+                            setModal({
+                              isOpen: true,
+                              type: 'error',
+                              title: 'Error',
+                              message: 'Unable to load calculation details. Please try again.'
+                            })
+                          }
+                        } catch (error) {
+                          console.error('Failed to fetch provenance:', error)
+                          setModal({
+                            isOpen: true,
+                            type: 'error',
+                            title: 'Error',
+                            message: 'Unable to load calculation details. Please try again.'
+                          })
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 font-medium"
+                    >
+                      View Calculations
+                    </button>
+                  </div>
+                }
               />
-            </div>
-
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={async () => {
-                  try {
-                    // Fetch detailed calculation data with provenance
-                    const response = await fetch(`/api/final-dishes/${viewingLabel.id}/calculate`)
-                    if (response.ok) {
-                      const data = await response.json()
-                      setProvenanceData(data)
-                      setShowingProvenance(true)
-                    }
-                  } catch (error) {
-                    console.error('Failed to fetch provenance:', error)
-                  }
-                }}
-                className="rounded-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-              >
-                Something wrong? See how this was calculated
-              </button>
             </div>
           </div>
         </div>

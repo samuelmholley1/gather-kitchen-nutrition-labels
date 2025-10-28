@@ -69,11 +69,24 @@ export async function GET(
     for (const component of components) {
       if (component.type === 'ingredient' && component.fdcId) {
         // Get scoring breakdown (simulate the selection process)
-        const scoreBreakdown = scoreFlourCandidate(
-          component.name,
-          'SR Legacy', // Default assumption
-          'Cereal Grains and Pasta'
-        )
+        let scoreBreakdown;
+        try {
+          scoreBreakdown = scoreFlourCandidate(
+            component.name,
+            'SR Legacy', // Default assumption
+            'Cereal Grains and Pasta'
+          )
+        } catch (err) {
+          // If scoring fails, provide a default breakdown
+          console.warn(`Scoring failed for ${component.name}:`, err)
+          scoreBreakdown = {
+            baseType: 'unknown' as const,
+            positives: [],
+            negatives: [],
+            tiers: [],
+            finalScore: 0
+          }
+        }
 
         ingredientBreakdown.push({
           rawInput: component.name,
