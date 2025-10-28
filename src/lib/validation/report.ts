@@ -24,7 +24,7 @@ export const ReportPayloadSchema = z.object({
   context: z.enum(['recipe', 'ingredient']),
   ingredientId: z.string().optional(),
   ingredientName: z.string().optional(),
-  reasonType: z.enum(['self_evident', 'comment']),
+  reasonType: z.enum(['usda_wrong', 'quantity_mismatch', 'wrong_match', 'calculation_error', 'unit_conversion', 'duplicate_missing', 'yield_adjustment', 'other']),
   comment: z
     .string()
     .max(2000, 'Comment must be 2000 characters or less')
@@ -48,16 +48,16 @@ export const ReportPayloadSchema = z.object({
       path: ['ingredientId'],
     }
   )
-  // Validate that if reasonType is 'comment', comment must be provided and non-empty
+  // Validate that if reasonType is 'other', comment must be provided and non-empty
   .refine(
     (data) => {
-      if (data.reasonType === 'comment') {
+      if (data.reasonType === 'other') {
         return data.comment && data.comment.trim().length > 0;
       }
       return true;
     },
     {
-      message: 'Comment is required when reason type is "comment"',
+      message: 'Comment is required when reason type is "other"',
       path: ['comment'],
     }
   );

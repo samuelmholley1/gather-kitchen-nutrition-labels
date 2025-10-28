@@ -105,8 +105,19 @@ function buildHtmlEmail(
     ? escapeHtml(JSON.stringify(breakdown, null, 2))
     : 'N/A';
 
-  const reasonDisplay =
-    reasonType === 'self_evident' ? 'Error is self-evident' : `${comment || 'User comment provided'}`;
+  // Map reason types to human-readable labels
+  const reasonLabels: Record<string, string> = {
+    usda_wrong: 'The USDA database is wrong for this ingredient',
+    quantity_mismatch: 'The ingredient quantity/unit does not match the recipe I added',
+    wrong_match: 'The USDA Match is wrong; it should have matched something different',
+    calculation_error: 'All the inputs are correct, but the calculations are flawed',
+    unit_conversion: 'The unit conversion is incorrect (e.g., cups to grams)',
+    duplicate_missing: 'The ingredient appears multiple times or is missing',
+    yield_adjustment: 'The yield/cooking adjustment is wrong (e.g., baked goods moisture loss)',
+    other: comment || 'No additional details provided'
+  };
+
+  const reasonDisplay = reasonLabels[reasonType] || reasonType;
 
   return `
 <!DOCTYPE html>
@@ -149,9 +160,9 @@ function buildHtmlEmail(
     ${totalsHtml}
 
     ${
-      comment
+      comment && reasonType === 'other'
         ? `
-    <h3 style="margin-top: 20px; color: #333; font-size: 16px;">User Comment</h3>
+    <h3 style="margin-top: 20px; color: #333; font-size: 16px;">Additional Details</h3>
     <div style="background: #fff9e6; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; word-wrap: break-word;">
       <p style="margin: 0; font-size: 14px; white-space: pre-wrap; color: #333;">${escapeHtml(comment)}</p>
     </div>
@@ -189,8 +200,19 @@ function buildTextEmail(
   breakdown: any,
   laypersonBreakdown: string
 ): string {
-  const reasonDisplay =
-    reasonType === 'self_evident' ? 'Error is self-evident' : `${comment || 'User comment provided'}`;
+  // Map reason types to human-readable labels
+  const reasonLabels: Record<string, string> = {
+    usda_wrong: 'The USDA database is wrong for this ingredient',
+    quantity_mismatch: 'The ingredient quantity/unit does not match the recipe I added',
+    wrong_match: 'The USDA Match is wrong; it should have matched something different',
+    calculation_error: 'All the inputs are correct, but the calculations are flawed',
+    unit_conversion: 'The unit conversion is incorrect (e.g., cups to grams)',
+    duplicate_missing: 'The ingredient appears multiple times or is missing',
+    yield_adjustment: 'The yield/cooking adjustment is wrong (e.g., baked goods moisture loss)',
+    other: comment || 'No additional details provided'
+  };
+
+  const reasonDisplay = reasonLabels[reasonType] || reasonType;
 
   let text = `🚨 NUTRITION LABEL REPORT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -227,7 +249,7 @@ ${Object.entries(totals)
   }
 
   if (comment) {
-    text += `USER COMMENT
+    text += `ADDITIONAL DETAILS (OTHER)
 ─────────────────────────────────────────────────────
 
 ${comment}
@@ -350,7 +372,7 @@ export async function POST(request: NextRequest) {
 
     // Sanitize comment if provided
     const sanitizedComment =
-      payload.reasonType === 'comment'
+      payload.reasonType === 'other'
         ? sanitizeComment(payload.comment || '')
         : undefined;
 

@@ -43,7 +43,7 @@ export function ReportIssueModal({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const firstFocusableRef = useRef<HTMLElement>(null);
 
-  const [reasonType, setReasonType] = useState<'self_evident' | 'comment'>('self_evident');
+  const [reasonType, setReasonType] = useState<'usda_wrong' | 'quantity_mismatch' | 'wrong_match' | 'calculation_error' | 'unit_conversion' | 'duplicate_missing' | 'yield_adjustment' | 'other'>('usda_wrong');
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function ReportIssueModal({
   }, [isOpen, onClose]);
 
   // Check if form is valid
-  const isFormValid = reasonType === 'self_evident' || (reasonType === 'comment' && comment.trim().length > 0);
+  const isFormValid = reasonType !== 'other' || (reasonType === 'other' && comment.trim().length > 0);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -103,7 +103,7 @@ export function ReportIssueModal({
           ingredientName: preselectedIngredient.name,
         } : {}),
         reasonType,
-        comment: reasonType === 'comment' ? comment : undefined,
+        comment: reasonType === 'other' ? comment : undefined,
         ccInfoGather,
         breakdownSnapshot: laypersonSummary 
           ? { ...(typeof breakdownSnapshot === 'object' && breakdownSnapshot !== null ? breakdownSnapshot : {}), laypersonSummary } 
@@ -130,7 +130,7 @@ export function ReportIssueModal({
         onClose();
         setSuccess(false);
         setComment('');
-        setReasonType('self_evident');
+        setReasonType('usda_wrong');
         setCcInfoGather(true);
       }, 2000);
 
@@ -260,39 +260,129 @@ export function ReportIssueModal({
 
             {/* Section B: Reason Selection */}
             <section>
-              <h3 className="text-lg font-semibold mb-4">Reason</h3>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 cursor-pointer group">
+              <h3 className="text-lg font-semibold mb-4">What's Wrong?</h3>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
                   <input
                     type="radio"
                     name="reason"
-                    value="self_evident"
-                    checked={reasonType === 'self_evident'}
-                    onChange={() => setReasonType('self_evident')}
+                    value="usda_wrong"
+                    checked={reasonType === 'usda_wrong'}
+                    onChange={() => setReasonType('usda_wrong')}
                     disabled={isSubmitting}
-                    className="w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
                   />
                   <span className="font-medium text-sm group-hover:text-blue-600">
-                    The error is self-evident
+                    The USDA database is wrong for this ingredient
                   </span>
                 </label>
 
-                <label className="flex items-center gap-3 cursor-pointer group">
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
                   <input
                     type="radio"
                     name="reason"
-                    value="comment"
-                    checked={reasonType === 'comment'}
-                    onChange={() => setReasonType('comment')}
+                    value="quantity_mismatch"
+                    checked={reasonType === 'quantity_mismatch'}
+                    onChange={() => setReasonType('quantity_mismatch')}
                     disabled={isSubmitting}
-                    className="w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
                   />
                   <span className="font-medium text-sm group-hover:text-blue-600">
-                    I want to explain
+                    The ingredient quantity/unit does not match the recipe I added
                   </span>
                 </label>
 
-                {reasonType === 'comment' && (
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value="wrong_match"
+                    checked={reasonType === 'wrong_match'}
+                    onChange={() => setReasonType('wrong_match')}
+                    disabled={isSubmitting}
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                  />
+                  <span className="font-medium text-sm group-hover:text-blue-600">
+                    The USDA Match is wrong; it should have matched something different
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value="calculation_error"
+                    checked={reasonType === 'calculation_error'}
+                    onChange={() => setReasonType('calculation_error')}
+                    disabled={isSubmitting}
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                  />
+                  <span className="font-medium text-sm group-hover:text-blue-600">
+                    All the inputs are correct, but the calculations are flawed
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value="unit_conversion"
+                    checked={reasonType === 'unit_conversion'}
+                    onChange={() => setReasonType('unit_conversion')}
+                    disabled={isSubmitting}
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                  />
+                  <span className="font-medium text-sm group-hover:text-blue-600">
+                    The unit conversion is incorrect (e.g., cups to grams)
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value="duplicate_missing"
+                    checked={reasonType === 'duplicate_missing'}
+                    onChange={() => setReasonType('duplicate_missing')}
+                    disabled={isSubmitting}
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                  />
+                  <span className="font-medium text-sm group-hover:text-blue-600">
+                    The ingredient appears multiple times or is missing
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value="yield_adjustment"
+                    checked={reasonType === 'yield_adjustment'}
+                    onChange={() => setReasonType('yield_adjustment')}
+                    disabled={isSubmitting}
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                  />
+                  <span className="font-medium text-sm group-hover:text-blue-600">
+                    The yield/cooking adjustment is wrong (e.g., baked goods moisture loss)
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="reason"
+                    value="other"
+                    checked={reasonType === 'other'}
+                    onChange={() => setReasonType('other')}
+                    disabled={isSubmitting}
+                    className="mt-1 w-4 h-4 rounded-full border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                  />
+                  <span className="font-medium text-sm group-hover:text-blue-600">
+                    OTHER. Explain:
+                  </span>
+                </label>
+
+                {reasonType === 'other' && (
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value.slice(0, 2000))}
@@ -303,7 +393,7 @@ export function ReportIssueModal({
                     aria-label="Explanation"
                   />
                 )}
-                {reasonType === 'comment' && (
+                {reasonType === 'other' && (
                   <div className="text-xs text-gray-500">
                     {comment.length} / 2000 characters
                   </div>
