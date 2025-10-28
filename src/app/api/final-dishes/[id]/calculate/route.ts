@@ -136,6 +136,8 @@ export async function GET(
 
     // Process each component for provenance
     for (const component of components) {
+      console.log('[CALCULATE] Processing component:', JSON.stringify(component, null, 2))
+      
       if (component.type === 'ingredient' && component.fdcId) {
         // Get scoring breakdown (simulate the selection process)
         let scoreBreakdown;
@@ -165,16 +167,57 @@ export async function GET(
             description: component.name || 'Unknown',
             dataType: component.dataType || 'SR Legacy'
           },
-          scoreBreakdown
+          scoreBreakdown,
+          quantity: component.quantity || 0,
+          unit: component.unit || 'g',
+          per100g: {
+            kcal: component.kcal_per_100g || 0,
+            carbs: component.carbs_per_100g || 0,
+            protein: component.protein_per_100g || 0,
+            fat: component.fat_per_100g || 0
+          },
+          scaled: {
+            kcal: component.kcal_scaled || 0,
+            carbs: component.carbs_scaled || 0,
+            protein: component.protein_scaled || 0,
+            fat: component.fat_scaled || 0
+          },
+          yieldFactor: component.yieldFactor || 1.0
         })
 
-        // Placeholder nutrient data
-        dataUsed.push({
-          field: 'Sample nutrient',
-          value: 10,
-          unit: 'g',
-          source: `USDA FDC ${component.fdcId}`
-        })
+        // Add actual nutrient data
+        if (component.kcal_per_100g) {
+          dataUsed.push({
+            field: 'Energy',
+            value: component.kcal_per_100g,
+            unit: 'kcal/100g',
+            source: `USDA FDC ${component.fdcId}`
+          })
+        }
+        if (component.carbs_per_100g) {
+          dataUsed.push({
+            field: 'Carbohydrates',
+            value: component.carbs_per_100g,
+            unit: 'g/100g',
+            source: `USDA FDC ${component.fdcId}`
+          })
+        }
+        if (component.protein_per_100g) {
+          dataUsed.push({
+            field: 'Protein',
+            value: component.protein_per_100g,
+            unit: 'g/100g',
+            source: `USDA FDC ${component.fdcId}`
+          })
+        }
+        if (component.fat_per_100g) {
+          dataUsed.push({
+            field: 'Fat',
+            value: component.fat_per_100g,
+            unit: 'g/100g',
+            source: `USDA FDC ${component.fdcId}`
+          })
+        }
       }
     }
 
