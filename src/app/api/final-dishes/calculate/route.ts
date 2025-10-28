@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     // Scale nutrition to serving size
     const nutritionProfile = Object.keys(nutritionPer100gCooked).reduce((acc, key) => {
       const value = nutritionPer100gCooked[key as keyof NutrientProfile]
-      acc[key as keyof NutrientProfile] = (value * servingSize) / 100
+      acc[key as keyof NutrientProfile] = ((value ?? 0) * servingSize) / 100
       return acc
     }, {} as NutrientProfile)
     
