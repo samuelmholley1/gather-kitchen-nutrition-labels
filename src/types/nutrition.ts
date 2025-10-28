@@ -194,6 +194,27 @@ export interface USDAFood {
   }>
 }
 
+export interface USDASearchResponse {
+  foods: Array<{
+    fdcId: number
+    description: string
+    dataType: string
+    brandOwner?: string
+    brandName?: string
+    foodCategory?: string
+  }>
+  totalHits: number
+  currentPage: number
+  totalPages: number
+}
+
+export interface USDADataWarning {
+  type: string
+  message: string
+  originalValue?: number
+  correctedValue?: number
+}
+
 export interface NutrientProfile {
   // Macronutrients (g)
   calories: number
@@ -242,6 +263,10 @@ export interface Ingredient {
   // Custom conversion ratio (e.g., 1 cup = 240g for this ingredient)
   customGramsPerUnit?: number
   notes?: string
+}
+
+export interface IngredientWithNutrition extends Ingredient {
+  nutrientProfile?: NutrientProfile
 }
 
 export interface SubRecipe {

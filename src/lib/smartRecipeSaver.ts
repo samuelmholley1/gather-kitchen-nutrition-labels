@@ -520,25 +520,23 @@ export async function createFinalDish(
   nutritionProfile.addedSugars = nutritionPer100g.addedSugars * scaleFactor
   nutritionProfile.protein = nutritionPer100g.protein * scaleFactor
   nutritionProfile.vitaminD = nutritionPer100g.vitaminD * scaleFactor
-  nutritionProfile.vitaminA = nutritionPer100g.vitaminA * scaleFactor
-  nutritionProfile.vitaminC = nutritionPer100g.vitaminC * scaleFactor
-  nutritionProfile.vitaminE = nutritionPer100g.vitaminE * scaleFactor
-  nutritionProfile.vitaminK = nutritionPer100g.vitaminK * scaleFactor
-  nutritionProfile.thiamin = nutritionPer100g.thiamin * scaleFactor
-  nutritionProfile.riboflavin = nutritionPer100g.riboflavin * scaleFactor
-  nutritionProfile.niacin = nutritionPer100g.niacin * scaleFactor
-  nutritionProfile.vitaminB6 = nutritionPer100g.vitaminB6 * scaleFactor
-  nutritionProfile.folate = nutritionPer100g.folate * scaleFactor
-  nutritionProfile.vitaminB12 = nutritionPer100g.vitaminB12 * scaleFactor
+  nutritionProfile.vitaminA = (nutritionPer100g.vitaminA || 0) * scaleFactor
+  nutritionProfile.vitaminC = (nutritionPer100g.vitaminC || 0) * scaleFactor
+  nutritionProfile.vitaminE = (nutritionPer100g.vitaminE || 0) * scaleFactor
+  nutritionProfile.vitaminK = (nutritionPer100g.vitaminK || 0) * scaleFactor
+  nutritionProfile.thiamin = (nutritionPer100g.thiamin || 0) * scaleFactor
+  nutritionProfile.riboflavin = (nutritionPer100g.riboflavin || 0) * scaleFactor
+  nutritionProfile.niacin = (nutritionPer100g.niacin || 0) * scaleFactor
+  nutritionProfile.vitaminB6 = (nutritionPer100g.vitaminB6 || 0) * scaleFactor
+  nutritionProfile.folate = (nutritionPer100g.folate || 0) * scaleFactor
+  nutritionProfile.vitaminB12 = (nutritionPer100g.vitaminB12 || 0) * scaleFactor
   nutritionProfile.calcium = nutritionPer100g.calcium * scaleFactor
   nutritionProfile.iron = nutritionPer100g.iron * scaleFactor
-  nutritionProfile.magnesium = nutritionPer100g.magnesium * scaleFactor
-  nutritionProfile.phosphorus = nutritionPer100g.phosphorus * scaleFactor
+  nutritionProfile.magnesium = (nutritionPer100g.magnesium || 0) * scaleFactor
+  nutritionProfile.phosphorus = (nutritionPer100g.phosphorus || 0) * scaleFactor
   nutritionProfile.potassium = nutritionPer100g.potassium * scaleFactor
-  nutritionProfile.zinc = nutritionPer100g.zinc * scaleFactor
-  nutritionProfile.copper = nutritionPer100g.copper * scaleFactor
-  nutritionProfile.manganese = nutritionPer100g.manganese * scaleFactor
-  nutritionProfile.selenium = nutritionPer100g.selenium * scaleFactor
+  nutritionProfile.zinc = (nutritionPer100g.zinc || 0) * scaleFactor
+  nutritionProfile.selenium = (nutritionPer100g.selenium || 0) * scaleFactor
   
   console.log('✅ Nutrition calculated:', { 
     totalWeight: totalWeight.toFixed(1) + 'g',

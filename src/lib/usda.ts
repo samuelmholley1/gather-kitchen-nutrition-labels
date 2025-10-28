@@ -12,8 +12,8 @@ import type {
   USDASearchResponse,
   USDAFood,
   NutrientProfile,
-  USDAFoodNutrient,
-  FoodPortion,
+  USDANutrient,
+  USDAFoodPortion,
   USDADataWarning,
 } from '@/types/nutrition'
 import { initializeNutrientProfile } from '@/types/nutrition'
@@ -234,8 +234,6 @@ const NUTRIENT_MAP: Record<number, keyof NutrientProfile> = {
   1091: 'phosphorus',       // Phosphorus, P
   1092: 'potassium',        // Potassium, K
   1095: 'zinc',             // Zinc, Zn
-  1098: 'copper',           // Copper, Cu
-  1101: 'manganese',        // Manganese, Mn
   1103: 'selenium',         // Selenium, Se
 }
 
@@ -246,7 +244,7 @@ const NUTRIENT_MAP: Record<number, keyof NutrientProfile> = {
  * @returns Object with normalized nutrient profile per 100g and any data quality warnings
  */
 export function transformNutrients(
-  usdaNutrients: USDAFoodNutrient[]
+  usdaNutrients: USDANutrient[]
 ): { profile: NutrientProfile; warnings: USDADataWarning[] } {
   const profile = initializeNutrientProfile()
   const warnings: USDADataWarning[] = []
@@ -355,8 +353,8 @@ export function transformNutrients(
  * @param usdaFood - Raw USDA food object
  * @returns Array of food portions
  */
-export function transformFoodPortions(usdaFood: any): FoodPortion[] {
-  const portions: FoodPortion[] = []
+export function transformFoodPortions(usdaFood: any): USDAFoodPortion[] {
+  const portions: USDAFoodPortion[] = []
   
   if (!usdaFood.foodPortions || !Array.isArray(usdaFood.foodPortions)) {
     return portions
@@ -368,11 +366,7 @@ export function transformFoodPortions(usdaFood: any): FoodPortion[] {
       amount: portion.amount || 1,
       gramWeight: portion.gramWeight || 100,
       modifier: portion.modifier || '',
-      measureUnit: {
-        id: portion.measureUnit?.id || 0,
-        name: portion.measureUnit?.name || '',
-        abbreviation: portion.measureUnit?.abbreviation || '',
-      },
+      measureUnitName: portion.measureUnit?.name || portion.measureUnitName || '',
     })
   }
   
@@ -386,18 +380,18 @@ export function transformFoodPortions(usdaFood: any): FoodPortion[] {
  * @returns Normalized USDAFood object
  */
 export function transformUSDAFood(usdaFood: any): USDAFood {
-  const { profile, warnings } = transformNutrients(usdaFood.foodNutrients || [])
+  const { warnings } = transformNutrients(usdaFood.foodNutrients || [])
   
   return {
     fdcId: usdaFood.fdcId,
-    name: usdaFood.description || '',
+    description: usdaFood.description || '',
     dataType: usdaFood.dataType || 'Unknown',
-    nutrientProfile: profile,
-    foodPortions: transformFoodPortions(usdaFood),
-    dataQualityWarnings: warnings.length > 0 ? warnings : undefined,
     brandOwner: usdaFood.brandOwner,
     brandName: usdaFood.brandName,
-    lastUpdated: new Date().toISOString(),
+    foodCategory: usdaFood.foodCategory,
+    foodNutrients: usdaFood.foodNutrients || [],
+    foodPortions: transformFoodPortions(usdaFood),
+    dataQualityWarnings: warnings.length > 0 ? warnings : undefined,
   }
 }
 

@@ -13,9 +13,10 @@
 
 import type {
   Ingredient,
+  IngredientWithNutrition,
   NutrientProfile,
   USDAFood,
-  FoodPortion,
+  USDAFoodPortion,
 } from '@/types/nutrition'
 import { STANDARD_CONVERSIONS, TYPICAL_YIELDS, initializeNutrientProfile } from '@/types/nutrition'
 
@@ -33,7 +34,7 @@ import { STANDARD_CONVERSIONS, TYPICAL_YIELDS, initializeNutrientProfile } from 
  * @throws Error if unit cannot be converted
  */
 export function convertToGrams(
-  ingredient: Ingredient,
+  ingredient: IngredientWithNutrition,
   customConversions?: Record<string, number>
 ): number {
   const { quantity, unit, fdcId, nutrientProfile } = ingredient
@@ -77,28 +78,18 @@ export function convertToGrams(
  */
 function findMatchingPortion(
   unit: string,
-  portions: FoodPortion[]
-): FoodPortion | undefined {
+  portions: USDAFoodPortion[]
+): USDAFoodPortion | undefined {
   const normalized = unit.toLowerCase().trim()
   
   return portions.find((portion) => {
-    const measureName = portion.measureUnit?.name?.toLowerCase() || ''
-    const measureAbbr = portion.measureUnit?.abbreviation?.toLowerCase() || ''
-    const modifier = portion.modifier?.toLowerCase() || ''
+    const measureName = portion.measureUnitName?.toLowerCase() || ''
     
     // Exact match on measure name
     if (measureName === normalized) return true
     
-    // Exact match on abbreviation
-    if (measureAbbr === normalized) return true
-    
-    // Exact match on modifier
-    if (modifier === normalized) return true
-    
     // Partial match (e.g., "cup" matches "1 cup")
     if (measureName.includes(normalized)) return true
-    if (measureAbbr.includes(normalized)) return true
-    if (modifier.includes(normalized)) return true
     
     return false
   })
@@ -116,7 +107,7 @@ function findMatchingPortion(
  * @returns Nutrition profile per 100g
  */
 export function calculateNutritionProfile(
-  ingredients: Ingredient[],
+  ingredients: IngredientWithNutrition[],
   customConversions?: Record<string, number>
 ): NutrientProfile {
   // Initialize empty profile with all nutrients
@@ -162,25 +153,23 @@ export function calculateNutritionProfile(
     profile.addedSugars += (nutrients.addedSugars || 0) * scaleFactor
     profile.protein += (nutrients.protein || 0) * scaleFactor
     profile.vitaminD += (nutrients.vitaminD || 0) * scaleFactor
-    profile.vitaminA += (nutrients.vitaminA || 0) * scaleFactor
-    profile.vitaminC += (nutrients.vitaminC || 0) * scaleFactor
-    profile.vitaminE += (nutrients.vitaminE || 0) * scaleFactor
-    profile.vitaminK += (nutrients.vitaminK || 0) * scaleFactor
-    profile.thiamin += (nutrients.thiamin || 0) * scaleFactor
-    profile.riboflavin += (nutrients.riboflavin || 0) * scaleFactor
-    profile.niacin += (nutrients.niacin || 0) * scaleFactor
-    profile.vitaminB6 += (nutrients.vitaminB6 || 0) * scaleFactor
-    profile.folate += (nutrients.folate || 0) * scaleFactor
-    profile.vitaminB12 += (nutrients.vitaminB12 || 0) * scaleFactor
+    profile.vitaminA = (profile.vitaminA || 0) + (nutrients.vitaminA || 0) * scaleFactor
+    profile.vitaminC = (profile.vitaminC || 0) + (nutrients.vitaminC || 0) * scaleFactor
+    profile.vitaminE = (profile.vitaminE || 0) + (nutrients.vitaminE || 0) * scaleFactor
+    profile.vitaminK = (profile.vitaminK || 0) + (nutrients.vitaminK || 0) * scaleFactor
+    profile.thiamin = (profile.thiamin || 0) + (nutrients.thiamin || 0) * scaleFactor
+    profile.riboflavin = (profile.riboflavin || 0) + (nutrients.riboflavin || 0) * scaleFactor
+    profile.niacin = (profile.niacin || 0) + (nutrients.niacin || 0) * scaleFactor
+    profile.vitaminB6 = (profile.vitaminB6 || 0) + (nutrients.vitaminB6 || 0) * scaleFactor
+    profile.folate = (profile.folate || 0) + (nutrients.folate || 0) * scaleFactor
+    profile.vitaminB12 = (profile.vitaminB12 || 0) + (nutrients.vitaminB12 || 0) * scaleFactor
     profile.calcium += (nutrients.calcium || 0) * scaleFactor
     profile.iron += (nutrients.iron || 0) * scaleFactor
-    profile.magnesium += (nutrients.magnesium || 0) * scaleFactor
-    profile.phosphorus += (nutrients.phosphorus || 0) * scaleFactor
+    profile.magnesium = (profile.magnesium || 0) + (nutrients.magnesium || 0) * scaleFactor
+    profile.phosphorus = (profile.phosphorus || 0) + (nutrients.phosphorus || 0) * scaleFactor
     profile.potassium += (nutrients.potassium || 0) * scaleFactor
-    profile.zinc += (nutrients.zinc || 0) * scaleFactor
-    profile.copper += (nutrients.copper || 0) * scaleFactor
-    profile.manganese += (nutrients.manganese || 0) * scaleFactor
-    profile.selenium += (nutrients.selenium || 0) * scaleFactor
+    profile.zinc = (profile.zinc || 0) + (nutrients.zinc || 0) * scaleFactor
+    profile.selenium = (profile.selenium || 0) + (nutrients.selenium || 0) * scaleFactor
   }
   
   // Convert to per-100g basis
@@ -192,7 +181,10 @@ export function calculateNutritionProfile(
   
   // Scale all nutrients to per-100g and validate
   for (const key of Object.keys(profile) as Array<keyof NutrientProfile>) {
-    const scaledValue = profile[key] * per100gFactor
+    const value = profile[key]
+    if (value === undefined) continue
+    
+    const scaledValue = value * per100gFactor
     
     // Validate: nutrition values should never be negative (USDA data errors)
     if (scaledValue < 0) {
@@ -256,7 +248,9 @@ export function applyYieldAdjustment(
   
   // Apply concentration to all nutrients
   for (const key of Object.keys(profile) as Array<keyof NutrientProfile>) {
-    adjusted[key] = profile[key] * concentrationFactor
+    const value = profile[key]
+    if (value === undefined) continue
+    adjusted[key] = value * concentrationFactor
   }
   
   return adjusted
@@ -294,7 +288,9 @@ export function scaleToServing(
   
   // Scale all nutrients to serving size
   for (const key of Object.keys(profile) as Array<keyof NutrientProfile>) {
-    scaled[key] = profile[key] * scaleFactor
+    const value = profile[key]
+    if (value === undefined) continue
+    scaled[key] = value * scaleFactor
   }
   
   return scaled
@@ -329,7 +325,7 @@ export function calculateServings(
  * @param ingredient - Ingredient to validate
  * @throws Error if validation fails
  */
-export function validateIngredient(ingredient: Ingredient): void {
+export function validateIngredient(ingredient: IngredientWithNutrition): void {
   if (!ingredient.name) {
     throw new Error('Ingredient name is required')
   }

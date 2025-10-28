@@ -80,7 +80,7 @@ export default function NutritionLabel({
   // Get value with override support
   const getValue = (field: keyof typeof nutrients, formatter: (val: number) => string): string => {
     if (overrides[field]) return overrides[field]
-    return formatter(nutrients[field])
+    return formatter(nutrients[field] ?? 0)
   }
 
   // Handle field edit
