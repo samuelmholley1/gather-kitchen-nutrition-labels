@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteStamp, stampHeaders, logStamp } from '@/lib/routeStamp'
 import { canonicalize } from '@/lib/canonicalize'
 import { scoreFlourCandidate } from '@/lib/taxonomy/flour'
+import { convertToGrams } from '@/lib/unitConversions'
 
 interface DataUsed {
   field: string
@@ -143,6 +144,9 @@ export async function GET(
         let per100g = { kcal: 0, carbs: 0, protein: 0, fat: 0 }
         let scaled = { kcal: 0, carbs: 0, protein: 0, fat: 0 }
         
+        // Convert quantity to grams FIRST (outside try block so it's accessible everywhere)
+        const quantityInGrams = convertToGrams(component.quantity || 0, component.unit || 'g') || 0
+        
         try {
           const usdaUrl = `https://api.nal.usda.gov/fdc/v1/food/${component.fdcId}?api_key=${process.env.USDA_API_KEY}`
           const usdaResponse = await fetch(usdaUrl)
@@ -150,11 +154,27 @@ export async function GET(
             const foodData = await usdaResponse.json()
             const nutrients = foodData.foodNutrients || []
             
+            console.log(`[CALCULATE] USDA data for ${component.name} (FDC ${component.fdcId}):`, {
+              totalNutrients: nutrients.length,
+              nutrientSample: nutrients.slice(0, 5).map((n: any) => ({
+                id: n.nutrient?.id,
+                name: n.nutrient?.name,
+                amount: n.amount
+              }))
+            })
+            
             // Extract key nutrients per 100g
             const energyNutrient = nutrients.find((n: any) => n.nutrient?.id === 1008 || n.nutrient?.name === 'Energy')
             const carbNutrient = nutrients.find((n: any) => n.nutrient?.id === 1005 || n.nutrient?.name?.includes('Carbohydrate'))
             const proteinNutrient = nutrients.find((n: any) => n.nutrient?.id === 1003 || n.nutrient?.name === 'Protein')
             const fatNutrient = nutrients.find((n: any) => n.nutrient?.id === 1004 || n.nutrient?.name?.includes('Total lipid'))
+            
+            console.log(`[CALCULATE] Extracted nutrients for ${component.name}:`, {
+              energy: energyNutrient?.amount,
+              carbs: carbNutrient?.amount,
+              protein: proteinNutrient?.amount,
+              fat: fatNutrient?.amount
+            })
             
             per100g = {
               kcal: energyNutrient?.amount || 0,
@@ -163,9 +183,16 @@ export async function GET(
               fat: fatNutrient?.amount || 0
             }
             
-            // Scale based on quantity (convert to grams first)
-            const quantityInGrams = component.quantity || 0 // Assuming already in grams
+            // Scale based on quantity (already converted to grams above)
             const scaleFactor = quantityInGrams / 100
+            
+            console.log(`[CALCULATE] Scaling for ${component.name}:`, {
+              quantity: component.quantity,
+              unit: component.unit,
+              quantityInGrams,
+              scaleFactor,
+              per100g,
+            })
             
             scaled = {
               kcal: per100g.kcal * scaleFactor,
@@ -207,8 +234,8 @@ export async function GET(
             dataType: component.dataType || 'SR Legacy'
           },
           scoreBreakdown,
-          quantity: component.quantity || 0,
-          unit: component.unit || 'g',
+          quantity: quantityInGrams, // Use converted grams for calculations
+          unit: 'g', // Standardize to grams
           per100g,
           scaled,
           yieldFactor: component.yieldFactor || 1.0
