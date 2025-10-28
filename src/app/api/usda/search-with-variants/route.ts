@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
           })
           
           // Sort by score descending
-          scoredFoods.sort((a, b) => b.score - a.score)
+          scoredFoods.sort((a: { food: USDAFood; score: number }, b: { food: USDAFood; score: number }) => b.score - a.score)
           
           const bestFood = scoredFoods[0].food
           
@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
           }
           
           // Log top candidates for debugging
-          console.table(scoredFoods.slice(0, 5).map(sf => ({
+          console.table(scoredFoods.slice(0, 5).map((sf: { food: USDAFood; score: number }) => ({
             fdcId: sf.food.fdcId,
             description: sf.food.description?.substring(0, 60),
             score: sf.score,
