@@ -50,8 +50,35 @@ export async function GET(
     }
 
     const dish = record.fields
-    const components = JSON.parse(dish.Components || '[]')
-    const yieldMultiplier = dish.YieldMultiplier || 1.0
+    let components = []
+    let yieldMultiplier = 1.0
+    let nutritionProfile = {}
+
+    try {
+      components = JSON.parse(dish.Components || '[]')
+    } catch (err) {
+      console.warn('Failed to parse Components JSON:', err)
+      components = []
+    }
+
+    try {
+      yieldMultiplier = dish.YieldMultiplier || 1.0
+    } catch (err) {
+      console.warn('Failed to parse YieldMultiplier:', err)
+      yieldMultiplier = 1.0
+    }
+
+    try {
+      nutritionProfile = dish.NutritionProfile ? JSON.parse(dish.NutritionProfile) : {}
+    } catch (err) {
+      console.warn('Failed to parse NutritionProfile JSON:', err)
+      nutritionProfile = {}
+    }
+
+    // Validate components array
+    if (!Array.isArray(components)) {
+      throw new Error('Components data is not in expected format')
+    }
 
     // Validate components array
     if (!Array.isArray(components)) {
@@ -95,7 +122,7 @@ export async function GET(
 
         ingredientBreakdown.push({
           rawInput: component.name || 'Unknown',
-          canonical: canonicalize(component.name || ''),
+          canonical: canonicalize(component.name || '').base,
           selectedUSDA: {
             fdcId: component.fdcId,
             description: component.name || 'Unknown',
@@ -157,12 +184,12 @@ export async function GET(
     const responseData = {
       success: true,
       dishId,
-      dishName: dish.Name,
+      dishName: dish.Name || 'Unknown Dish',
       ingredients: ingredientBreakdown,
       dataUsed,
       mathChain,
       yieldMultiplier,
-      finalNutrition: dish.NutritionProfile ? JSON.parse(dish.NutritionProfile) : {},
+      finalNutrition: nutritionProfile,
       _stamp: stamp
     }
 
