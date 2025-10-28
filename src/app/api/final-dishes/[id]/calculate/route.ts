@@ -139,6 +139,45 @@ export async function GET(
       console.log('[CALCULATE] Processing component:', JSON.stringify(component, null, 2))
       
       if (component.type === 'ingredient' && component.fdcId) {
+        // Fetch nutrition data from USDA API
+        let per100g = { kcal: 0, carbs: 0, protein: 0, fat: 0 }
+        let scaled = { kcal: 0, carbs: 0, protein: 0, fat: 0 }
+        
+        try {
+          const usdaUrl = `https://api.nal.usda.gov/fdc/v1/food/${component.fdcId}?api_key=${process.env.USDA_API_KEY}`
+          const usdaResponse = await fetch(usdaUrl)
+          if (usdaResponse.ok) {
+            const foodData = await usdaResponse.json()
+            const nutrients = foodData.foodNutrients || []
+            
+            // Extract key nutrients per 100g
+            const energyNutrient = nutrients.find((n: any) => n.nutrient?.id === 1008 || n.nutrient?.name === 'Energy')
+            const carbNutrient = nutrients.find((n: any) => n.nutrient?.id === 1005 || n.nutrient?.name?.includes('Carbohydrate'))
+            const proteinNutrient = nutrients.find((n: any) => n.nutrient?.id === 1003 || n.nutrient?.name === 'Protein')
+            const fatNutrient = nutrients.find((n: any) => n.nutrient?.id === 1004 || n.nutrient?.name?.includes('Total lipid'))
+            
+            per100g = {
+              kcal: energyNutrient?.amount || 0,
+              carbs: carbNutrient?.amount || 0,
+              protein: proteinNutrient?.amount || 0,
+              fat: fatNutrient?.amount || 0
+            }
+            
+            // Scale based on quantity (convert to grams first)
+            const quantityInGrams = component.quantity || 0 // Assuming already in grams
+            const scaleFactor = quantityInGrams / 100
+            
+            scaled = {
+              kcal: per100g.kcal * scaleFactor,
+              carbs: per100g.carbs * scaleFactor,
+              protein: per100g.protein * scaleFactor,
+              fat: per100g.fat * scaleFactor
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch USDA data for FDC ${component.fdcId}:`, err)
+        }
+        
         // Get scoring breakdown (simulate the selection process)
         let scoreBreakdown;
         try {
@@ -170,50 +209,40 @@ export async function GET(
           scoreBreakdown,
           quantity: component.quantity || 0,
           unit: component.unit || 'g',
-          per100g: {
-            kcal: component.kcal_per_100g || 0,
-            carbs: component.carbs_per_100g || 0,
-            protein: component.protein_per_100g || 0,
-            fat: component.fat_per_100g || 0
-          },
-          scaled: {
-            kcal: component.kcal_scaled || 0,
-            carbs: component.carbs_scaled || 0,
-            protein: component.protein_scaled || 0,
-            fat: component.fat_scaled || 0
-          },
+          per100g,
+          scaled,
           yieldFactor: component.yieldFactor || 1.0
         })
 
         // Add actual nutrient data
-        if (component.kcal_per_100g) {
+        if (per100g.kcal > 0) {
           dataUsed.push({
             field: 'Energy',
-            value: component.kcal_per_100g,
+            value: per100g.kcal,
             unit: 'kcal/100g',
             source: `USDA FDC ${component.fdcId}`
           })
         }
-        if (component.carbs_per_100g) {
+        if (per100g.carbs > 0) {
           dataUsed.push({
             field: 'Carbohydrates',
-            value: component.carbs_per_100g,
+            value: per100g.carbs,
             unit: 'g/100g',
             source: `USDA FDC ${component.fdcId}`
           })
         }
-        if (component.protein_per_100g) {
+        if (per100g.protein > 0) {
           dataUsed.push({
             field: 'Protein',
-            value: component.protein_per_100g,
+            value: per100g.protein,
             unit: 'g/100g',
             source: `USDA FDC ${component.fdcId}`
           })
         }
-        if (component.fat_per_100g) {
+        if (per100g.fat > 0) {
           dataUsed.push({
             field: 'Fat',
-            value: component.fat_per_100g,
+            value: per100g.fat,
             unit: 'g/100g',
             source: `USDA FDC ${component.fdcId}`
           })
