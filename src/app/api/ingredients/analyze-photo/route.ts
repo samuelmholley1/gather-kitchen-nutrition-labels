@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       try {
         // Initialize Google Vision client
         const client = new vision.ImageAnnotatorClient({
-          keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
+          credentials: JSON.parse(process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY || '{}'),
           projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
         })
 
