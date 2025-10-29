@@ -47,9 +47,33 @@ After your first deployment:
 - **Environment:** Check all boxes (Production, Preview, Development)
 - Click "Save"
 
-### Variable 4:
-- **Name:** `USDA_API_KEY`
-- **Value:** `[YOUR_USDA_API_KEY]`
+### Variable 5:
+- **Name:** `GOOGLE_CLOUD_PROJECT_ID`
+- **Value:** `[YOUR_GOOGLE_CLOUD_PROJECT_ID]`
+- **Environment:** Check all boxes (Production, Preview, Development)
+- Click "Save"
+
+### Variable 6:
+- **Name:** `GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY`
+- **Value:** `{"type":"service_account",...}` (paste your full JSON service account key)
+- **Environment:** Check all boxes (Production, Preview, Development)
+- Click "Save"
+
+### Variable 7:
+- **Name:** `ZOHO_USER`
+- **Value:** `[YOUR_ZOHO_EMAIL_FOR_REPORTS]`
+- **Environment:** Check all boxes (Production, Preview, Development)
+- Click "Save"
+
+### Variable 8:
+- **Name:** `ZOHO_APP_PASSWORD`
+- **Value:** `[YOUR_ZOHO_APP_PASSWORD]`
+- **Environment:** Check all boxes (Production, Preview, Development)
+- Click "Save"
+
+### Variable 9:
+- **Name:** `REPORT_TO`
+- **Value:** `sam@samuelholley.com` (or your email for report notifications)
 - **Environment:** Check all boxes (Production, Preview, Development)
 - Click "Save"
 
