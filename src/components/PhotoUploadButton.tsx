@@ -50,17 +50,14 @@ export default function PhotoUploadButton({ onAnalyzed, disabled = false, classN
     setLoading(true)
 
     try {
-      const base64 = await fileToBase64(file)
+      // Create FormData for multipart upload (Google Vision API)
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('fileName', file.name)
       
       const response = await fetch('/api/ingredients/analyze-photo', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          imageBase64: base64,
-          fileName: file.name
-        })
+        body: formData  // Send as FormData instead of JSON
       })
 
       const result = await response.json()
@@ -72,7 +69,8 @@ export default function PhotoUploadButton({ onAnalyzed, disabled = false, classN
       console.log('[PhotoUpload] Analysis successful:', {
         fileName: file.name,
         ocrText: result.ocrText?.substring(0, 100) + '...',
-        suggestedQuery: result.suggestedQuery
+        suggestedQuery: result.suggestedQuery,
+        provider: result.meta?.ocrProvider
       })
 
       onAnalyzed(result)
@@ -143,7 +141,7 @@ export default function PhotoUploadButton({ onAnalyzed, disabled = false, classN
   )
 }
 
-// Utility function to convert File to base64
+// Utility function to convert File to base64 (deprecated - now using FormData)
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
