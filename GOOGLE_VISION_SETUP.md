@@ -52,13 +52,13 @@ If the Vision API still doesn't work:
 2. Go to **"Keys"** tab
 3. Click **"Add Key"** → **"Create new key"**
 4. Choose **JSON** format
-5. Download the file and save as `service-account-key.json` in your project root
+5. **Copy the entire JSON content** (don't save the file)
 
 ### 5. Configure Environment
 Add to your `.env.local` file:
 ```bash
 GOOGLE_CLOUD_PROJECT_ID=your-project-id-here
-GOOGLE_CLOUD_KEY_FILE=./service-account-key.json
+GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY={"type":"service_account",...}  # Paste the full JSON here
 ```
 
 ### 6. Test It
@@ -86,8 +86,8 @@ GOOGLE_CLOUD_KEY_FILE=./service-account-key.json
 - Check that billing is enabled on your project
 
 **"Invalid credentials"**
-- Verify `GOOGLE_CLOUD_KEY_FILE` path is correct
-- Check that JSON key file wasn't corrupted during download
+- Verify `GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY` contains the full JSON key
+- Check that JSON wasn't corrupted when copying/pasting
 - Ensure `GOOGLE_CLOUD_PROJECT_ID` matches exactly
 
 **"Quota exceeded"**
