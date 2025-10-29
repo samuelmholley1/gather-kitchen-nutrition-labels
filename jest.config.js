@@ -6,4 +6,5 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
   ],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 };

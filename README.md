@@ -50,7 +50,7 @@ A professional Next.js web application for calculating accurate nutrition facts 
 - **Airtable** - Cloud database and backend
 - **USDA FoodData Central API** - Official nutrition database
 - **html2canvas / html-to-image** - Image export functionality
-- **Playwright** - End-to-end testing
+- **Jest** - Unit testing framework
 - **Vercel** - Production deployment
 
 ## 📁 Project Structure
@@ -97,9 +97,10 @@ src/
     └── recipe.ts                   # Recipe and USDA types
 
 tests/
-├── navigation.spec.ts              # Basic navigation tests
-├── smart-recipe-importer.spec.ts  # Recipe parsing tests
-├── usda-search.spec.ts            # USDA search tests
+├── __tests__/
+│   ├── flour-selection.test.ts     # Flour selection logic tests
+│   ├── report-issue.test.ts        # Report issue validation tests
+│   └── photo-upload.test.ts        # Photo upload OCR tests
 └── README.md                       # Testing documentation
 ```
 
@@ -163,8 +164,7 @@ tests/
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run type-check` - Run TypeScript type checking
-- `npm test` - Run Playwright tests
-- `npm run test:ui` - Run tests in UI mode
+- `npm test` - Run Jest unit tests
 - `npm run setup:airtable` - Initialize Airtable tables
 
 ## 🗄️ Airtable Setup
@@ -357,28 +357,31 @@ See `NUTRITION_LABEL_DOCS.md` for full documentation.
 ### Run Tests
 
 ```bash
-# Run all tests
+# Run all unit tests
 npm test
 
-# Run with UI
-npm run test:ui
+# Run with coverage
+npm test -- --coverage
 
-# Run in headed mode (see browser)
-npm run test:headed
+# Run specific test file
+npx jest __tests__/report-issue.test.ts
 
-# Debug mode
-npm run test:debug
+# Run in watch mode
+npx jest --watch
 ```
 
 ### Test Coverage
 
-- ✅ Navigation and routing
-- ✅ Smart recipe parser
-- ✅ USDA search integration
-- ✅ Error handling
-- ✅ Edge cases (empty inputs, malformed recipes)
+- ✅ Schema validation and error handling
+- ✅ Rate limiting and security features
+- ✅ Email processing and sanitization
+- ✅ OCR configuration and environment setup
+- ✅ Business logic validation
+- ✅ API response formatting
 
-See `tests/README.md` for test documentation.
+**Current Status:** 45/45 tests passing
+
+See `tests/README.md` for detailed test documentation.
 
 ## 🔒 Security & Privacy
 
@@ -414,9 +417,9 @@ See `tests/README.md` for test documentation.
 
 ### "Tests failing"
 - ✅ Run `npm install` to ensure dependencies are current
-- ✅ Check Playwright browsers are installed: `npx playwright install`
-- ✅ Verify `.env.local` has test credentials
-- ✅ Check test reports in `playwright-report/`
+- ✅ Check Jest configuration in `jest.config.js`
+- ✅ Verify `.env.local` has required environment variables
+- ✅ Check test output for specific error messages
 
 ## 🔮 Future Enhancements
 

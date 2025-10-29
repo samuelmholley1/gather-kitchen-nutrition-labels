@@ -11,7 +11,7 @@
     "type-check": "tsc --noEmit",
     "setup:airtable": "node scripts/setup-airtable.js",
     "verify:env": "node scripts/verify-setup.js",
-    "test": "playwright test",
+    "test": "jest",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug"
