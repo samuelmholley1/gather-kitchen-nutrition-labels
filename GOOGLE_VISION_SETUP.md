@@ -11,12 +11,35 @@
 1. Go to [Vision API page](https://console.cloud.google.com/apis/library/vision.googleapis.com)
 2. Click **"Enable"**
 
-### 3. Create Service Account
+### 3. Create Service Account (Updated Instructions)
 1. Go to [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
 2. Click **"Create Service Account"**
 3. Name: `vision-api-service`
-4. Role: `Cloud Vision API User`
+4. **Role Selection (Try this order):**
+   
+   **Option A: Search for the exact role**
+   - Click **"Select a role"** dropdown
+   - Type: `Cloud Vision API User` (exactly)
+   - If it appears, select it ✅
+   
+   **Option B: Use "Cloud Vision AI Service Agent"**
+   - Search for: `Cloud Vision`
+   - Select: **"Cloud Vision AI Service Agent"** (this should work)
+   
+   **Option C: Use Editor role temporarily**
+   - Select: **"Editor"** (broader permissions, works for testing)
+   
 5. Click **"Done"**
+
+### 3b. Fix Role After Creation (If needed)
+If the Vision API still doesn't work:
+1. Go to **"IAM"** in the left sidebar (not Service Accounts)
+2. Find your service account email (ends with `@your-project.iam.gserviceaccount.com`)
+3. Click the pencil icon to edit permissions
+4. Click **"Add another role"**
+5. Search for: `vision`
+6. Look for: **"Cloud Vision API User"** or **"roles/cloudVision.apiUser"**
+7. If not found, your project might need the Vision API enabled first
 
 ### 4. Download Key File
 1. Click on your new service account
@@ -44,9 +67,30 @@ GOOGLE_CLOUD_KEY_FILE=./service-account-key.json
 - **Your usage**: < 1,000/month → **FREE**
 
 ## 🔧 Troubleshooting
-- **"API has not been used"**: Wait 5-10 minutes after enabling
-- **"Invalid credentials"**: Check your service account key file path
-- **"Quota exceeded"**: You've hit the free tier limit (very unlikely)
+
+### Role Not Found Issues
+**"Cloud Vision API User role not showing up"**
+- **Solution 1:** Use **"Cloud Vision AI Service Agent"** instead
+- **Solution 2:** Use **"Editor"** role temporarily for testing
+- **Solution 3:** Enable Vision API first, then create service account
+- **Solution 4:** Go to IAM → Add role to existing service account
+
+**"API has not been used"**
+- Wait 5-10 minutes after enabling Vision API
+- Check that billing is enabled on your project
+
+**"Invalid credentials"**
+- Verify `GOOGLE_CLOUD_KEY_FILE` path is correct
+- Check that JSON key file wasn't corrupted during download
+- Ensure `GOOGLE_CLOUD_PROJECT_ID` matches exactly
+
+**"Quota exceeded"**
+- You've hit the free tier limit (very unlikely for testing)
+- Check your billing/quota in Google Cloud console
+
+**"Permission denied"**
+- Double-check the service account has the correct role
+- Try recreating the service account with proper role from start
 
 That's it! Your photo OCR is now powered by Google's enterprise-grade Vision API. 📸✨</content>
 <parameter name="filePath">/Users/samuelholley/Projects/gather_kitchen_nutrition_labels/GOOGLE_VISION_SETUP.md
