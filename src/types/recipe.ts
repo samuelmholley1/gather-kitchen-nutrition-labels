@@ -34,6 +34,14 @@ export interface USDAFood {
     originalValue?: number
     correctedValue?: number
   }>
+  // User Ingredient extensions
+  isUserIngredient?: boolean
+  userIngredientData?: {
+    tags: string[]
+    source: string
+    usageCount: number
+    createdAt: string
+  }
 }
 
 export interface NutrientProfile {

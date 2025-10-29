@@ -155,6 +155,65 @@ export default function NewFinalDishPage() {
     setQuantity('')
   }
 
+  const handleOverrideIngredient = async (customNutrients: any, reason?: string) => {
+    if (!selectedFood) return
+
+    try {
+      const response = await fetch('/api/user-ingredients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: selectedFood.description,
+          originalFdcId: selectedFood.fdcId,
+          originalUSDAName: selectedFood.description,
+          customNutrients,
+          servingSizeGrams: 100,
+          servingSizeDescription: '100g',
+          source: 'Manual Override',
+          overrideReason: reason
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create custom ingredient')
+      }
+
+      const userIngredient = await response.json()
+      
+      // Create a custom USDAFood-like object for the new ingredient
+      const customFood: USDAFood = {
+        fdcId: parseInt(userIngredient.id.replace('rec', '')), // Use a fake FDC ID
+        description: userIngredient.name,
+        dataType: 'User Override',
+        isUserIngredient: true,
+        userIngredientData: userIngredient,
+        foodNutrients: Object.entries(customNutrients).map(([key, value]) => ({
+          nutrientId: 0,
+          nutrientName: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+          nutrientNumber: '',
+          unitName: key.includes('vitamin') || key.includes('iron') || key.includes('calcium') ? 'IU' : 'g',
+          derivationCode: '',
+          derivationDescription: '',
+          derivationId: 0,
+          value: value as number,
+          foodNutrientSourceId: 0,
+          foodNutrientSourceCode: '',
+          foodNutrientSourceDescription: '',
+          rank: 0,
+          indentLevel: 0,
+          foodNutrientId: 0,
+          dataPoints: 0
+        }))
+      }
+
+      setSelectedFood(customFood)
+      alert('Custom ingredient created successfully!')
+    } catch (error) {
+      console.error('Failed to create custom ingredient:', error)
+      alert('Failed to create custom ingredient. Please try again.')
+    }
+  }
+
   const onSubmit = async (data: FinalDishForm) => {
     setSaving(true)
 
@@ -380,6 +439,7 @@ export default function NewFinalDishPage() {
                   <div className="mb-4">
                     <IngredientSearch 
                       onSelectIngredient={setSelectedFood}
+                      onOverrideIngredient={handleOverrideIngredient}
                       placeholder="Search for ingredients (chicken, lettuce, cheese...)"
                     />
                   </div>

@@ -2,9 +2,28 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { USDAFood, USDANutrient } from '@/types/recipe'
+import IngredientOverrideModal from './IngredientOverrideModal'
+
+interface NutrientData {
+  calories: number
+  totalFat: number
+  saturatedFat?: number
+  transFat?: number
+  cholesterol?: number
+  sodium: number
+  totalCarbohydrate: number
+  dietaryFiber?: number
+  sugars?: number
+  protein: number
+  vitaminA?: number
+  vitaminC?: number
+  calcium?: number
+  iron?: number
+}
 
 interface IngredientSearchProps {
   onSelectIngredient: (food: USDAFood) => void
+  onOverrideIngredient?: (customNutrients: NutrientData, reason?: string) => Promise<void>
   placeholder?: string
   autoFocus?: boolean
   initialQuery?: string
@@ -12,6 +31,7 @@ interface IngredientSearchProps {
 
 export default function IngredientSearch({ 
   onSelectIngredient, 
+  onOverrideIngredient,
   placeholder = "Search USDA ingredients...",
   autoFocus = false,
   initialQuery = ''
@@ -21,6 +41,8 @@ export default function IngredientSearch({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false)
+  const [selectedForOverride, setSelectedForOverride] = useState<USDAFood | null>(null)
 
   // Debounced search function
   const searchIngredients = useCallback(async (searchQuery: string) => {
@@ -94,6 +116,19 @@ export default function IngredientSearch({
     setIsOpen(false)
   }
 
+  const handleOverride = (food: USDAFood) => {
+    setSelectedForOverride(food)
+    setOverrideModalOpen(true)
+  }
+
+  const handleOverrideSave = async (customNutrients: NutrientData, reason?: string) => {
+    if (!selectedForOverride || !onOverrideIngredient) return
+
+    await onOverrideIngredient(customNutrients, reason)
+    setOverrideModalOpen(false)
+    setSelectedForOverride(null)
+  }
+
   const handleClear = () => {
     setQuery('')
     setResults([])
@@ -160,76 +195,135 @@ export default function IngredientSearch({
               {results.length} results found
             </div>
             
-            {results.map((food) => (
-              <button
-                key={food.fdcId}
-                onClick={() => handleSelect(food)}
-                className="w-full text-left px-3 py-3 hover:bg-emerald-50 rounded-lg transition-colors group"
-              >
-                <div className="flex justify-between items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 group-hover:text-emerald-700 truncate">
-                      {food.description}
-                    </p>
-                    
-                    {/* Additional Info */}
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                      {food.brandOwner && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                          {food.brandOwner}
-                        </span>
-                      )}
-                      
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
-                        {food.dataType === 'Foundation' && '🔬 Foundation'}
-                        {food.dataType === 'SR Legacy' && '📚 SR Legacy'}
-                        {food.dataType === 'Branded' && '🏷️ Branded'}
-                        {food.dataType === 'Survey (FNDDS)' && '📊 Survey'}
-                      </span>
+            {results.map((food) => {
+              const isUserIngredient = food.isUserIngredient || food.dataType === 'User Override'
 
-                      {food.foodCategory && (
-                        <span className="truncate">
-                          {food.foodCategory}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Basic Nutrition Preview */}
-                    {food.foodNutrients && food.foodNutrients.length > 0 && (
-                      <div className="mt-2 flex gap-3 text-xs text-gray-600">
-                        {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Energy')?.value && (
-                          <span>
-                            {Math.round(food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Energy')!.value)} cal
-                          </span>
-                        )}
-                        {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Protein')?.value && (
-                          <span>
-                            {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Protein')!.value.toFixed(1)}g protein
-                          </span>
-                        )}
-                        {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Total lipid (fat)')?.value && (
-                          <span>
-                            {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Total lipid (fat)')!.value.toFixed(1)}g fat
-                          </span>
-                        )}
-                        {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Carbohydrate, by difference')?.value && (
-                          <span>
-                            {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Carbohydrate, by difference')!.value.toFixed(1)}g carbs
+              return (
+                <div
+                  key={food.fdcId}
+                  className={`px-3 py-3 hover:bg-emerald-50 rounded-lg transition-colors group ${
+                    isUserIngredient ? 'border-l-4 border-blue-500 bg-blue-50/50' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className={`font-medium truncate ${
+                          isUserIngredient ? 'text-blue-900' : 'text-gray-900 group-hover:text-emerald-700'
+                        }`}>
+                          {food.description}
+                        </p>
+                        {isUserIngredient && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium flex-shrink-0">
+                            Custom
                           </span>
                         )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Add Icon */}
-                  <div className="flex-shrink-0 text-gray-400 group-hover:text-emerald-600">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                      {/* Additional Info */}
+                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                        {food.brandOwner && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                            {food.brandOwner}
+                          </span>
+                        )}
+
+                        <span className={`px-2 py-0.5 rounded ${
+                          isUserIngredient
+                            ? 'bg-blue-100 text-blue-700'
+                            : food.dataType === 'Foundation'
+                            ? 'bg-green-100 text-green-700'
+                            : food.dataType === 'SR Legacy'
+                            ? 'bg-blue-100 text-blue-700'
+                            : food.dataType === 'Branded'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {isUserIngredient && '⭐ User Override'}
+                          {!isUserIngredient && food.dataType === 'Foundation' && '🔬 Foundation'}
+                          {!isUserIngredient && food.dataType === 'SR Legacy' && '📚 SR Legacy'}
+                          {!isUserIngredient && food.dataType === 'Branded' && '🏷️ Branded'}
+                          {!isUserIngredient && food.dataType === 'Survey (FNDDS)' && '📊 Survey'}
+                        </span>
+
+                        {food.foodCategory && (
+                          <span className="truncate">
+                            {food.foodCategory}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* User Ingredient Metadata */}
+                      {isUserIngredient && food.userIngredientData && (
+                        <div className="mt-1 flex items-center gap-2 text-xs text-blue-600">
+                          {food.userIngredientData.tags?.length > 0 && (
+                            <span>🏷️ {food.userIngredientData.tags.slice(0, 2).join(', ')}</span>
+                          )}
+                          {food.userIngredientData.usageCount > 0 && (
+                            <span>📊 Used {food.userIngredientData.usageCount} times</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Basic Nutrition Preview */}
+                      {food.foodNutrients && food.foodNutrients.length > 0 && (
+                        <div className="mt-2 flex gap-3 text-xs text-gray-600">
+                          {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Energy' || n.nutrientName === 'Calories')?.value && (
+                            <span>
+                              {Math.round(food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Energy' || n.nutrientName === 'Calories')!.value)} cal
+                            </span>
+                          )}
+                          {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Protein')?.value && (
+                            <span>
+                              {food.foodNutrients.find((n: USDANutrient) => n.nutrientName === 'Protein')!.value.toFixed(1)}g protein
+                            </span>
+                          )}
+                          {food.foodNutrients.find((n: USDANutrient) => n.nutrientName?.toLowerCase().includes('fat'))?.value && (
+                            <span>
+                              {food.foodNutrients.find((n: USDANutrient) => n.nutrientName?.toLowerCase().includes('fat'))!.value.toFixed(1)}g fat
+                            </span>
+                          )}
+                          {food.foodNutrients.find((n: USDANutrient) => n.nutrientName?.toLowerCase().includes('carbohydrate'))?.value && (
+                            <span>
+                              {food.foodNutrients.find((n: USDANutrient) => n.nutrientName?.toLowerCase().includes('carbohydrate'))!.value.toFixed(1)}g carbs
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {onOverrideIngredient && !isUserIngredient && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOverride(food)
+                          }}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          title="Create custom version"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleSelect(food)}
+                        className={`p-2 rounded-md transition-colors ${
+                          isUserIngredient ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                        title="Add to recipe"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -269,6 +363,36 @@ export default function IngredientSearch({
             Type at least 2 characters to search...
           </p>
         </div>
+      )}
+
+      {/* Override Modal */}
+      {selectedForOverride && (
+        <IngredientOverrideModal
+          isOpen={overrideModalOpen}
+          onClose={() => {
+            setOverrideModalOpen(false)
+            setSelectedForOverride(null)
+          }}
+          ingredientId={selectedForOverride.isUserIngredient ? selectedForOverride.fdcId.toString() : undefined}
+          ingredientName={selectedForOverride.description}
+          originalNutrients={{
+            calories: selectedForOverride.foodNutrients?.find(n => n.nutrientName === 'Energy' || n.nutrientName === 'Calories')?.value || 0,
+            totalFat: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('fat') && !n.nutrientName?.toLowerCase().includes('saturated') && !n.nutrientName?.toLowerCase().includes('trans'))?.value || 0,
+            saturatedFat: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('saturated fat'))?.value || 0,
+            transFat: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('trans fat'))?.value || 0,
+            cholesterol: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('cholesterol'))?.value || 0,
+            sodium: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('sodium'))?.value || 0,
+            totalCarbohydrate: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('carbohydrate') && !n.nutrientName?.toLowerCase().includes('fiber') && !n.nutrientName?.toLowerCase().includes('sugar'))?.value || 0,
+            dietaryFiber: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('fiber'))?.value || 0,
+            sugars: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('sugar') && !n.nutrientName?.toLowerCase().includes('dietary'))?.value || 0,
+            protein: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('protein'))?.value || 0,
+            vitaminA: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('vitamin a'))?.value || 0,
+            vitaminC: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('vitamin c'))?.value || 0,
+            calcium: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('calcium'))?.value || 0,
+            iron: selectedForOverride.foodNutrients?.find(n => n.nutrientName?.toLowerCase().includes('iron'))?.value || 0
+          }}
+          onSave={handleOverrideSave}
+        />
       )}
     </div>
   )
