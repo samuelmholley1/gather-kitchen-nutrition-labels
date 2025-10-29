@@ -21,7 +21,7 @@ const validIngredientPayload = {
   context: 'ingredient' as const,
   ingredientId: 'ing-1',
   ingredientName: 'flour',
-  reasonType: 'self_evident' as const,
+  reasonType: 'usda_wrong' as const,
   comment: undefined,
   breakdownSnapshot: { items: [] },
   totals: { kcal: 500, carbs: 50, protein: 5, fat: 10 },
@@ -35,7 +35,7 @@ const validRecipePayload = {
   recipeName: 'Vanilla Cupcakes',
   version: '2.0',
   context: 'recipe' as const,
-  reasonType: 'comment' as const,
+  reasonType: 'other' as const,
   comment: 'The calculations seem off',
   breakdownSnapshot: { items: [] },
   totals: { kcal: 300, carbs: 40, protein: 3, fat: 8 },
@@ -54,7 +54,7 @@ describe('Report Issue Validation', () => {
     it('should accept valid ingredient payload with comment reason', () => {
       const payload = {
         ...validIngredientPayload,
-        reasonType: 'comment' as const,
+        reasonType: 'other' as const,
         comment: 'The calculation seems wrong because...',
       };
       const result = ReportPayloadSchema.safeParse(payload);
@@ -119,7 +119,7 @@ describe('Report Issue Validation', () => {
       const comment = 'a'.repeat(2000);
       const payload = {
         ...validIngredientPayload,
-        reasonType: 'comment' as const,
+        reasonType: 'other' as const,
         comment,
       };
       const result = ReportPayloadSchema.safeParse(payload);
