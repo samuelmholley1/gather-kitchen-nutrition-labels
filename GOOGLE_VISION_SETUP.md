@@ -29,7 +29,13 @@
    **Option C: Use Editor role temporarily**
    - Select: **"Editor"** (broader permissions, works for testing)
    
-5. Click **"Done"**
+5. **Grant users access to this service account (Optional - Skip this!)**
+   - This section is for allowing human users to "act as" this service account
+   - **For our use case: Leave blank and click "Done"** ✅
+   - Our app will use the JSON key file directly, no human access needed
+   - *Only add users here if you want developers to be able to use this service account for testing*
+
+6. Click **"Done"**
 
 ### 3b. Fix Role After Creation (If needed)
 If the Vision API still doesn't work:
@@ -88,9 +94,11 @@ GOOGLE_CLOUD_KEY_FILE=./service-account-key.json
 - You've hit the free tier limit (very unlikely for testing)
 - Check your billing/quota in Google Cloud console
 
-**"Permission denied"**
-- Double-check the service account has the correct role
-- Try recreating the service account with proper role from start
+**"What is 'Grant users access to this service account'?"**
+- This is optional - **skip it for our use case**
+- It's for allowing human users to impersonate the service account
+- Our app uses the JSON key file directly, so no human access needed
+- Only add users if you want developers to test with this service account
 
 That's it! Your photo OCR is now powered by Google's enterprise-grade Vision API. 📸✨</content>
 <parameter name="filePath">/Users/samuelholley/Projects/gather_kitchen_nutrition_labels/GOOGLE_VISION_SETUP.md
