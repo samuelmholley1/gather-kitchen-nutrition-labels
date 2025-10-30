@@ -72,6 +72,12 @@ function parseIngredientLine(line: string): {
   trimmed = trimmed.replace(/^[\u2022\u2023\u25E6\u2043\u2219\-\*\+•○●▪▫■□→›»]\s*/, '') // standard bullets
   trimmed = trimmed.replace(/^\d+[\.\)]\s*/, '') // numbered lists like "1. " or "1) "
   
+  // Remove ▢ bullets
+  trimmed = trimmed.replace(/▢/g, ' ')
+  
+  // Remove leading weight specifications (e.g., "170g ", "910g ")
+  trimmed = trimmed.replace(/^(\d+(?:\.\d+)?)\s*(g|kg|oz|lb)\s+/i, '')
+  
   // Aggressively remove ALL leading/trailing whitespace including Unicode spaces
   trimmed = trimmed.replace(/^[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/, '')
   trimmed = trimmed.replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+$/, '')
@@ -508,6 +514,13 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     /^(ingredients?):?$/i, // Just the word "Ingredients" by itself
     /^(makes?|serves?|servings?|yield):?$/i, // Just the word without number
     /^(wash hands|preheat|heat|bake|cook|stir|mix|combine|pour|add|remove|place|set)/i, // Cooking actions
+    /^(course|prep time|cook time|total time|servings|calories|author|print|pin|rate|youtube|recommended equipment|equipment):?$/i,
+    /^\d+\.\d+\s+from\s+\d+\s+votes?$/i,
+    /^how to/i,
+    /^oh, and/i,
+    /^cook mode/i,
+    /^prevent your screen/i,
+    /^9.*pan/i,
     /rating/i,
     /add to (cookbook|favorites)/i,
   ]
@@ -561,6 +574,25 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
       return true
     }
   }
+  
+  return false
+}
+
+/**
+ * Check if a line is a section header for sub-recipes
+ */
+function isSectionHeader(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  
+  // Skip if it's already skipped
+  if (shouldSkipLine(trimmed, '', [], 0)) return false
+  
+  // If has quantity, not section
+  if (/\d/.test(trimmed)) return false
+  
+  // If ends with :, or has superscript numbers, or is title case
+  if (trimmed.endsWith(':') || /\d/.test(trimmed) || /^[A-Z][a-z\s]+[¹]*$/.test(trimmed)) return true
   
   return false
 }
@@ -677,9 +709,44 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
   // First line is the recipe name
   const finalDishName = filteredLines[0]
   
-  // Process remaining lines as ingredients
+  // Group lines into sections
+  let sections: Array<{name: string, lines: string[]}> = []
+  let currentSection: {name: string, lines: string[]} | null = null
+
   for (let i = 1; i < filteredLines.length; i++) {
     const line = filteredLines[i]
+    
+    if (isSectionHeader(line)) {
+      if (currentSection) {
+        sections.push(currentSection)
+      }
+      currentSection = {name: line, lines: []}
+    } else {
+      if (currentSection) {
+        currentSection.lines.push(line)
+      } else {
+        // If no section yet, start a default section
+        currentSection = {name: 'Main Ingredients', lines: [line]}
+      }
+    }
+  }
+
+  if (currentSection) sections.push(currentSection)
+
+  // Separate final ingredients and sub-recipes
+  let finalIngredients: string[] = []
+  const subRecipesData: Array<{name: string, lines: string[]}> = []
+
+  for (const section of sections) {
+    if (section.name.toLowerCase().includes('cheesecake') || section.name === 'Main Ingredients') {
+      finalIngredients = finalIngredients.concat(section.lines)
+    } else {
+      subRecipesData.push(section)
+    }
+  }
+
+  // Process final ingredients
+  for (const line of finalIngredients) {
     
     // Check for unbalanced parentheses
     const openParens = (line.match(/\(/g) || []).length
@@ -873,6 +940,82 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
 
       finalDishIngredients.push(ingredientData)
     }
+  }
+
+  // Process sub-recipes
+  for (const subData of subRecipesData) {
+    const subRecipeIngredients = subData.lines
+      .map(ingredientLine => {
+        const parsed = parseIngredientLine(ingredientLine)
+        if (!parsed) {
+          errors.push(`❌ Error: Failed to parse sub-recipe ingredient in "${subData.name}": "${ingredientLine}"`)
+          return null
+        }
+        
+        // Check if this sub-recipe ingredient needs specification
+        const ingredientCheck = isIngredientUnit(parsed.unit)
+        const ingredientData: any = {
+          ...parsed,
+          originalLine: ingredientLine
+        }
+
+        // If ingredient needs specification, add the metadata
+        if (ingredientCheck.needsSpec) {
+          const hasVarietyInName = ingredientCheck.varieties?.some(variety => 
+            parsed.ingredient.toLowerCase().includes(variety.toLowerCase())
+          )
+          
+          if (!hasVarietyInName) {
+            ingredientData.needsSpecification = true
+            ingredientData.baseIngredient = ingredientCheck.baseIngredient
+            ingredientData.specificationPrompt = `What type/size of ${ingredientCheck.baseIngredient}?`
+            ingredientData.specificationOptions = ingredientCheck.varieties
+          }
+        }
+
+        return ingredientData
+      })
+      .filter(Boolean) as ParsedSubRecipe['ingredients']
+
+    // Validate that all sub-recipe ingredients have explicit quantities
+    const missingQuantities: string[] = []
+    subRecipeIngredients.forEach(ing => {
+      // Check if the original line had a number in it
+      const hasExplicitQuantity = /^\s*[\d\/\.]/.test(ing.originalLine)
+      if (!hasExplicitQuantity) {
+        missingQuantities.push(ing.ingredient)
+      }
+    })
+
+    if (missingQuantities.length > 0) {
+      errors.push(`❌ Error: Sub-recipe "${subData.name}" has ingredients without quantities: ${missingQuantities.join(', ')}. Please add quantities for all sub-recipe ingredients (e.g., "1 cup", "2 tablespoons").`)
+      continue // Skip this sub-recipe
+    }
+
+    const subRecipe: ParsedSubRecipe = {
+      name: subData.name,
+      ingredients: subRecipeIngredients,
+      quantityInFinalDish: 1, // Assume 1 serving of the sub-recipe
+      unitInFinalDish: 'serving'
+    }
+
+    // Check for duplicate sub-recipe names
+    const existingSubRecipe = subRecipes.find(sr => sr.name.toLowerCase() === subRecipe.name.toLowerCase())
+    if (existingSubRecipe) {
+      errors.push(`⚠️ Warning: Duplicate sub-recipe name "${subRecipe.name}". Each sub-recipe will be created separately. Consider using different names if they're different recipes.`)
+    }
+
+    subRecipes.push(subRecipe)
+
+    // Add reference to sub-recipe in final dish
+    finalDishIngredients.push({
+      quantity: subRecipe.quantityInFinalDish,
+      unit: subRecipe.unitInFinalDish,
+      ingredient: subRecipe.name,
+      originalLine: subData.name, // or something
+      isSubRecipe: true,
+      subRecipeData: subRecipe
+    })
   }
 
   return {
