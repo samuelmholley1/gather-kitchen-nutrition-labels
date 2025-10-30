@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  // Force redeploy for favicon fix
   title: 'Gather Kitchen - Nutrition Label Calculator',
   description: 'Create FDA-compliant nutrition labels for your recipes. Search 400,000+ USDA foods, build sub-recipes, and generate professional nutrition facts labels.',
   manifest: '/site.webmanifest',
