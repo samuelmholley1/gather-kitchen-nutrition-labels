@@ -2,6 +2,8 @@
 
 A professional Next.js web application for calculating accurate nutrition facts and generating FDA-compliant nutrition labels for recipes. Features smart recipe parsing, USDA FoodData Central integration, sub-recipe support, and exportable nutrition label images (PNG/JPEG).
 
+<!-- Deploy trigger: 2025-10-29 -->
+
 ## 🌟 Features
 
 ### Smart Recipe Importer
