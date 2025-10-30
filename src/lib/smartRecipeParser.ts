@@ -514,7 +514,19 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     /^(ingredients?):?$/i, // Just the word "Ingredients" by itself
     /^(makes?|serves?|servings?|yield):?$/i, // Just the word without number
     /^(wash hands|preheat|heat|bake|cook|stir|mix|combine|pour|add|remove|place|set)/i, // Cooking actions
-    /^(course|prep time|cook time|total time|servings|calories|author|print|pin|rate|youtube|recommended equipment|equipment):?$/i,
+    /^course:/i,
+    /^prep time:/i,
+    /^cook time:/i,
+    /^total time:/i,
+    /^servings:/i,
+    /^calories:/i,
+    /^author:/i,
+    /^print/i,
+    /^pin/i,
+    /^rate/i,
+    /^youtube/i,
+    /^recommended equipment/i,
+    /^equipment/i,
     /^\d+\.\d+\s+from\s+\d+\s+votes?$/i,
     /^how to/i,
     /^oh, and/i,
@@ -547,6 +559,15 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
   // e.g., "12 Servings", "8 servings"
   if (/^\d+\s+(servings?|serves?|portions?|people)$/i.test(trimmed)) {
     return true
+  }
+  
+  // Skip lines with multiple ingredients separated by commas (likely instruction text)
+  const commaParts = trimmed.split(',')
+  if (commaParts.length > 1) {
+    const partsWithNumbers = commaParts.filter(part => /\d/.test(part.trim()))
+    if (partsWithNumbers.length > 1) {
+      return true
+    }
   }
   
   // Skip lines that look like organization names (multiple capitalized words without numbers)
