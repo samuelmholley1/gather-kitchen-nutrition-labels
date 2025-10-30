@@ -570,6 +570,11 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     }
   }
   
+  // Skip short lines without numbers (likely not ingredients)
+  if (!/\d/.test(trimmed) && wordCount <= 3) {
+    return true
+  }
+  
   // Skip lines that look like organization names (multiple capitalized words without numbers)
   // e.g., "Ohio State University Cooperative Extension"
   const hasNoNumbers = !/\d/.test(line) // Original case-sensitive check
