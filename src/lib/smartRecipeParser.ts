@@ -536,6 +536,7 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     /^9.*pan/i,
     /rating/i,
     /add to (cookbook|favorites)/i,
+    /[¹²³⁴⁵⁶⁷⁸⁹⁰]/, // Skip lines with superscript numbers (likely ratings or metadata)
   ]
   
   for (const pattern of skipPatterns) {
@@ -615,11 +616,18 @@ function isSectionHeader(line: string): boolean {
   // Skip if it's already skipped
   if (shouldSkipLine(trimmed, '', [], 0)) return false
   
-  // If has quantity, not section
+  // If has regular digits (not superscript), not section
   if (/\d/.test(trimmed)) return false
   
-  // If ends with :, or has superscript numbers, or is title case
-  if (trimmed.endsWith(':') || /\d/.test(trimmed) || /^[A-Z][a-z\s]+[¹]*$/.test(trimmed)) return true
+  // If ends with :, has superscript numbers, or is title case/all caps and short
+  const hasSuperscript = /[¹²³⁴⁵⁶⁷⁸⁹⁰]/.test(trimmed)
+  const isTitleCase = /^[A-Z][a-z\s]*$/.test(trimmed)
+  const isAllCaps = /^[A-Z\s]+$/.test(trimmed) && trimmed.length > 2
+  const isShortEnough = trimmed.length < 50
+  
+  if (trimmed.endsWith(':') || hasSuperscript || (isTitleCase && isShortEnough) || (isAllCaps && isShortEnough)) {
+    return true
+  }
   
   return false
 }
