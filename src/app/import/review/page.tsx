@@ -1464,12 +1464,43 @@ export default function ReviewPage() {
         {/* Sub-Recipes */}
         {subRecipes.map((sub, subIdx) => (
           <div key={subIdx} className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-blue-900 mb-1 truncate" title={sub.name}>
-              Sub-Recipe: {sub.name}
-            </h3>
-            <p className="text-sm text-blue-700 mb-4">
-              Uses {sub.quantityInFinalDish} {sub.unitInFinalDish} in final dish
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 mb-1 truncate" title={sub.name}>
+                  Sub-Recipe: {sub.name}
+                </h3>
+                <p className="text-sm text-blue-700">
+                  Uses {sub.quantityInFinalDish} {sub.unitInFinalDish} in final dish • Auto-detected from recipe sections
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setModal({
+                    isOpen: true,
+                    type: 'confirm',
+                    title: 'Ungroup Sub-Recipe',
+                    message: `Move all ingredients from "${sub.name}" into the main recipe?\n\nThis will combine the sub-recipe ingredients with the final dish ingredients. You can do this if you prefer not to have separate sub-recipes.`,
+                    onConfirm: () => {
+                      // Scale ingredients by the quantity used in final dish
+                      const scaledIngredients = sub.ingredients.map(ing => ({
+                        ...ing,
+                        quantity: ing.quantity * sub.quantityInFinalDish,
+                        confirmed: false // Reset confirmation since quantities changed
+                      }))
+                      
+                      setFinalDishIngredients([...finalDishIngredients, ...scaledIngredients])
+                      setSubRecipes(subRecipes.filter((_, idx) => idx !== subIdx))
+                      
+                      setToast({ message: `Ungrouped "${sub.name}" - ingredients moved to main recipe`, type: 'info' })
+                    }
+                  })
+                }}
+                className="px-3 py-2 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg text-sm font-medium transition-colors border border-orange-300"
+                title="Move sub-recipe ingredients into main recipe"
+              >
+                🔀 Ungroup
+              </button>
+            </div>
 
             <div className="space-y-3">
               {sub.ingredients.map((ing, ingIdx) => (
