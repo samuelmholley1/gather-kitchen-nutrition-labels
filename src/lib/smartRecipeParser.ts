@@ -527,6 +527,7 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     /^youtube/i,
     /^recommended equipment/i,
     /^equipment/i,
+    /^cream cheese/i, // Skip lines starting with "cream cheese" that aren't proper ingredients
     /^\d+\.\d+\s+from\s+\d+\s+votes?$/i,
     /^how to/i,
     /^oh, and/i,
