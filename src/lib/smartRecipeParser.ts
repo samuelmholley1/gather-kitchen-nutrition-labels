@@ -572,7 +572,7 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
   }
   
   // Skip short lines without numbers (likely not ingredients)
-  if (!/\d/.test(trimmed) && wordCount <= 3) {
+  if (!/\d/.test(trimmed) && wordCount <= 3 && !/^[A-Z][a-z\s]*[¹]*$/.test(trimmed)) {
     return true
   }
   
