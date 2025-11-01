@@ -66,6 +66,23 @@ function parseIngredientLine(line: string): {
   let trimmed = line.trim()
   if (!trimmed) return null
   
+  // ENTERPRISE VALIDATION 1: Reject questions
+  if (trimmed.endsWith('?')) {
+    return null
+  }
+  
+  // ENTERPRISE VALIDATION 2: Reject full sentences (6+ words ending in punctuation)
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount >= 6 && /[.!?]$/.test(trimmed)) {
+    return null
+  }
+  
+  // ENTERPRISE VALIDATION 3: Reject business/professional jargon
+  const businessTerms = /\b(specialist|banking|support|practice|services|account|customer|client|professional|consultation|customize|solution|platform|subscribe|newsletter|privacy|terms|login|sign in)\b/i
+  if (businessTerms.test(trimmed)) {
+    return null
+  }
+  
   // Remove common bullet points and list markers from the beginning
   // First remove U+F0B7 (Private Use Area bullet used by Apple/Microsoft) and other PUA chars
   trimmed = trimmed.replace(/^[\uE000-\uF8FF]+\s*/, '') // Private Use Area bullets
@@ -135,6 +152,15 @@ function parseIngredientLine(line: string): {
         }, 0)
       }
       
+      // ENTERPRISE VALIDATION 4: Validate ingredient has food context
+      const ingredientLower = ingredient.toLowerCase()
+      const hasFoodContext = /\b(flour|sugar|salt|pepper|oil|butter|milk|cream|egg|cheese|meat|chicken|beef|pork|fish|vegetable|fruit|spice|herb|sauce|stock|broth|water|juice|tomato|onion|garlic|carrot|celery|potato|rice|pasta|bean|lentil|nut|seed|vanilla|chocolate|cinnamon|basil|oregano|thyme|parsley|cilantro|dill|rosemary|cumin|paprika|turmeric|ginger|honey|syrup|vinegar|wine|beer|soy|tofu|corn|wheat|oat|barley|rye|quinoa|lettuce|spinach|kale|cabbage|broccoli|cauliflower|squash|zucchini|cucumber|pickle|olive|avocado|apple|banana|orange|lemon|lime|berry|grape|melon|peach|pear|plum|cherry|strawberry|blueberry|raspberry|blackberry|cranberry|mango|pineapple|coconut|walnut|almond|pecan|cashew|peanut|pistachio|hazelnut|macadamia)\b/i.test(ingredientLower)
+      
+      // If no food context and ingredient is multiple words, likely not an ingredient
+      if (!hasFoodContext && ingredient.split(/\s+/).length >= 3) {
+        return null
+      }
+      
       return {
         quantity: quantity || 1,
         unit: 'item',
@@ -142,12 +168,8 @@ function parseIngredientLine(line: string): {
       }
     }
     
-    // No quantity or unit, just ingredient name
-    return {
-      quantity: 1,
-      unit: 'item',
-      ingredient: trimmed
-    }
+    // No quantity or unit, just ingredient name - likely not a valid ingredient
+    return null
   }
 
   const [, quantityStr, unit, ingredient] = match
@@ -180,6 +202,17 @@ function parseIngredientLine(line: string): {
 
   // Limit ingredient name length
   const ingredientName = ingredient.trim().slice(0, 255)
+  
+  // ENTERPRISE VALIDATION 5: Final food context check
+  const ingredientLower = ingredientName.toLowerCase()
+  const unitLower = unit.toLowerCase()
+  const hasFoodContext = /\b(flour|sugar|salt|pepper|oil|butter|milk|cream|egg|cheese|meat|chicken|beef|pork|fish|vegetable|fruit|spice|herb|sauce|stock|broth|water|juice|tomato|onion|garlic|carrot|celery|potato|rice|pasta|bean|lentil|nut|seed|vanilla|chocolate|cinnamon|basil|oregano|thyme|parsley|cilantro|dill|rosemary|cumin|paprika|turmeric|ginger|honey|syrup|vinegar|wine|beer|soy|tofu|corn|wheat|oat|barley|rye|quinoa|lettuce|spinach|kale|cabbage|broccoli|cauliflower|squash|zucchini|cucumber|pickle|olive|avocado|apple|banana|orange|lemon|lime|berry|grape|melon|peach|pear|plum|cherry|strawberry|blueberry|raspberry|blackberry|cranberry|mango|pineapple|coconut|walnut|almond|pecan|cashew|peanut|pistachio|hazelnut|macadamia|graham|cracker|tortilla|bread|biscuit|cookie|cake|pie|pastry|dough|batter)\b/i.test(ingredientLower)
+  const hasFoodUnit = /^(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|clove|pinch|dash|slice|piece|can|jar|bottle|package|pkg|box)s?$/i.test(unitLower)
+  
+  // If no food context and not a food unit, likely not an ingredient
+  if (!hasFoodContext && !hasFoodUnit && ingredientName.split(/\s+/).length >= 3) {
+    return null
+  }
 
   return {
     quantity,
@@ -492,7 +525,7 @@ function sanitizeRecipeText(text: string): string {
 
 /**
  * Check if a line should be skipped (not an ingredient)
- * Filters out: directions, source info, ratings, metadata, etc.
+ * Filters out: directions, source info, ratings, metadata, website UI elements, ads, etc.
  */
 function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[], currentIndex?: number): boolean {
   const trimmed = line.trim().toLowerCase()
@@ -503,6 +536,52 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
   // Skip if this line is identical to the recipe title (duplicate)
   if (recipeTitle && trimmed === recipeTitle.toLowerCase()) {
     return true
+  }
+  
+  // ENTERPRISE FILTER 1: Questions (UI elements, prompts)
+  // e.g., "Ready for a specialist?", "Want to save this recipe?", "Need help?"
+  if (trimmed.endsWith('?')) {
+    return true
+  }
+  
+  // ENTERPRISE FILTER 2: Full sentences with punctuation (website content, descriptions)
+  // Lowered threshold from 8 to 6 words to catch more website content
+  // e.g., "Customized banking and support for your practice."
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount >= 6 && (trimmed.endsWith('.') || trimmed.endsWith('!') || trimmed.endsWith('?'))) {
+    return true
+  }
+  
+  // ENTERPRISE FILTER 3: Business/website jargon (non-food professional terms)
+  const businessJargonPatterns = [
+    /\b(specialist|banking|support|practice|services|account|customer|client|professional|consultation)\b/i,
+    /\b(customize|personalize|optimize|maximize|leverage|implement|facilitate)\b/i,
+    /\b(solution|platform|dashboard|portal|interface|application|system)\b/i,
+    /\b(subscribe|newsletter|email|notification|alert|update)\b/i,
+    /\b(privacy|terms|conditions|policy|disclaimer|copyright)\b/i,
+    /\b(login|sign in|register|create account|forgot password)\b/i,
+  ]
+  
+  for (const pattern of businessJargonPatterns) {
+    if (pattern.test(trimmed)) {
+      return true
+    }
+  }
+  
+  // ENTERPRISE FILTER 4: Website UI patterns (navigation, actions, calls-to-action)
+  const uiPatterns = [
+    /^(click|tap|press|swipe|scroll|navigate|go to|visit|check out|learn more|read more|see more|view more)/i,
+    /^(save|share|download|upload|export|import|copy|paste)/i,
+    /^(like|favorite|bookmark|follow|subscribe)/i,
+    /^(search|find|filter|sort|browse|explore)/i,
+    /^(get started|start now|try now|try free|sign up|join now)/i,
+    /\b(ad|advertisement|sponsored|promoted|partner content)\b/i,
+  ]
+  
+  for (const pattern of uiPatterns) {
+    if (pattern.test(trimmed)) {
+      return true
+    }
   }
   
   // Section headers and metadata keywords
@@ -537,6 +616,11 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     /rating/i,
     /add to (cookbook|favorites)/i,
     /[¹²³⁴⁵⁶⁷⁸⁹⁰]/, // Skip lines with superscript numbers (likely ratings or metadata)
+    /^cuisine:/i,
+    /^category:/i,
+    /^difficulty:/i,
+    /^best/i, // "BEST" in titles
+    /^the best/i,
   ]
   
   for (const pattern of skipPatterns) {
@@ -550,16 +634,16 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     return true
   }
   
-  // Skip lines that look like full sentences (directions)
-  // Heuristic: If it has more than 8 words and ends with period, likely a direction
-  const wordCount = trimmed.split(/\s+/).length
-  if (wordCount > 8 && (trimmed.endsWith('.') || trimmed.endsWith('!'))) {
-    return true
-  }
-  
   // Skip lines that are just a number followed by "Servings" or similar
   // e.g., "12 Servings", "8 servings"
   if (/^\d+\s+(servings?|serves?|portions?|people)$/i.test(trimmed)) {
+    return true
+  }
+  
+  // ENTERPRISE FILTER 5: Lines with multiple sentences (website descriptions)
+  // Check for multiple punctuation marks indicating multiple sentences
+  const sentenceEndings = (trimmed.match(/[.!?]/g) || []).length
+  if (sentenceEndings >= 2) {
     return true
   }
   
@@ -585,6 +669,19 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
   
   if (looksLikeOrganization) {
     return true
+  }
+  
+  // ENTERPRISE FILTER 6: Lines that have no food context
+  // If a line doesn't contain common food-related words, units, or patterns, it's likely not an ingredient
+  // Only apply this check if the line has more than 4 words (to avoid false positives on valid ingredients)
+  if (wordCount > 4) {
+    const hasFoodWords = /\b(flour|sugar|salt|pepper|oil|butter|milk|cream|egg|cheese|meat|chicken|beef|pork|fish|vegetable|fruit|spice|herb|sauce|stock|broth|water|juice|wine|vinegar|baking|cooking|fresh|dried|canned|frozen|raw|cooked)\b/i.test(trimmed)
+    const hasFoodUnits = /\b(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|clove|pinch|dash|slice)\b/i.test(trimmed)
+    const hasIngredientPattern = /^\d+[\s\d\/\.]*\s+[a-z]+\s+/i.test(trimmed) // Pattern like "2 cups flour"
+    
+    if (!hasFoodWords && !hasFoodUnits && !hasIngredientPattern) {
+      return true
+    }
   }
   
   // Skip single-word lines that don't have numbers (likely section headers)
