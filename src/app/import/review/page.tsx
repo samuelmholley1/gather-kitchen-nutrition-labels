@@ -11,7 +11,7 @@ import IngredientSearch from '@/components/IngredientSearch'
 import IngredientSpecificationModal from '@/components/IngredientSpecificationModal'
 import BatchIngredientSpecificationModal from '@/components/BatchIngredientSpecificationModal'
 import ParseIssuesPanel from '@/components/ParseIssuesPanel'
-import { SmartParseResult } from '@/lib/smartRecipeParser'
+import { SmartParseResult, formatQuantityAsFraction } from '@/lib/smartRecipeParser'
 import { USDAFood } from '@/types/recipe'
 import { cleanIngredientForUSDASearch } from '@/lib/smartRecipeParser'
 
@@ -1383,7 +1383,7 @@ export default function ReviewPage() {
               <div key={idx} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">
-                    {ing.quantity} {ing.unit} {ing.ingredient}
+                    {formatQuantityAsFraction(ing.quantity)} {ing.unit} {ing.ingredient}
                   </div>
                   {autoSearching ? (
                     <div className="text-sm text-gray-500 mt-1 animate-pulse">
@@ -1507,7 +1507,7 @@ export default function ReviewPage() {
                 <div key={ingIdx} className="flex items-center gap-4 p-3 bg-white rounded-lg">
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">
-                      {ing.quantity} {ing.unit} {ing.ingredient}
+                      {formatQuantityAsFraction(ing.quantity)} {ing.unit} {ing.ingredient}
                     </div>
                     {autoSearching ? (
                       <div className="text-sm text-gray-500 mt-1 animate-pulse">

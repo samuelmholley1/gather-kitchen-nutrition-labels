@@ -16,6 +16,85 @@
 
 import { isIngredientUnit } from './ingredientTaxonomy'
 
+/**
+ * Format a decimal quantity as a fraction for display
+ * e.g., 0.6666666666666666 → "⅔", 0.5 → "½", 1.5 → "1½"
+ */
+export function formatQuantityAsFraction(quantity: number): string {
+  // Handle whole numbers
+  if (quantity % 1 === 0) {
+    return quantity.toString()
+  }
+
+  // Handle mixed numbers (e.g., 1.5 → 1½)
+  const wholePart = Math.floor(quantity)
+  const decimalPart = quantity - wholePart
+
+  // Common fractions with tolerance for floating point precision
+  const commonFractions: Array<[number, string]> = [
+    [1/2, '½'],
+    [1/3, '⅓'],
+    [2/3, '⅔'],
+    [1/4, '¼'],
+    [3/4, '¾'],
+    [1/5, '⅕'],
+    [2/5, '⅖'],
+    [3/5, '⅗'],
+    [4/5, '⅘'],
+    [1/6, '⅙'],
+    [5/6, '⅚'],
+    [1/8, '⅛'],
+    [3/8, '⅜'],
+    [5/8, '⅝'],
+    [7/8, '⅞'],
+    [1/9, '⅑'],
+    [1/10, '⅒']
+  ]
+
+  // Find the closest common fraction (within 0.01 tolerance)
+  for (const [decimal, fraction] of commonFractions) {
+    if (Math.abs(decimalPart - decimal) < 0.01) {
+      if (wholePart > 0) {
+        return `${wholePart}${fraction}`
+      } else {
+        return fraction
+      }
+    }
+  }
+
+  // If no common fraction matches, try to find a simple fraction
+  // Use continued fraction approximation for other decimals
+  const tolerance = 0.01
+  let bestNumerator = 1
+  let bestDenominator = 1
+  let bestError = Math.abs(decimalPart - 1)
+
+  // Try denominators from 2 to 16
+  for (let denominator = 2; denominator <= 16; denominator++) {
+    const numerator = Math.round(decimalPart * denominator)
+    const error = Math.abs(decimalPart - numerator / denominator)
+    
+    if (error < bestError && error < tolerance) {
+      bestNumerator = numerator
+      bestDenominator = denominator
+      bestError = error
+    }
+  }
+
+  // If we found a reasonable approximation
+  if (bestError < tolerance && bestDenominator <= 16) {
+    const fraction = `${bestNumerator}/${bestDenominator}`
+    if (wholePart > 0) {
+      return `${wholePart} ${fraction}`
+    } else {
+      return fraction
+    }
+  }
+
+  // Fallback: round to 2 decimal places if no good fraction found
+  return quantity.toFixed(2).replace(/\.?0+$/, '')
+}
+
 export interface ParsedSubRecipe {
   name: string
   ingredients: {
