@@ -16,6 +16,85 @@
 
 import { isIngredientUnit } from './ingredientTaxonomy'
 
+/**
+ * Format a decimal quantity as a fraction for display
+ * e.g., 0.6666666666666666 → "⅔", 0.5 → "½", 1.5 → "1½"
+ */
+export function formatQuantityAsFraction(quantity: number): string {
+  // Handle whole numbers
+  if (quantity % 1 === 0) {
+    return quantity.toString()
+  }
+
+  // Handle mixed numbers (e.g., 1.5 → 1½)
+  const wholePart = Math.floor(quantity)
+  const decimalPart = quantity - wholePart
+
+  // Common fractions with tolerance for floating point precision
+  const commonFractions: Array<[number, string]> = [
+    [1/2, '½'],
+    [1/3, '⅓'],
+    [2/3, '⅔'],
+    [1/4, '¼'],
+    [3/4, '¾'],
+    [1/5, '⅕'],
+    [2/5, '⅖'],
+    [3/5, '⅗'],
+    [4/5, '⅘'],
+    [1/6, '⅙'],
+    [5/6, '⅚'],
+    [1/8, '⅛'],
+    [3/8, '⅜'],
+    [5/8, '⅝'],
+    [7/8, '⅞'],
+    [1/9, '⅑'],
+    [1/10, '⅒']
+  ]
+
+  // Find the closest common fraction (within 0.01 tolerance)
+  for (const [decimal, fraction] of commonFractions) {
+    if (Math.abs(decimalPart - decimal) < 0.01) {
+      if (wholePart > 0) {
+        return `${wholePart}${fraction}`
+      } else {
+        return fraction
+      }
+    }
+  }
+
+  // If no common fraction matches, try to find a simple fraction
+  // Use continued fraction approximation for other decimals
+  const tolerance = 0.01
+  let bestNumerator = 1
+  let bestDenominator = 1
+  let bestError = Math.abs(decimalPart - 1)
+
+  // Try denominators from 2 to 16
+  for (let denominator = 2; denominator <= 16; denominator++) {
+    const numerator = Math.round(decimalPart * denominator)
+    const error = Math.abs(decimalPart - numerator / denominator)
+    
+    if (error < bestError && error < tolerance) {
+      bestNumerator = numerator
+      bestDenominator = denominator
+      bestError = error
+    }
+  }
+
+  // If we found a reasonable approximation
+  if (bestError < tolerance && bestDenominator <= 16) {
+    const fraction = `${bestNumerator}/${bestDenominator}`
+    if (wholePart > 0) {
+      return `${wholePart} ${fraction}`
+    } else {
+      return fraction
+    }
+  }
+
+  // Fallback: round to 2 decimal places if no good fraction found
+  return quantity.toFixed(2).replace(/\.?0+$/, '')
+}
+
 export interface ParsedSubRecipe {
   name: string
   ingredients: {
@@ -66,11 +145,34 @@ function parseIngredientLine(line: string): {
   let trimmed = line.trim()
   if (!trimmed) return null
   
+  // ENTERPRISE VALIDATION 1: Reject questions
+  if (trimmed.endsWith('?')) {
+    return null
+  }
+  
+  // ENTERPRISE VALIDATION 2: Reject full sentences (6+ words ending in punctuation)
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount >= 6 && /[.!?]$/.test(trimmed)) {
+    return null
+  }
+  
+  // ENTERPRISE VALIDATION 3: Reject business/professional jargon
+  const businessTerms = /\b(specialist|banking|support|practice|services|account|customer|client|professional|consultation|customize|solution|platform|subscribe|newsletter|privacy|terms|login|sign in)\b/i
+  if (businessTerms.test(trimmed)) {
+    return null
+  }
+  
   // Remove common bullet points and list markers from the beginning
   // First remove U+F0B7 (Private Use Area bullet used by Apple/Microsoft) and other PUA chars
   trimmed = trimmed.replace(/^[\uE000-\uF8FF]+\s*/, '') // Private Use Area bullets
   trimmed = trimmed.replace(/^[\u2022\u2023\u25E6\u2043\u2219\-\*\+•○●▪▫■□→›»]\s*/, '') // standard bullets
   trimmed = trimmed.replace(/^\d+[\.\)]\s*/, '') // numbered lists like "1. " or "1) "
+  
+  // Remove ▢ bullets
+  trimmed = trimmed.replace(/▢/g, ' ')
+  
+  // Remove leading weight specifications (e.g., "170g ", "910g ")
+  trimmed = trimmed.replace(/^(\d+(?:\.\d+)?)\s*(g|kg|oz|lb)\s+/i, '')
   
   // Aggressively remove ALL leading/trailing whitespace including Unicode spaces
   trimmed = trimmed.replace(/^[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/, '')
@@ -129,6 +231,15 @@ function parseIngredientLine(line: string): {
         }, 0)
       }
       
+      // ENTERPRISE VALIDATION 4: Validate ingredient has food context
+      const ingredientLower = ingredient.toLowerCase()
+      const hasFoodContext = /\b(flour|sugar|salt|pepper|oil|butter|milk|cream|egg|cheese|meat|chicken|beef|pork|fish|vegetable|fruit|spice|herb|sauce|stock|broth|water|juice|tomato|onion|garlic|carrot|celery|potato|rice|pasta|bean|lentil|nut|seed|vanilla|chocolate|cinnamon|basil|oregano|thyme|parsley|cilantro|dill|rosemary|cumin|paprika|turmeric|ginger|honey|syrup|vinegar|wine|beer|soy|tofu|corn|wheat|oat|barley|rye|quinoa|lettuce|spinach|kale|cabbage|broccoli|cauliflower|squash|zucchini|cucumber|pickle|olive|avocado|apple|banana|orange|lemon|lime|berry|grape|melon|peach|pear|plum|cherry|strawberry|blueberry|raspberry|blackberry|cranberry|mango|pineapple|coconut|walnut|almond|pecan|cashew|peanut|pistachio|hazelnut|macadamia)\b/i.test(ingredientLower)
+      
+      // If no food context and ingredient is multiple words, likely not an ingredient
+      if (!hasFoodContext && ingredient.split(/\s+/).length >= 3) {
+        return null
+      }
+      
       return {
         quantity: quantity || 1,
         unit: 'item',
@@ -136,12 +247,8 @@ function parseIngredientLine(line: string): {
       }
     }
     
-    // No quantity or unit, just ingredient name
-    return {
-      quantity: 1,
-      unit: 'item',
-      ingredient: trimmed
-    }
+    // No quantity or unit, just ingredient name - likely not a valid ingredient
+    return null
   }
 
   const [, quantityStr, unit, ingredient] = match
@@ -174,6 +281,17 @@ function parseIngredientLine(line: string): {
 
   // Limit ingredient name length
   const ingredientName = ingredient.trim().slice(0, 255)
+  
+  // ENTERPRISE VALIDATION 5: Final food context check
+  const ingredientLower = ingredientName.toLowerCase()
+  const unitLower = unit.toLowerCase()
+  const hasFoodContext = /\b(flour|sugar|salt|pepper|oil|butter|milk|cream|egg|cheese|meat|chicken|beef|pork|fish|vegetable|fruit|spice|herb|sauce|stock|broth|water|juice|tomato|onion|garlic|carrot|celery|potato|rice|pasta|bean|lentil|nut|seed|vanilla|chocolate|cinnamon|basil|oregano|thyme|parsley|cilantro|dill|rosemary|cumin|paprika|turmeric|ginger|honey|syrup|vinegar|wine|beer|soy|tofu|corn|wheat|oat|barley|rye|quinoa|lettuce|spinach|kale|cabbage|broccoli|cauliflower|squash|zucchini|cucumber|pickle|olive|avocado|apple|banana|orange|lemon|lime|berry|grape|melon|peach|pear|plum|cherry|strawberry|blueberry|raspberry|blackberry|cranberry|mango|pineapple|coconut|walnut|almond|pecan|cashew|peanut|pistachio|hazelnut|macadamia|graham|cracker|tortilla|bread|biscuit|cookie|cake|pie|pastry|dough|batter)\b/i.test(ingredientLower)
+  const hasFoodUnit = /^(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|clove|pinch|dash|slice|piece|can|jar|bottle|package|pkg|box)s?$/i.test(unitLower)
+  
+  // If no food context and not a food unit, likely not an ingredient
+  if (!hasFoodContext && !hasFoodUnit && ingredientName.split(/\s+/).length >= 3) {
+    return null
+  }
 
   return {
     quantity,
@@ -486,7 +604,7 @@ function sanitizeRecipeText(text: string): string {
 
 /**
  * Check if a line should be skipped (not an ingredient)
- * Filters out: directions, source info, ratings, metadata, etc.
+ * Filters out: directions, source info, ratings, metadata, website UI elements, ads, etc.
  */
 function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[], currentIndex?: number): boolean {
   const trimmed = line.trim().toLowerCase()
@@ -499,6 +617,52 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     return true
   }
   
+  // ENTERPRISE FILTER 1: Questions (UI elements, prompts)
+  // e.g., "Ready for a specialist?", "Want to save this recipe?", "Need help?"
+  if (trimmed.endsWith('?')) {
+    return true
+  }
+  
+  // ENTERPRISE FILTER 2: Full sentences with punctuation (website content, descriptions)
+  // Lowered threshold from 8 to 6 words to catch more website content
+  // e.g., "Customized banking and support for your practice."
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount >= 6 && (trimmed.endsWith('.') || trimmed.endsWith('!') || trimmed.endsWith('?'))) {
+    return true
+  }
+  
+  // ENTERPRISE FILTER 3: Business/website jargon (non-food professional terms)
+  const businessJargonPatterns = [
+    /\b(specialist|banking|support|practice|services|account|customer|client|professional|consultation)\b/i,
+    /\b(customize|personalize|optimize|maximize|leverage|implement|facilitate)\b/i,
+    /\b(solution|platform|dashboard|portal|interface|application|system)\b/i,
+    /\b(subscribe|newsletter|email|notification|alert|update)\b/i,
+    /\b(privacy|terms|conditions|policy|disclaimer|copyright)\b/i,
+    /\b(login|sign in|register|create account|forgot password)\b/i,
+  ]
+  
+  for (const pattern of businessJargonPatterns) {
+    if (pattern.test(trimmed)) {
+      return true
+    }
+  }
+  
+  // ENTERPRISE FILTER 4: Website UI patterns (navigation, actions, calls-to-action)
+  const uiPatterns = [
+    /^(click|tap|press|swipe|scroll|navigate|go to|visit|check out|learn more|read more|see more|view more)/i,
+    /^(save|share|download|upload|export|import|copy|paste)/i,
+    /^(like|favorite|bookmark|follow|subscribe)/i,
+    /^(search|find|filter|sort|browse|explore)/i,
+    /^(get started|start now|try now|try free|sign up|join now)/i,
+    /\b(ad|advertisement|sponsored|promoted|partner content)\b/i,
+  ]
+  
+  for (const pattern of uiPatterns) {
+    if (pattern.test(trimmed)) {
+      return true
+    }
+  }
+  
   // Section headers and metadata keywords
   const skipPatterns = [
     /^(directions?|instructions?|steps?|method|preparation|prep time|cook time|total time):?$/i,
@@ -508,8 +672,34 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     /^(ingredients?):?$/i, // Just the word "Ingredients" by itself
     /^(makes?|serves?|servings?|yield):?$/i, // Just the word without number
     /^(wash hands|preheat|heat|bake|cook|stir|mix|combine|pour|add|remove|place|set)/i, // Cooking actions
+    /^course:/i,
+    /^prep time:/i,
+    /^cook time:/i,
+    /^total time:/i,
+    /^servings:/i,
+    /^calories:/i,
+    /^author:/i,
+    /^print/i,
+    /^pin/i,
+    /^rate/i,
+    /^youtube/i,
+    /^recommended equipment/i,
+    /^equipment/i,
+    /^cream cheese/i, // Skip lines starting with "cream cheese" that aren't proper ingredients
+    /^\d+\.\d+\s+from\s+\d+\s+votes?$/i,
+    /^how to/i,
+    /^oh, and/i,
+    /^cook mode/i,
+    /^prevent your screen/i,
+    /^9.*pan/i,
     /rating/i,
     /add to (cookbook|favorites)/i,
+    /[¹²³⁴⁵⁶⁷⁸⁹⁰]/, // Skip lines with superscript numbers (likely ratings or metadata)
+    /^cuisine:/i,
+    /^category:/i,
+    /^difficulty:/i,
+    /^best/i, // "BEST" in titles
+    /^the best/i,
   ]
   
   for (const pattern of skipPatterns) {
@@ -523,16 +713,30 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     return true
   }
   
-  // Skip lines that look like full sentences (directions)
-  // Heuristic: If it has more than 8 words and ends with period, likely a direction
-  const wordCount = trimmed.split(/\s+/).length
-  if (wordCount > 8 && (trimmed.endsWith('.') || trimmed.endsWith('!'))) {
-    return true
-  }
-  
   // Skip lines that are just a number followed by "Servings" or similar
   // e.g., "12 Servings", "8 servings"
   if (/^\d+\s+(servings?|serves?|portions?|people)$/i.test(trimmed)) {
+    return true
+  }
+  
+  // ENTERPRISE FILTER 5: Lines with multiple sentences (website descriptions)
+  // Check for multiple punctuation marks indicating multiple sentences
+  const sentenceEndings = (trimmed.match(/[.!?]/g) || []).length
+  if (sentenceEndings >= 2) {
+    return true
+  }
+  
+  // Skip lines with multiple ingredients separated by commas (likely instruction text)
+  const commaParts = trimmed.split(',')
+  if (commaParts.length > 1) {
+    const partsWithNumbers = commaParts.filter(part => /\d/.test(part.trim()))
+    if (partsWithNumbers.length > 1) {
+      return true
+    }
+  }
+  
+  // Skip short lines without numbers (likely not ingredients)
+  if (!/\d/.test(trimmed) && wordCount <= 3 && !/^[A-Z][a-z\s]*[¹]*$/.test(trimmed)) {
     return true
   }
   
@@ -544,6 +748,19 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
   
   if (looksLikeOrganization) {
     return true
+  }
+  
+  // ENTERPRISE FILTER 6: Lines that have no food context
+  // If a line doesn't contain common food-related words, units, or patterns, it's likely not an ingredient
+  // Only apply this check if the line has more than 4 words (to avoid false positives on valid ingredients)
+  if (wordCount > 4) {
+    const hasFoodWords = /\b(flour|sugar|salt|pepper|oil|butter|milk|cream|egg|cheese|meat|chicken|beef|pork|fish|vegetable|fruit|spice|herb|sauce|stock|broth|water|juice|wine|vinegar|baking|cooking|fresh|dried|canned|frozen|raw|cooked)\b/i.test(trimmed)
+    const hasFoodUnits = /\b(cup|tbsp|tsp|tablespoon|teaspoon|oz|ounce|pound|lb|gram|g|kg|ml|liter|l|clove|pinch|dash|slice)\b/i.test(trimmed)
+    const hasIngredientPattern = /^\d+[\s\d\/\.]*\s+[a-z]+\s+/i.test(trimmed) // Pattern like "2 cups flour"
+    
+    if (!hasFoodWords && !hasFoodUnits && !hasIngredientPattern) {
+      return true
+    }
   }
   
   // Skip single-word lines that don't have numbers (likely section headers)
@@ -560,6 +777,32 @@ function shouldSkipLine(line: string, recipeTitle?: string, allLines?: string[],
     if (/^(source|from|adapted from|recipe (by|from)|courtesy of):?$/i.test(prevLine)) {
       return true
     }
+  }
+  
+  return false
+}
+
+/**
+ * Check if a line is a section header for sub-recipes
+ */
+function isSectionHeader(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  
+  // Skip if it's already skipped
+  if (shouldSkipLine(trimmed, '', [], 0)) return false
+  
+  // If has regular digits (not superscript), not section
+  if (/\d/.test(trimmed)) return false
+  
+  // If ends with :, has superscript numbers, or is title case/all caps and short
+  const hasSuperscript = /[¹²³⁴⁵⁶⁷⁸⁹⁰]/.test(trimmed)
+  const isTitleCase = /^[A-Z][a-z\s]*$/.test(trimmed)
+  const isAllCaps = /^[A-Z\s]+$/.test(trimmed) && trimmed.length > 2
+  const isShortEnough = trimmed.length < 50
+  
+  if (trimmed.endsWith(':') || hasSuperscript || (isTitleCase && isShortEnough) || (isAllCaps && isShortEnough)) {
+    return true
   }
   
   return false
@@ -677,9 +920,44 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
   // First line is the recipe name
   const finalDishName = filteredLines[0]
   
-  // Process remaining lines as ingredients
+  // Group lines into sections
+  let sections: Array<{name: string, lines: string[]}> = []
+  let currentSection: {name: string, lines: string[]} | null = null
+
   for (let i = 1; i < filteredLines.length; i++) {
     const line = filteredLines[i]
+    
+    if (isSectionHeader(line)) {
+      if (currentSection) {
+        sections.push(currentSection)
+      }
+      currentSection = {name: line, lines: []}
+    } else {
+      if (currentSection) {
+        currentSection.lines.push(line)
+      } else {
+        // If no section yet, start a default section
+        currentSection = {name: 'Main Ingredients', lines: [line]}
+      }
+    }
+  }
+
+  if (currentSection) sections.push(currentSection)
+
+  // Separate final ingredients and sub-recipes
+  let finalIngredients: string[] = []
+  const subRecipesData: Array<{name: string, lines: string[]}> = []
+
+  for (const section of sections) {
+    if (section.name.toLowerCase().includes('cheesecake') || section.name === 'Main Ingredients') {
+      finalIngredients = finalIngredients.concat(section.lines)
+    } else {
+      subRecipesData.push(section)
+    }
+  }
+
+  // Process final ingredients
+  for (const line of finalIngredients) {
     
     // Check for unbalanced parentheses
     const openParens = (line.match(/\(/g) || []).length
@@ -873,6 +1151,82 @@ export function parseSmartRecipe(recipeText: string): SmartParseResult {
 
       finalDishIngredients.push(ingredientData)
     }
+  }
+
+  // Process sub-recipes
+  for (const subData of subRecipesData) {
+    const subRecipeIngredients = subData.lines
+      .map(ingredientLine => {
+        const parsed = parseIngredientLine(ingredientLine)
+        if (!parsed) {
+          errors.push(`❌ Error: Failed to parse sub-recipe ingredient in "${subData.name}": "${ingredientLine}"`)
+          return null
+        }
+        
+        // Check if this sub-recipe ingredient needs specification
+        const ingredientCheck = isIngredientUnit(parsed.unit)
+        const ingredientData: any = {
+          ...parsed,
+          originalLine: ingredientLine
+        }
+
+        // If ingredient needs specification, add the metadata
+        if (ingredientCheck.needsSpec) {
+          const hasVarietyInName = ingredientCheck.varieties?.some(variety => 
+            parsed.ingredient.toLowerCase().includes(variety.toLowerCase())
+          )
+          
+          if (!hasVarietyInName) {
+            ingredientData.needsSpecification = true
+            ingredientData.baseIngredient = ingredientCheck.baseIngredient
+            ingredientData.specificationPrompt = `What type/size of ${ingredientCheck.baseIngredient}?`
+            ingredientData.specificationOptions = ingredientCheck.varieties
+          }
+        }
+
+        return ingredientData
+      })
+      .filter(Boolean) as ParsedSubRecipe['ingredients']
+
+    // Validate that all sub-recipe ingredients have explicit quantities
+    const missingQuantities: string[] = []
+    subRecipeIngredients.forEach(ing => {
+      // Check if the original line had a number in it
+      const hasExplicitQuantity = /^\s*[\d\/\.]/.test(ing.originalLine)
+      if (!hasExplicitQuantity) {
+        missingQuantities.push(ing.ingredient)
+      }
+    })
+
+    if (missingQuantities.length > 0) {
+      errors.push(`❌ Error: Sub-recipe "${subData.name}" has ingredients without quantities: ${missingQuantities.join(', ')}. Please add quantities for all sub-recipe ingredients (e.g., "1 cup", "2 tablespoons").`)
+      continue // Skip this sub-recipe
+    }
+
+    const subRecipe: ParsedSubRecipe = {
+      name: subData.name,
+      ingredients: subRecipeIngredients,
+      quantityInFinalDish: 1, // Assume 1 serving of the sub-recipe
+      unitInFinalDish: 'serving'
+    }
+
+    // Check for duplicate sub-recipe names
+    const existingSubRecipe = subRecipes.find(sr => sr.name.toLowerCase() === subRecipe.name.toLowerCase())
+    if (existingSubRecipe) {
+      errors.push(`⚠️ Warning: Duplicate sub-recipe name "${subRecipe.name}". Each sub-recipe will be created separately. Consider using different names if they're different recipes.`)
+    }
+
+    subRecipes.push(subRecipe)
+
+    // Add reference to sub-recipe in final dish
+    finalDishIngredients.push({
+      quantity: subRecipe.quantityInFinalDish,
+      unit: subRecipe.unitInFinalDish,
+      ingredient: subRecipe.name,
+      originalLine: subData.name, // or something
+      isSubRecipe: true,
+      subRecipeData: subRecipe
+    })
   }
 
   return {
